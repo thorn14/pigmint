@@ -1,0 +1,14 @@
+{
+  "name": "pigmint",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Opinionated color engine producing framework-portable design tokens with accessibility receipts.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

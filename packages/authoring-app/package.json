@@ -1,0 +1,37 @@
+{
+  "name": "@pigmint/authoring-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pigmint authoring UI — ramp editor, intent editor, and pigmint.yaml round-trip.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pigmint/core": "workspace:*",
+    "@tailwindcss/vite": "^4.2.1",
+    "@tanstack/react-virtual": "^3.13.23",
+    "apca-w3": "^0.1.9",
+    "culori": "^4.0.2",
+    "immer": "^11.1.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.2.1",
+    "yaml": "^2.5.0",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/culori": "^4.0.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "typescript": "^5.6.0",
+    "vite": "^7.3.1",
+    "vitest": "^2.0.0"
+  }
+}

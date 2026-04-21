@@ -1,0 +1,12 @@
+engine:
+  compliance: wcag21
+  target: AA
+  modes:
+    - light
+ramps:
+  - name: blue
+    source: "#3366cc"
+  - name: neutral
+    source: "#888888"
+output:
+  dtcg: ./tokens.json

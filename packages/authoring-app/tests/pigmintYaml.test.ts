@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest';
+import { parsePigmintYaml, serializePigmintYaml } from '../src/lib/pigmintYaml';
+import type { ColorScale } from '../src/types/palette';
+
+function scale(id: string, name: string, sourceHex: string): ColorScale {
+  return {
+    id,
+    name,
+    sourceHex,
+    sourceOklch: { l: 0.5, c: 0.1, h: 200 },
+    sourceAlpha: 1,
+    stepCount: 11,
+    naming: { preset: 'tailwind' },
+    curves: {
+      lightness: { values: [] },
+      chroma: { values: [] },
+      hue: { values: [] },
+    },
+    hueShift: { lightEndAdjust: 0, darkEndAdjust: 0 },
+    lightnessPreset: 'tailwind',
+    chromaPeak: 0.2,
+  };
+}
+
+describe('pigmintYaml', () => {
+  it('serializes ramps as {name, source}', () => {
+    const yaml = serializePigmintYaml({
+      scales: [scale('1', 'blue', '#3366cc'), scale('2', 'neutral', '#888888')],
+      intents: {},
+    });
+    expect(yaml).toContain('name: blue');
+    expect(yaml).toContain('source: "#3366cc"');
+    expect(yaml).toContain('name: neutral');
+    expect(yaml).not.toContain('intents:');
+  });
+
+  it('emits engine block with defaults', () => {
+    const yaml = serializePigmintYaml({
+      scales: [scale('1', 'blue', '#3366cc')],
+      intents: {},
+    });
+    expect(yaml).toContain('engine:');
+    expect(yaml).toContain('compliance: wcag21');
+    expect(yaml).toContain('target: AA');
+  });
+
+  it('emits engine.target override', () => {
+    const yaml = serializePigmintYaml({
+      scales: [scale('1', 'blue', '#3366cc')],
+      intents: {},
+      engine: { target: 'AAA', compliance: 'apca' },
+    });
+    expect(yaml).toContain('compliance: apca');
+    expect(yaml).toContain('target: AAA');
+  });
+
+  it('emits intents block when overrides are present', () => {
+    const yaml = serializePigmintYaml({
+      scales: [scale('1', 'blue', '#3366cc')],
+      intents: { 'color.foreground.main': { preference: 'highest-contrast' } },
+    });
+    expect(yaml).toContain('intents:');
+    expect(yaml).toContain('color.foreground.main');
+    expect(yaml).toContain('preference: highest-contrast');
+  });
+
+  it('parses a minimal pigmint.yaml into ramps + engine', () => {
+    const text = [
+      'engine:',
+      '  compliance: wcag21',
+      '  target: AA',
+      '  modes: [light]',
+      'ramps:',
+      '  - name: blue',
+      '    source: "#3366cc"',
+      'output:',
+      '  dtcg: ./tokens.json',
+    ].join('\n');
+
+    const parsed = parsePigmintYaml(text);
+    expect(parsed.scales).toHaveLength(1);
+    expect(parsed.scales[0].name).toBe('blue');
+    expect(parsed.scales[0].sourceHex.toLowerCase()).toBe('#3366cc');
+    expect(parsed.intents).toEqual({});
+    expect(parsed.engine.target).toBe('AA');
+    expect(parsed.engine.compliance).toBe('wcag21');
+  });
+
+  it('round-trips ramps, engine, and intents', () => {
+    const input = [scale('1', 'blue', '#3366cc')];
+    const intents = { 'color.foreground.main': { preference: 'anchored' as const } };
+    const yaml = serializePigmintYaml({
+      scales: input,
+      intents,
+      engine: { target: 'AAA', compliance: 'apca' },
+    });
+    const parsed = parsePigmintYaml(yaml);
+    expect(parsed.scales[0].name).toBe('blue');
+    expect(parsed.scales[0].sourceHex.toLowerCase()).toBe('#3366cc');
+    expect(parsed.intents['color.foreground.main']).toEqual({ preference: 'anchored' });
+    expect(parsed.engine.target).toBe('AAA');
+    expect(parsed.engine.compliance).toBe('apca');
+  });
+
+  it('rejects ramps with missing source', () => {
+    const text = 'ramps:\n  - name: blue\n';
+    expect(() => parsePigmintYaml(text)).toThrow();
+  });
+
+  it('rejects invalid source colors', () => {
+    const text = 'ramps:\n  - name: blue\n    source: "not-a-color"\n';
+    expect(() => parsePigmintYaml(text)).toThrow();
+  });
+
+  it('emits engine.modes in canonical order and filters duplicates', () => {
+    const yaml = serializePigmintYaml({
+      scales: [scale('1', 'blue', '#3366cc')],
+      intents: {},
+      engine: { modes: ['dark', 'light', 'dark-high-contrast'] },
+    });
+    expect(yaml).toContain('- dark');
+    expect(yaml).toContain('- light');
+    expect(yaml).toContain('- dark-high-contrast');
+  });
+
+  it('parses known modes and drops unknown ones', () => {
+    const text = [
+      'engine:',
+      '  compliance: wcag21',
+      '  target: AA',
+      '  modes:',
+      '    - light',
+      '    - dark',
+      '    - bogus',
+      'ramps:',
+      '  - name: blue',
+      '    source: "#3366cc"',
+    ].join('\n');
+    const parsed = parsePigmintYaml(text);
+    expect(parsed.engine.modes).toEqual(['light', 'dark']);
+  });
+
+  it('falls back to [light] when parsed modes are all unknown', () => {
+    const text = [
+      'engine:',
+      '  compliance: wcag21',
+      '  target: AA',
+      '  modes: [bogus, also-bogus]',
+      'ramps:',
+      '  - name: blue',
+      '    source: "#3366cc"',
+    ].join('\n');
+    const parsed = parsePigmintYaml(text);
+    expect(parsed.engine.modes).toEqual(['light']);
+  });
+});

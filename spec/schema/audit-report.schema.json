@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigmint.dev/schema/audit-report-0.1.json",
+  "title": "Pigmint audit report",
+  "description": "Structured output of the pigmint audit tool (Step 3). Re-ingested by Layer 1 per ADR-010.",
+  "type": "object",
+  "required": ["artifactVersion", "run", "summary", "violations"],
+  "properties": {
+    "artifactVersion": { "const": "audit-report@0.1" },
+    "run": {
+      "type": "object",
+      "required": ["id", "timestamp", "dtcgSource", "builtSource", "profile"],
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "engineVersion": { "type": "string" },
+        "auditVersion": { "type": "string" },
+        "dtcgSource": { "type": "string" },
+        "builtSource": { "type": "string" },
+        "profile": { "enum": ["wcag-srgb", "apca-srgb", "wcag-p3"] }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "violations": {
+          "type": "object",
+          "properties": {
+            "error": { "type": "integer", "minimum": 0 },
+            "warning": { "type": "integer", "minimum": 0 },
+            "info": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "tokensAudited": { "type": "integer", "minimum": 0 },
+        "tokensUsed": { "type": "integer", "minimum": 0 },
+        "surfacePairsObserved": { "type": "integer", "minimum": 0 },
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "tokenUsage": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "type", "token"],
+        "properties": {
+          "severity": { "enum": ["error", "warning", "info"] },
+          "type": {
+            "description": "Consumers tolerate unknown types (warn-and-continue). Known types listed in spec/11-audit-report.md.",
+            "type": "string"
+          },
+          "token": { "type": "string" },
+          "location": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string" },
+              "line": { "type": "integer" },
+              "selector": { "type": "string" }
+            }
+          },
+          "observed": { "type": "object" },
+          "expected": { "type": "object" },
+          "actual": { "type": "object" },
+          "suggestion": { "$ref": "#/$defs/suggestion" }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/suggestion" }
+    },
+    "observations": {
+      "type": "object",
+      "properties": {
+        "undeclaredSurfacePairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "token": { "type": "string" },
+              "observedSurface": { "type": "string" },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "suggestion": {
+      "type": "object",
+      "required": ["id", "channel", "target", "rationale", "change"],
+      "properties": {
+        "id": { "type": "string" },
+        "channel": { "enum": ["intent-refinement", "ramp-suggestion", "spec-gap"] },
+        "target": { "type": "string" },
+        "rationale": { "type": "string" },
+        "change": {
+          "type": "object",
+          "required": ["field", "op"],
+          "properties": {
+            "field": { "type": "string" },
+            "op": { "enum": ["add", "remove", "replace"] },
+            "value": {}
+          }
+        },
+        "confidence": { "enum": ["high", "medium", "low"] }
+      }
+    }
+  }
+}

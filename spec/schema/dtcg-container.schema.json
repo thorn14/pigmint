@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigmint.dev/schema/dtcg-container-0.1.json",
+  "title": "Pigmint DTCG container",
+  "description": "Outer shape of the pigmint-emitted DTCG file. Individual token shapes resolve in mode-entry, receipt, and vocabulary-token schemas.",
+  "type": "object",
+  "required": ["$extensions", "color"],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri" },
+    "$description": { "type": "string" },
+    "$extensions": {
+      "type": "object",
+      "required": ["com.pigmint"],
+      "properties": {
+        "com.pigmint": {
+          "type": "object",
+          "required": ["specVersion", "vocabularyVersion", "generatedAt"],
+          "properties": {
+            "specVersion": { "type": "string" },
+            "vocabularyVersion": { "type": "string" },
+            "surfacePairsVersion": { "type": "string" },
+            "generatedAt": { "type": "string", "format": "date-time" },
+            "defaultMode": { "type": "string", "default": "light" },
+            "engine": {
+              "type": "object",
+              "properties": {
+                "version": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "color": {
+      "type": "object",
+      "required": ["primitive"],
+      "properties": {
+        "primitive": {
+          "type": "object",
+          "description": "Keyed by ramp name; each ramp is a group of primitive color tokens.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": { "$type": { "const": "color" } }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

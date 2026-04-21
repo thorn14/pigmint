@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigmint.dev/schema/receipt-0.1.json",
+  "title": "Pigmint receipt",
+  "description": "Reusable receipt field definitions consumed by mode-entry.schema.json.",
+  "type": "object",
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["ramp", "position"],
+      "properties": {
+        "ramp": { "type": "string" },
+        "position": { "type": "number", "minimum": 0, "maximum": 1 },
+        "nearestPrimitive": { "type": "string", "description": "DTCG path to closest emitted primitive." }
+      }
+    },
+    "contrast": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "wcag21": { "type": "number", "minimum": 1, "maximum": 21 },
+            "apca": { "type": "number" },
+            "simulated": {
+              "type": "object",
+              "properties": {
+                "wcag21": { "type": "number" },
+                "apca": { "type": "number" }
+              }
+            },
+            "againstBaseline": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "compliance": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["level"],
+          "properties": {
+            "target": { "enum": ["AA", "AAA"] },
+            "level": {
+              "enum": ["AAA-text", "AAA-nonText", "AA-text", "AA-nonText", "fail", "exempt"]
+            },
+            "thresholds": {
+              "type": "object",
+              "properties": {
+                "text": { "type": "number" },
+                "nonText": { "type": "number" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "gamut": {
+      "type": "object",
+      "required": ["inSrgb", "inP3", "clipped"],
+      "properties": {
+        "inSrgb": { "type": "boolean" },
+        "inP3": { "type": "boolean" },
+        "clipped": { "type": "boolean" },
+        "strategy": {
+          "enum": ["chroma-reduce", "chroma-preserve", "reject"],
+          "description": "DECISION NEEDED (ADR-015). Records the clipping strategy used."
+        },
+        "clippedFrom": {
+          "type": "object",
+          "properties": {
+            "oklch": { "type": "string" }
+          }
+        }
+      }
+    },
+    "alpha": {
+      "type": "object",
+      "required": ["base", "value"],
+      "properties": {
+        "base": {
+          "oneOf": [
+            { "type": "string", "description": "DTCG alias to a primitive." },
+            { "type": "object", "properties": { "ramp": { "type": "string" } }, "required": ["ramp"] }
+          ]
+        },
+        "value": {
+          "oneOf": [
+            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "type": "object", "properties": { "range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 } } }
+          ]
+        },
+        "referenceSurface": { "type": "string", "description": "DTCG reference to a surface token. Required per current DECISION NEEDED lean (ADR-016)." },
+        "intent": { "$ref": "intent.schema.json" }
+      }
+    }
+  }
+}

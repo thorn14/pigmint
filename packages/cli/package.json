@@ -1,0 +1,40 @@
+{
+  "name": "@pigmint/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pigmint command-line interface. Reads project config, invokes the resolver, emits DTCG plus adapter outputs.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pigmint": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@pigmint/adapter-mui": "workspace:*",
+    "@pigmint/adapter-tailwind": "workspace:*",
+    "@pigmint/audit": "workspace:*",
+    "@pigmint/core": "workspace:*",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ajv": "^8.17.0",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}
