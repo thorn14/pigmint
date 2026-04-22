@@ -35,7 +35,7 @@ export interface ParsedPigmintYaml {
 const DEFAULT_ENGINE: PigmintEngine = {
   compliance: 'wcag21',
   target: 'AA',
-  modes: ['light'],
+  modes: ['light', 'dark'],
 };
 
 const DEFAULT_OUTPUT: PigmintYamlDoc['output'] = {

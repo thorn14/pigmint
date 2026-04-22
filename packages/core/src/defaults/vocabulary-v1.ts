@@ -2,7 +2,13 @@ import type { VocabularyEntry, Vocabulary } from '../types/spec.js';
 
 export const VOCABULARY_V1_VERSION = 'vocabulary@0.1';
 
+// Default slice shipped with pigmint. Scope constrained to what the resolver
+// currently supports: `consistency: 'independent'`, `preference` ∈
+// {'lowest-passing','highest-contrast'}, base state only, surfaces limited to
+// the four canonical roles (main/elevated/subtle/inverse). Spec/09 defines a
+// larger vocabulary — additional categories land as resolver features ship.
 export const VOCABULARY_V1_SLICE: VocabularyEntry[] = [
+  // ── Surface ────────────────────────────────────────────────────────────
   {
     path: 'color.surface.main',
     usage: 'nonText',
@@ -17,6 +23,32 @@ export const VOCABULARY_V1_SLICE: VocabularyEntry[] = [
     description: 'Document background.',
   },
   {
+    path: 'color.surface.elevated',
+    usage: 'nonText',
+    primarySurface: 'color.surface.elevated',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+      preference: 'lowest-passing',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Raised surface (cards, popovers) above main.',
+  },
+  {
+    path: 'color.surface.subtle',
+    usage: 'nonText',
+    primarySurface: 'color.surface.subtle',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+      preference: 'lowest-passing',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Recessed surface (muted panels) between main and elevated.',
+  },
+  {
     path: 'color.surface.inverse',
     usage: 'nonText',
     primarySurface: 'color.surface.inverse',
@@ -29,6 +61,8 @@ export const VOCABULARY_V1_SLICE: VocabularyEntry[] = [
     states: ['base'],
     description: 'Inverted document surface.',
   },
+
+  // ── Foreground ─────────────────────────────────────────────────────────
   {
     path: 'color.foreground.main',
     usage: 'text',
@@ -43,6 +77,47 @@ export const VOCABULARY_V1_SLICE: VocabularyEntry[] = [
     description: 'Primary text on main surface.',
   },
   {
+    path: 'color.foreground.muted',
+    usage: 'text',
+    primarySurface: 'color.surface.main',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'text' },
+      preference: 'lowest-passing',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Secondary text weight; passes AA-text by the slimmest margin.',
+  },
+  {
+    path: 'color.foreground.subtle',
+    usage: 'text',
+    primarySurface: 'color.surface.main',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+      preference: 'lowest-passing',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Tertiary annotation; passes AA-nonText only. Use for icons or large decorative type.',
+  },
+  {
+    path: 'color.foreground.inverse',
+    usage: 'text',
+    primarySurface: 'color.surface.inverse',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AAA', usage: 'text' },
+      preference: 'highest-contrast',
+      consistency: 'independent',
+      surfaceContext: 'inverse',
+    },
+    states: ['base'],
+    description: 'Text on inverted surfaces.',
+  },
+
+  // ── Action ─────────────────────────────────────────────────────────────
+  {
     path: 'color.action.primary.background',
     usage: 'nonText',
     primarySurface: 'color.surface.main',
@@ -55,6 +130,63 @@ export const VOCABULARY_V1_SLICE: VocabularyEntry[] = [
     states: ['base'],
     description:
       'Primary action (button) background on main surface. Spec/09 default is matched-across-ramps; slice uses independent until that policy lands.',
+  },
+  {
+    path: 'color.action.primary.text',
+    usage: 'text',
+    primarySurface: 'color.surface.main',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'text' },
+      preference: 'highest-contrast',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description:
+      'Text on the primary action background. `surfaceContext: current` degrades to primary in compile-time adapters.',
+  },
+
+  // ── Border ─────────────────────────────────────────────────────────────
+  {
+    path: 'color.border.main',
+    usage: 'nonText',
+    primarySurface: 'color.surface.main',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+      preference: 'lowest-passing',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Standard hairline against main surface.',
+  },
+  {
+    path: 'color.border.subtle',
+    usage: 'nonText',
+    primarySurface: 'color.surface.main',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+      preference: 'lowest-passing',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Quiet divider; same threshold as main until matched-to-set lands.',
+  },
+
+  // ── Focus ──────────────────────────────────────────────────────────────
+  {
+    path: 'color.focus.ring',
+    usage: 'nonText',
+    primarySurface: 'color.surface.main',
+    defaultIntent: {
+      threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+      preference: 'highest-contrast',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+    },
+    states: ['base'],
+    description: 'Focus indicator ring.',
   },
 ];
 

@@ -54,7 +54,7 @@ interface IntentActions {
 const DEFAULT_STATE: PersistedIntentState = {
   engineTarget: 'AA',
   engineCompliance: 'wcag21',
-  engineModes: ['light'],
+  engineModes: ['light', 'dark'],
   overrides: {},
 };
 
@@ -123,6 +123,7 @@ export const useIntentStore = create<IntentState & IntentActions>()(
     toggleEngineMode: (mode) =>
       set((state) => {
         const has = state.engineModes.includes(mode);
+        if (has && state.engineModes.length === 1) return;
         const next = has
           ? state.engineModes.filter((m) => m !== mode)
           : [...state.engineModes, mode];

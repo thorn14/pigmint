@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import {
+  buildDefaultTokenRamp,
   emitDtcg,
   resolveAll,
   VOCABULARY_V1_SLICE,
   type ModeBinding,
-  type VocabularyEntry,
 } from '@pigmint/core';
 import type { AuditReport, Suggestion } from '@pigmint/audit';
 import { loadProjectConfig } from '../config.js';
@@ -60,25 +60,6 @@ function buildModeBindings(modes: string[]): ModeBinding[] {
   }));
 }
 
-function buildTokenRamp(
-  vocabulary: VocabularyEntry[],
-  rampNames: string[],
-): Record<string, string> {
-  const neutral = rampNames.find((n) => n === 'neutral') ?? rampNames[0];
-  const accent = rampNames.find((n) => n !== 'neutral') ?? neutral;
-  if (!neutral || !accent) {
-    throw new Error('project config must declare at least one ramp');
-  }
-
-  const map: Record<string, string> = {};
-  for (const entry of vocabulary) {
-    if (entry.usage === 'decorative') continue;
-    const isSurface = entry.path.startsWith('color.surface.');
-    const isForeground = entry.path.startsWith('color.foreground.');
-    map[entry.path] = isSurface || isForeground ? neutral : accent;
-  }
-  return map;
-}
 
 export async function build(options: BuildOptions): Promise<BuildResult> {
   const cwd = options.cwd ?? process.cwd();
@@ -89,7 +70,11 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
   const defaultMode = config.engine.modes[0] ?? 'light';
   const modes = buildModeBindings(config.engine.modes);
   const vocabulary = VOCABULARY_V1_SLICE;
-  const tokenRamp = buildTokenRamp(vocabulary, ramps.map((r) => r.scaleName));
+  const rampNames = ramps.map((r) => r.scaleName);
+  if (rampNames.length === 0) {
+    throw new Error('project config must declare at least one ramp');
+  }
+  const tokenRamp = buildDefaultTokenRamp(vocabulary, rampNames);
 
   const { tokens } = resolveAll({
     config,

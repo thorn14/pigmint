@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { VOCABULARY_V1_SLICE, buildDefaultCurves, hexToOklch } from '@pigmint/core';
-import { buildTokenRamp, runResolve } from '../src/components/surfaces/SurfacePairViewer';
+import { buildTokenRamp, runResolve } from '../src/lib/resolveState';
 import type { ColorScale } from '../src/types/palette';
 
 function makeScale(name: string, hex: string): ColorScale {

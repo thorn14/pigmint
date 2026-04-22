@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDefaultCurves,
+  buildDefaultTokenRamp,
   generateRamp,
   hexToOklch,
   resolveAll,
@@ -38,12 +39,7 @@ const config: ProjectConfig = {
 
 const defaultRamps = () => [makeRamp('#888888', 'neutral'), makeRamp('#3366cc', 'blue')];
 
-const defaultTokenRamp: Record<string, string> = {
-  'color.surface.main': 'neutral',
-  'color.surface.inverse': 'neutral',
-  'color.foreground.main': 'neutral',
-  'color.action.primary.background': 'blue',
-};
+const defaultTokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
 
 const defaultModes = [
   { mode: 'light' as const, scheme: 'light' as const, baselineHex: '#ffffff' },
@@ -63,7 +59,7 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     });
 
     const byKey = new Map(out.tokens.map((t) => [`${t.path}:${t.mode}`, t]));
-    expect(byKey.size).toBe(8);
+    expect(byKey.size).toBe(VOCABULARY_V1_SLICE.length * 2);
 
     const lightMain = byKey.get('color.surface.main:light')!;
     const darkMain = byKey.get('color.surface.main:dark')!;

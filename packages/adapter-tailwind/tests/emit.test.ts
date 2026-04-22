@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDefaultCurves,
+  buildDefaultTokenRamp,
   emitDtcg,
   generateRamp,
   hexToOklch,
@@ -41,12 +42,7 @@ const config: ProjectConfig = {
 
 function buildContainer() {
   const ramps = [makeRamp('#888888', 'neutral'), makeRamp('#3366cc', 'blue')];
-  const tokenRamp: Record<string, string> = {
-    'color.surface.main': 'neutral',
-    'color.surface.inverse': 'neutral',
-    'color.foreground.main': 'neutral',
-    'color.action.primary.background': 'blue',
-  };
+  const tokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
   const { tokens } = resolveAll({
     config,
     vocabulary: VOCABULARY_V1_SLICE,

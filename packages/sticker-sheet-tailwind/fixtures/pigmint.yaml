@@ -1,0 +1,19 @@
+engine:
+  compliance: wcag21
+  target: AA
+  modes:
+    - light
+    - dark
+ramps:
+  - name: neutral
+    source: "#888888"
+  - name: blue
+    source: "#3366cc"
+adapters:
+  - name: tailwind
+    output: ../src/generated
+    preset: shadcn
+    formats:
+      - oklch
+output:
+  dtcg: ../src/generated/tokens.json

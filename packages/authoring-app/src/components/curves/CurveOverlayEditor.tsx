@@ -1,8 +1,11 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
+import type { IntentOverride as CoreIntentOverride, ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
-import { buildCurvePath } from '../../lib/curveInterpolation';
+import { useIntentStore } from '../../store/intentStore';
+import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues, oklchToHex, maxP3Chroma } from '../../lib/colorMath';
+import { buildCurvePath, buildMonotoneCubicInterpolant } from '../../lib/curveInterpolation';
+import { runResolve } from '../../lib/resolveState';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -53,6 +56,10 @@ const SHORTCUTS = [
   { key: 'Escape',            desc: 'Cancel drag'                 },
 ];
 
+type ViewMode = 'curves' | 'gradient';
+const VIEW_MODES: readonly ViewMode[] = ['curves', 'gradient'];
+const GRADIENT_SAMPLES = 64;
+
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
   const contrastMode = usePaletteStore((s) => s.contrastMode);
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
@@ -61,6 +68,10 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
+  const scales = usePaletteStore((s) => s.scales);
+  const engineModes = useIntentStore((s) => s.engineModes);
+  const engineTarget = useIntentStore((s) => s.engineTarget);
+  const overrides = useIntentStore((s) => s.overrides);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -69,8 +80,59 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const [preCancel, setPreCancel]   = useState<{ key: CurveKey; values: number[] } | null>(null);
   const [size, setSize]             = useState({ width: 800, height: 400 });
   const [showHelp, setShowHelp]     = useState(false);
+  const [viewMode, setViewMode]     = useState<ViewMode>('curves');
+  const [markerMode, setMarkerMode] = useState<string | null>(null);
   const n = ramp.steps.length;
   const PAD = 18;
+
+  const gradientCss = useMemo(() => {
+    if (viewMode !== 'gradient') return '';
+    const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
+    const cRaw = smoothCurveValues(scale.curves.chroma.values,    scale.curves.chroma.smoothing    ?? 0);
+    const hRaw = smoothCurveValues(scale.curves.hue.values,       scale.curves.hue.smoothing       ?? 0);
+    const xs = lRaw.map((_, i) => i);
+    const lAt = buildMonotoneCubicInterpolant(xs, lRaw);
+    const cAt = buildMonotoneCubicInterpolant(xs, cRaw);
+    const hAt = buildMonotoneCubicInterpolant(xs, hRaw);
+    const stops: string[] = [];
+    for (let s = 0; s < GRADIENT_SAMPLES; s++) {
+      const t = s / (GRADIENT_SAMPLES - 1);
+      const x = t * (lRaw.length - 1);
+      const l = lAt(x);
+      const c = cAt(x);
+      const baseDeltaH = hAt(x);
+      const shift = computeHueShift(
+        scale.sourceOklch.h,
+        t,
+        scale.hueShift.lightEndAdjust,
+        scale.hueShift.darkEndAdjust,
+      );
+      const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
+      const cClamped = Math.min(c, maxP3Chroma(l, h));
+      const hex = oklchToHex({ l, c: cClamped, h });
+      stops.push(`${hex} ${(t * 100).toFixed(2)}%`);
+    }
+    return `linear-gradient(to right, ${stops.join(', ')})`;
+  }, [viewMode, scale]);
+
+  const activeMarkerMode = markerMode && engineModes.includes(markerMode as (typeof engineModes)[number])
+    ? markerMode
+    : engineModes[0];
+
+  const intentMarkers = useMemo(() => {
+    if (viewMode !== 'gradient') return [];
+    const state = runResolve(
+      scales,
+      engineModes,
+      engineTarget,
+      overrides as Record<string, CoreIntentOverride>,
+    );
+    if (!state.ok) return [];
+    return state.tokens.filter(
+      (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
+    );
+  }, [viewMode, scales, engineModes, engineTarget, overrides, scale.name, activeMarkerMode]);
+
 
   useEffect(() => {
     const el = containerRef.current;
@@ -186,8 +248,98 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     return { x, y };
   }
 
+  const shortModeLabel = (m: string) => m.replace(/-high-contrast$/, '-HC');
+
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ background: 'var(--p-bg)' }}>
+
+      {/* Toolbar: view-mode toggle + engine-mode selector */}
+      <div
+        className="flex shrink-0 items-center gap-2 border-b px-2"
+        style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
+      >
+        <div
+          role="radiogroup"
+          aria-label="Canvas view"
+          style={{
+            display: 'inline-flex',
+            borderRadius: 6,
+            background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+            padding: 2,
+            gap: 2,
+          }}
+        >
+          {VIEW_MODES.map((m) => {
+            const active = viewMode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setViewMode(m)}
+                style={{
+                  border: 'none',
+                  background: active ? 'var(--p-text)' : 'transparent',
+                  color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  padding: '3px 10px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
+
+        {viewMode === 'gradient' && engineModes.length > 1 && (
+          <div
+            role="radiogroup"
+            aria-label="Engine mode for intent markers"
+            style={{
+              display: 'inline-flex',
+              borderRadius: 6,
+              background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+              padding: 2,
+              gap: 2,
+            }}
+          >
+            {engineModes.map((m) => {
+              const active = activeMarkerMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setMarkerMode(m)}
+                  title={m}
+                  style={{
+                    border: 'none',
+                    background: active ? 'var(--p-text)' : 'transparent',
+                    color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    padding: '3px 10px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {shortModeLabel(m)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Step name headers + gamut indicators */}
       <div
@@ -231,27 +383,35 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
         ref={containerRef}
         className="relative flex-1 min-h-0 flex select-none"
       >
-        {ramp.steps.map((step, i) => (
-          <button
-            key={step.name}
-            onClick={() => onStepClick(i)}
-            aria-label={`${step.name}: ${step.hex}`}
-            className="flex-1 relative border-r last:border-r-0 cursor-pointer"
-            style={{
-              backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
-              borderColor: 'rgba(0,0,0,0.07)',
-              boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
-            }}
+        {viewMode === 'gradient' ? (
+          <div
+            className="flex-1 relative"
+            style={{ background: gradientCss }}
+            aria-label={`${scale.name} continuous gradient`}
           />
-        ))}
+        ) : (
+          ramp.steps.map((step, i) => (
+            <button
+              key={step.name}
+              onClick={() => onStepClick(i)}
+              aria-label={`${step.name}: ${step.hex}`}
+              className="flex-1 relative border-r last:border-r-0 cursor-pointer"
+              style={{
+                backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
+                borderColor: 'rgba(0,0,0,0.07)',
+                boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
+              }}
+            />
+          ))
+        )}
 
         {/* SVG curves overlay */}
         <svg
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* P3 threshold lines */}
-          {ramp.steps.map((step, i) => {
+          {/* P3 threshold lines (curves view only) */}
+          {viewMode === 'curves' && ramp.steps.map((step, i) => {
             const chromaMeta = CURVES.find((c) => c.key === 'chroma')!;
             const pt = getPoint(step.maxSrgbC, i, chromaMeta.min, chromaMeta.max);
             const colW = size.width / n;
@@ -269,7 +429,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             );
           })}
 
-          {CURVES.map((curve) => {
+          {viewMode === 'curves' && CURVES.map((curve) => {
             const rawValues = scale.curves[curve.key].values;
             const smoothing = scale.curves[curve.key].smoothing ?? 0;
             const nodeTypes = scale.curves[curve.key].nodeTypes;
@@ -418,6 +578,17 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             );
           })}
 
+          {/* Intent-resolved markers (gradient view) */}
+          {viewMode === 'gradient' && (
+            <IntentMarkers
+              tokens={intentMarkers}
+              n={n}
+              width={size.width}
+              height={size.height}
+              pad={PAD}
+            />
+          )}
+
           {/* Help button */}
           <foreignObject
             x={size.width - 28}
@@ -565,3 +736,131 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     </div>
   );
 }
+
+function complianceFill(t: ResolvedToken): string {
+  switch (t.compliance?.level) {
+    case 'AAA-text':
+    case 'AAA-nonText':
+      return '#3ca86b';
+    case 'AA-text':
+    case 'AA-nonText':
+      return '#e2a93a';
+    case 'exempt':
+      return '#8a8a8a';
+    default:
+      return '#d4574a';
+  }
+}
+
+function IntentMarkers({
+  tokens,
+  n,
+  width,
+  height,
+  pad,
+}: {
+  tokens: ResolvedToken[];
+  n: number;
+  width: number;
+  height: number;
+  pad: number;
+}) {
+  if (tokens.length === 0) {
+    return (
+      <foreignObject x={width / 2 - 140} y={height / 2 - 20} width={280} height={40}>
+        <div
+          style={{
+            color: 'rgba(255,255,255,0.9)',
+            background: 'rgba(0,0,0,0.55)',
+            fontSize: 12,
+            padding: '8px 12px',
+            borderRadius: 6,
+            textAlign: 'center',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          No vocabulary tokens resolved to this ramp.
+        </div>
+      </foreignObject>
+    );
+  }
+
+  const LABEL_WIDTH = 130;
+  const ROW_HEIGHT  = 14;
+  const placed = tokens
+    .map((t) => {
+      const px = ((t.source.position * (n - 1)) + 0.5) / n * width;
+      const py = pad + (1 - t.oklch.l) * (height - pad * 2);
+      const shortPath = t.path.replace(/^color\./, '');
+      return { t, px, py, shortPath };
+    })
+    .sort((a, b) => a.px - b.px);
+
+  const rowEndPx: number[] = [];
+  const rows = new Map<string, number>();
+  for (const item of placed) {
+    const start = item.px + 10;
+    let row = 0;
+    while (row < rowEndPx.length && rowEndPx[row]! > start) row++;
+    rowEndPx[row] = start + LABEL_WIDTH;
+    rows.set(item.t.path, row);
+  }
+
+  return (
+    <g>
+      {placed.map(({ t, px, py, shortPath }) => {
+        const fill = complianceFill(t);
+        const ratio = t.contrast?.wcag21;
+        const ratioText = typeof ratio === 'number' ? `${ratio.toFixed(2)}:1` : '—';
+        const row = rows.get(t.path) ?? 0;
+        const labelY = py + row * ROW_HEIGHT;
+        return (
+          <g key={t.path}>
+            <title>
+              {`${t.path}\n${t.hex} · ${ratioText} · ${t.compliance?.level ?? 'fail'}\nintent: ${t.intent.preference}`}
+            </title>
+            <line
+              x1={px}
+              y1={py}
+              x2={px}
+              y2={height - pad}
+              stroke={fill}
+              strokeWidth={1.5}
+              strokeDasharray="2 3"
+              opacity={0.6}
+            />
+            <circle cx={px} cy={py} r={7} fill={t.hex} stroke={fill} strokeWidth={2.5} />
+            {row > 0 && (
+              <line
+                x1={px}
+                y1={py}
+                x2={px + 8}
+                y2={labelY}
+                stroke="rgba(255,255,255,0.45)"
+                strokeWidth={1}
+              />
+            )}
+            <text
+              x={px + 10}
+              y={labelY}
+              dy={4}
+              fontSize={10}
+              fontWeight={600}
+              fill="rgba(255,255,255,0.95)"
+              style={{
+                fontFamily: 'monospace',
+                pointerEvents: 'none',
+                paintOrder: 'stroke',
+                stroke: 'rgba(0,0,0,0.7)',
+                strokeWidth: 3,
+              }}
+            >
+              {shortPath}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+

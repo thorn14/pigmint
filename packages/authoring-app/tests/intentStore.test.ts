@@ -114,12 +114,12 @@ describe('intentStore', () => {
     expect(useIntentStore.getState().engineModes).toEqual(['light', 'dark']);
   });
 
-  it('loadState falls back to light when no valid modes remain', () => {
+  it('loadState falls back to the engine default when no valid modes remain', () => {
     useIntentStore.getState().loadState({
       engineModes: ['bogus'] as unknown as Parameters<
         ReturnType<typeof useIntentStore.getState>['loadState']
       >[0]['engineModes'],
     });
-    expect(useIntentStore.getState().engineModes).toEqual(['light']);
+    expect(useIntentStore.getState().engineModes).toEqual(['light', 'dark']);
   });
 });

@@ -59,6 +59,7 @@ export {
   VOCABULARY_V1_SLICE,
   VOCABULARY_V1_DEFAULTS,
 } from './defaults/vocabulary-v1.js';
+export { buildDefaultTokenRamp } from './defaults/token-ramp.js';
 export {
   validateAdapterAgainstConfig,
   AdapterValidationError,

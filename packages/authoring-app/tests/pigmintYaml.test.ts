@@ -151,6 +151,6 @@ describe('pigmintYaml', () => {
       '    source: "#3366cc"',
     ].join('\n');
     const parsed = parsePigmintYaml(text);
-    expect(parsed.engine.modes).toEqual(['light']);
+    expect(parsed.engine.modes).toEqual(['light', 'dark']);
   });
 });
