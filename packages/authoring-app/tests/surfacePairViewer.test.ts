@@ -21,12 +21,16 @@ function makeScale(name: string, hex: string): ColorScale {
 }
 
 describe('buildTokenRamp', () => {
-  it('routes surfaces + foregrounds to neutral, others to accent', () => {
+  it('routes surfaces, foreground, and borders to neutral; maps semantic groups to named ramps', () => {
     const map = buildTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
     expect(map['color.surface.main']).toBe('neutral');
     expect(map['color.surface.inverse']).toBe('neutral');
     expect(map['color.foreground.main']).toBe('neutral');
+    expect(map['color.border.main']).toBe('neutral');
+    expect(map['color.border.subtle']).toBe('neutral');
     expect(map['color.action.primary.background']).toBe('blue');
+    expect(map['color.action.primary.text']).toBe('blue');
+    expect(map['color.focus.ring']).toBe('blue');
   });
 
   it('falls back to the single available ramp when there is no accent', () => {

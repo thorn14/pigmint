@@ -39,6 +39,7 @@ export {
   ResolveError,
   type ResolveInput,
   type ResolveResult,
+  type ThresholdElevation,
 } from './resolver/resolve.js';
 export {
   resolveSurface,

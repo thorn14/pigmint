@@ -71,6 +71,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const scales = usePaletteStore((s) => s.scales);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineResolver = useIntentStore((s) => s.engineResolver);
   const overrides = useIntentStore((s) => s.overrides);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
@@ -126,12 +127,20 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
       engineModes,
       engineTarget,
       overrides as Record<string, CoreIntentOverride>,
+      engineResolver.mode === 'continuous'
+        ? engineResolver
+        : {
+            mode: 'continuous',
+            ...(engineResolver.fallbackSteps !== undefined
+              ? { fallbackSteps: engineResolver.fallbackSteps }
+              : {}),
+          },
     );
     if (!state.ok) return [];
     return state.tokens.filter(
       (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
     );
-  }, [viewMode, scales, engineModes, engineTarget, overrides, scale.name, activeMarkerMode]);
+  }, [viewMode, scales, engineModes, engineTarget, engineResolver, overrides, scale.name, activeMarkerMode]);
 
 
   useEffect(() => {
@@ -582,6 +591,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           {viewMode === 'gradient' && (
             <IntentMarkers
               tokens={intentMarkers}
+              ramp={ramp}
               n={n}
               width={size.width}
               height={size.height}
@@ -654,6 +664,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             </foreignObject>
           )}
         </svg>
+
       </div>
 
       {/* Contrast badges row */}
@@ -737,29 +748,32 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   );
 }
 
-function complianceFill(t: ResolvedToken): string {
-  switch (t.compliance?.level) {
-    case 'AAA-text':
-    case 'AAA-nonText':
-      return '#3ca86b';
-    case 'AA-text':
-    case 'AA-nonText':
-      return '#e2a93a';
-    case 'exempt':
-      return '#8a8a8a';
-    default:
-      return '#d4574a';
+function continuousStepLabel(position: number, ramp: GeneratedRamp): string | null {
+  if (ramp.steps.length < 2) return null;
+  const fIdx = Math.max(0, Math.min(ramp.steps.length - 1, position * (ramp.steps.length - 1)));
+  const lo = Math.floor(fIdx);
+  const hi = Math.min(lo + 1, ramp.steps.length - 1);
+  const frac = fIdx - lo;
+  const loName = ramp.steps[lo]?.name ?? '';
+  const hiName = ramp.steps[hi]?.name ?? '';
+  const loNum = Number(loName);
+  const hiNum = Number(hiName);
+  if (Number.isFinite(loNum) && Number.isFinite(hiNum)) {
+    return `${ramp.scaleName} ${Math.round(loNum + (hiNum - loNum) * frac)}`;
   }
+  return `${ramp.scaleName}.${loName}`;
 }
 
 function IntentMarkers({
   tokens,
+  ramp,
   n,
   width,
   height,
   pad,
 }: {
   tokens: ResolvedToken[];
+  ramp: GeneratedRamp;
   n: number;
   width: number;
   height: number;
@@ -785,14 +799,15 @@ function IntentMarkers({
     );
   }
 
-  const LABEL_WIDTH = 130;
+  const LABEL_WIDTH = 160;
   const ROW_HEIGHT  = 14;
   const placed = tokens
     .map((t) => {
       const px = ((t.source.position * (n - 1)) + 0.5) / n * width;
       const py = pad + (1 - t.oklch.l) * (height - pad * 2);
       const shortPath = t.path.replace(/^color\./, '');
-      return { t, px, py, shortPath };
+      const stepLabel = continuousStepLabel(t.source.position, ramp);
+      return { t, px, py, shortPath, stepLabel };
     })
     .sort((a, b) => a.px - b.px);
 
@@ -808,28 +823,47 @@ function IntentMarkers({
 
   return (
     <g>
-      {placed.map(({ t, px, py, shortPath }) => {
-        const fill = complianceFill(t);
-        const ratio = t.contrast?.wcag21;
-        const ratioText = typeof ratio === 'number' ? `${ratio.toFixed(2)}:1` : '—';
+      {placed.map(({ t, px, py, shortPath, stepLabel }) => {
         const row = rows.get(t.path) ?? 0;
         const labelY = py + row * ROW_HEIGHT;
+        const lineStroke = 'rgba(255,255,255,0.7)';
+        const markerRadius = 7;
         return (
           <g key={t.path}>
-            <title>
-              {`${t.path}\n${t.hex} · ${ratioText} · ${t.compliance?.level ?? 'fail'}\nintent: ${t.intent.preference}`}
-            </title>
             <line
               x1={px}
               y1={py}
               x2={px}
               y2={height - pad}
-              stroke={fill}
+              stroke={lineStroke}
               strokeWidth={1.5}
               strokeDasharray="2 3"
               opacity={0.6}
             />
-            <circle cx={px} cy={py} r={7} fill={t.hex} stroke={fill} strokeWidth={2.5} />
+            <circle
+              cx={px}
+              cy={py}
+              r={markerRadius + 3}
+              fill="none"
+              stroke="rgba(0,0,0,0.9)"
+              strokeWidth={2.5}
+            />
+            <circle
+              cx={px}
+              cy={py}
+              r={markerRadius + 1}
+              fill="none"
+              stroke="rgba(255,255,255,0.98)"
+              strokeWidth={2}
+            />
+            <circle
+              cx={px}
+              cy={py}
+              r={markerRadius}
+              fill={t.hex}
+              stroke="rgba(0,0,0,0.3)"
+              strokeWidth={0.75}
+            />
             {row > 0 && (
               <line
                 x1={px}
@@ -849,13 +883,17 @@ function IntentMarkers({
               fill="rgba(255,255,255,0.95)"
               style={{
                 fontFamily: 'monospace',
-                pointerEvents: 'none',
                 paintOrder: 'stroke',
                 stroke: 'rgba(0,0,0,0.7)',
                 strokeWidth: 3,
               }}
             >
               {shortPath}
+              {stepLabel ? (
+                <tspan fill="rgba(255,255,255,0.7)" style={{ fontWeight: 400 }}>
+                  {` · ${stepLabel}`}
+                </tspan>
+              ) : null}
             </text>
           </g>
         );
@@ -863,4 +901,3 @@ function IntentMarkers({
     </g>
   );
 }
-

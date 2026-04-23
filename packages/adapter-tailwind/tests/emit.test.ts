@@ -32,17 +32,44 @@ function makeRamp(sourceHex: string, name: string) {
 }
 
 const config: ProjectConfig = {
-  engine: { compliance: 'wcag21', target: 'AA', modes: ['light', 'dark'] },
+  engine: {
+    compliance: 'wcag21',
+    target: 'AA',
+    modes: ['light', 'dark', 'light-high-contrast', 'dark-high-contrast'],
+  },
   ramps: [
     { name: 'neutral', source: '#888888' },
     { name: 'blue', source: '#3366cc' },
+    { name: 'slate', source: '#64748b' },
+    { name: 'success', source: '#16a34a' },
+    { name: 'danger', source: '#dc2626' },
+    { name: 'warning', source: '#d97706' },
+    { name: 'info', source: '#0284c7' },
   ],
   output: { dtcg: './tokens.json' },
 };
 
+const DEFAULT_RAMP_NAMES = [
+  'neutral',
+  'blue',
+  'slate',
+  'success',
+  'danger',
+  'warning',
+  'info',
+];
+const RAMP_SOURCE: [string, string][] = [
+  ['#888888', 'neutral'],
+  ['#3366cc', 'blue'],
+  ['#64748b', 'slate'],
+  ['#16a34a', 'success'],
+  ['#dc2626', 'danger'],
+  ['#d97706', 'warning'],
+  ['#0284c7', 'info'],
+];
 function buildContainer() {
-  const ramps = [makeRamp('#888888', 'neutral'), makeRamp('#3366cc', 'blue')];
-  const tokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
+  const ramps = RAMP_SOURCE.map(([hex, name]) => makeRamp(hex, name));
+  const tokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, DEFAULT_RAMP_NAMES);
   const { tokens } = resolveAll({
     config,
     vocabulary: VOCABULARY_V1_SLICE,
@@ -50,6 +77,8 @@ function buildContainer() {
     modes: [
       { mode: 'light', scheme: 'light', baselineHex: '#ffffff' },
       { mode: 'dark', scheme: 'dark', baselineHex: '#0a0a0a' },
+      { mode: 'light-high-contrast', scheme: 'light', baselineHex: '#ffffff' },
+      { mode: 'dark-high-contrast', scheme: 'dark', baselineHex: '#000000' },
     ],
     tokenRamp,
   });
@@ -63,7 +92,7 @@ function buildContainer() {
 }
 
 describe('tailwindEmit', () => {
-  it('emits a CSS file with :root and .dark selector blocks', () => {
+  it('emits a CSS file with class-scoped selector blocks for every mode', () => {
     const container = buildContainer();
     const result = tailwindEmit({
       container,
@@ -76,6 +105,9 @@ describe('tailwindEmit', () => {
     expect(file.path).toBe('./dist-css/tokens.css');
     expect(file.content).toMatch(/:root \{/);
     expect(file.content).toMatch(/\.dark \{/);
+    expect(file.content).toMatch(/\.light-high-contrast \{/);
+    expect(file.content).toMatch(/\.dark-high-contrast \{/);
+    expect(file.content).not.toMatch(/data-contrast/);
     expect(file.content).toMatch(/--color-surface-main:/);
     expect(file.content).toMatch(/--color-action-primary-background:/);
     expect(file.content).toMatch(/oklch\(/);

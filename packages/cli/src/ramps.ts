@@ -10,7 +10,7 @@ import type {
   RampConfig,
 } from '@pigmint/core';
 
-export function generateRampFromConfig(ramp: RampConfig): GeneratedRamp {
+export function buildScaleFromConfig(ramp: RampConfig): ColorScale {
   if (!ramp.source.startsWith('#')) {
     throw new Error(
       `ramp "${ramp.name}" source must be a hex literal in this slice (got "${ramp.source}")`,
@@ -19,7 +19,7 @@ export function generateRampFromConfig(ramp: RampConfig): GeneratedRamp {
   const sourceHex = ramp.source;
   const sourceOklch = hexToOklch(sourceHex);
   const curves = buildDefaultCurves(sourceOklch, 11);
-  const scale: ColorScale = {
+  return {
     id: ramp.name,
     name: ramp.name,
     sourceHex,
@@ -32,9 +32,16 @@ export function generateRampFromConfig(ramp: RampConfig): GeneratedRamp {
     lightnessPreset: 'tailwind',
     chromaPeak: sourceOklch.c,
   };
-  return generateRamp(scale);
+}
+
+export function generateRampFromConfig(ramp: RampConfig): GeneratedRamp {
+  return generateRamp(buildScaleFromConfig(ramp));
 }
 
 export function generateAllRamps(config: ProjectConfig): GeneratedRamp[] {
   return config.ramps.map(generateRampFromConfig);
+}
+
+export function generateAllScales(config: ProjectConfig): ColorScale[] {
+  return config.ramps.map(buildScaleFromConfig);
 }

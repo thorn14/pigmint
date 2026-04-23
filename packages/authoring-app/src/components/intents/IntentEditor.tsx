@@ -3,13 +3,17 @@ import {
   VOCABULARY_V1_VERSION,
   type ComplianceTarget,
   type Consistency,
+  type CvdProfile,
   type FormalIntent,
   type Preference,
   type SurfaceContext,
   type VocabularyEntry,
 } from '@pigmint/core';
 import {
+  CVD_PROFILE_OPTIONS,
+  DEFAULT_RESOLVER_FALLBACK_STEPS,
   ENGINE_MODE_OPTIONS,
+  RESOLVER_MODE_OPTIONS,
   mergeIntent,
   useIntentStore,
   type EngineMode,
@@ -184,11 +188,23 @@ const MODE_LABELS: Record<EngineMode, string> = {
   'dark-high-contrast': 'Dark HC',
 };
 
+const CVD_LABELS: Record<CvdProfile, string> = {
+  deuteranopia: 'Deuteranopia',
+  protanopia: 'Protanopia',
+  tritanopia: 'Tritanopia',
+  achromatopsia: 'Achromatopsia',
+};
+
 function EngineConfigPanel() {
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const setEngineTarget = useIntentStore((s) => s.setEngineTarget);
   const engineModes = useIntentStore((s) => s.engineModes);
   const toggleEngineMode = useIntentStore((s) => s.toggleEngineMode);
+  const engineCvd = useIntentStore((s) => s.engineCvd);
+  const toggleEngineCvd = useIntentStore((s) => s.toggleEngineCvd);
+  const engineResolver = useIntentStore((s) => s.engineResolver);
+  const setResolverMode = useIntentStore((s) => s.setResolverMode);
+  const setResolverFallbackSteps = useIntentStore((s) => s.setResolverFallbackSteps);
 
   const fieldStyle: React.CSSProperties = {
     display: 'flex',
@@ -289,6 +305,84 @@ function EngineConfigPanel() {
         </div>
       </div>
 
+      <div style={{ ...fieldStyle, minWidth: 300 }}>
+        <label htmlFor="intent-engine-resolver-mode" style={labelStyle}>
+          Resolver
+        </label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            id="intent-engine-resolver-mode"
+            value={engineResolver.mode}
+            onChange={(e) => setResolverMode(e.target.value as (typeof RESOLVER_MODE_OPTIONS)[number])}
+            style={{ ...selectStyle, minWidth: 140, flex: '0 0 140px' }}
+          >
+            {RESOLVER_MODE_OPTIONS.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </select>
+          <input
+            aria-label="Resolver fallback steps"
+            type="number"
+            min={2}
+            step={1}
+            value={engineResolver.fallbackSteps ?? DEFAULT_RESOLVER_FALLBACK_STEPS}
+            disabled={engineResolver.mode !== 'continuous'}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (Number.isFinite(next) && next >= 2) {
+                setResolverFallbackSteps(Math.floor(next));
+              }
+            }}
+            style={{
+              width: 96,
+              padding: '4px 8px',
+              fontSize: 12,
+              background: 'var(--p-bg)',
+              color: 'var(--p-text)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 4,
+              opacity: engineResolver.mode === 'continuous' ? 1 : 0.6,
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ ...fieldStyle, minWidth: 340 }}>
+        <span style={labelStyle}>CVD profiles</span>
+        <div role="group" aria-label="Engine color vision deficiency profiles" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {CVD_PROFILE_OPTIONS.map((profile) => {
+            const active = engineCvd.includes(profile);
+            return (
+              <label
+                key={profile}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  padding: '4px 8px',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  background: active ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+                  color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => toggleEngineCvd(profile)}
+                  style={{ accentColor: 'var(--p-accent)' }}
+                />
+                {CVD_LABELS[profile]}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
       <div
         style={{
           fontSize: 11,
@@ -298,8 +392,9 @@ function EngineConfigPanel() {
         }}
       >
         Applied to every token. Per-token overrides below adjust preference,
-        consistency, and surface only. Modes drive CLI output — at least one must
-        stay selected.
+        consistency, and surface only. Modes drive CLI output, CVD stays in
+        config for preview/export, and continuous mode uses the fallback grid as
+        its dense working set.
       </div>
     </div>
   );

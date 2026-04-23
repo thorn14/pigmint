@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { IntentOverride as CoreIntentOverride } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
+import { useIntentStore } from '../../store/intentStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
 import { exportWcagContrastMapJSON, exportApcaContrastMapJSON } from '../../lib/exportContrastMap';
+import { buildPigmintTokensJson } from '../../lib/resolveState';
 
 interface Props {
   onClose: () => void;
 }
 
-type Tab = 'tokens' | 'contrast-wcag' | 'contrast-apca';
+type Tab = 'pigmint-tokens' | 'colors' | 'contrast-wcag' | 'contrast-apca';
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 14px',
@@ -84,10 +87,14 @@ function downloadJSON(json: string, filename: string) {
 
 export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
+  const engineModes = useIntentStore((s) => s.engineModes);
+  const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineResolver = useIntentStore((s) => s.engineResolver);
+  const overrides = useIntentStore((s) => s.overrides);
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
-  const tabs: Tab[] = ['tokens', 'contrast-wcag', 'contrast-apca'];
-  const [activeTab, setActiveTab] = useState<Tab>('tokens');
+  const tabs: Tab[] = ['pigmint-tokens', 'colors', 'contrast-wcag', 'contrast-apca'];
+  const [activeTab, setActiveTab] = useState<Tab>('pigmint-tokens');
   const [copied, setCopied] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -112,21 +119,38 @@ export function ExportModal({ onClose }: Props) {
   }, [activeTab]);
 
   const exportCacheRef = useRef<{
-    ramps: typeof ramps | null;
-    tokens?: string;
+    key: string | null;
+    pigmintTokens?: string;
+    colors?: string;
     wcag?: string;
     apca?: string;
-  }>({ ramps: null });
+  }>({ key: null });
 
-  if (exportCacheRef.current.ramps !== ramps) {
-    exportCacheRef.current = { ramps };
+  const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${JSON.stringify(engineResolver)}|${JSON.stringify(overrides)}`;
+  if (exportCacheRef.current.key !== cacheKey) {
+    exportCacheRef.current = { key: cacheKey };
   }
 
   const json = useMemo(() => {
     const cache = exportCacheRef.current;
-    if (activeTab === 'tokens') {
-      if (cache.tokens === undefined) cache.tokens = exportToJSON(ramps);
-      return cache.tokens;
+    if (activeTab === 'pigmint-tokens') {
+      if (cache.pigmintTokens === undefined) {
+        const result = buildPigmintTokensJson(
+          scales,
+          engineModes,
+          engineTarget,
+          overrides as Record<string, CoreIntentOverride>,
+          engineResolver,
+        );
+        cache.pigmintTokens = result.ok
+          ? result.json
+          : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
+      }
+      return cache.pigmintTokens;
+    }
+    if (activeTab === 'colors') {
+      if (cache.colors === undefined) cache.colors = exportToJSON(ramps);
+      return cache.colors;
     }
     if (activeTab === 'contrast-wcag') {
       if (cache.wcag === undefined) cache.wcag = exportWcagContrastMapJSON(ramps);
@@ -134,9 +158,10 @@ export function ExportModal({ onClose }: Props) {
     }
     if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
     return cache.apca;
-  }, [ramps, activeTab]);
+  }, [ramps, scales, engineModes, engineTarget, engineResolver, overrides, activeTab]);
   const downloadName =
-    activeTab === 'tokens' ? 'design-tokens.json'
+    activeTab === 'pigmint-tokens' ? 'tokens.json'
+    : activeTab === 'colors' ? 'colors.json'
     : activeTab === 'contrast-wcag' ? 'contrast-map-wcag.json'
     : 'contrast-map-apca.json';
 
@@ -234,7 +259,11 @@ export function ExportModal({ onClose }: Props) {
           }}
         >
           {tabs.map((tab, i) => {
-            const label = tab === 'tokens' ? 'Design Tokens' : tab === 'contrast-wcag' ? 'Contrast — WCAG' : 'Contrast — APCA';
+            const label =
+              tab === 'pigmint-tokens' ? 'Tokens (resolved)'
+              : tab === 'colors' ? 'Colors (primitives)'
+              : tab === 'contrast-wcag' ? 'Contrast — WCAG'
+              : 'Contrast — APCA';
             return (
               <button
                 key={tab}
@@ -308,7 +337,7 @@ export function ExportModal({ onClose }: Props) {
           >
             Download {downloadName}
           </button>
-          {activeTab === 'tokens' && (
+          {(activeTab === 'pigmint-tokens' || activeTab === 'colors') && (
             <>
               <button
                 onClick={() => downloadJSON(exportWcagContrastMapJSON(ramps), 'contrast-map-wcag.json')}

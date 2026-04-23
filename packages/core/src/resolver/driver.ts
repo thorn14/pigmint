@@ -1,6 +1,7 @@
-import { resolveToken } from './resolve.js';
+import { resolveToken, type ThresholdElevation } from './resolve.js';
 import { resolveSurface, type SurfaceRole } from './surfaces.js';
-import type { GeneratedRamp } from '../types/palette.js';
+import { generateRamp } from '../math/ramp.js';
+import type { ColorScale, GeneratedRamp } from '../types/palette.js';
 import type {
   FormalIntent,
   IntentOverride,
@@ -9,10 +10,13 @@ import type {
   VocabularyEntry,
 } from '../types/spec.js';
 
+const DEFAULT_DENSE_STEPS = 256;
+
 export interface ModeBinding {
   mode: string;
   scheme: 'light' | 'dark';
   baselineHex: string;
+  thresholdElevation?: ThresholdElevation;
 }
 
 export interface ResolveAllInput {
@@ -21,6 +25,7 @@ export interface ResolveAllInput {
   ramps: GeneratedRamp[];
   modes: ModeBinding[];
   tokenRamp: Record<string, string>;
+  scales?: ColorScale[];
 }
 
 export interface ResolveAllOutput {
@@ -86,8 +91,9 @@ function applyIntentOverrides(
 }
 
 export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
-  const { config, ramps, modes, tokenRamp } = input;
+  const { config, ramps, modes, tokenRamp, scales } = input;
   const vocabulary = applyIntentOverrides(input.vocabulary, config.intents);
+  const denseRamps = buildDenseRamps(config, ramps, scales);
 
   const tokens: ResolvedToken[] = [];
   const surfaceByModeAndPath: Record<string, Record<string, string>> = {};
@@ -140,12 +146,83 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         ramp,
         surfaceHex: surfaceRef.hex,
         surfaceRef: `{${surfaceRef.path}}`,
+        thresholdElevation: binding.thresholdElevation,
+        ...(denseRamps ? { denseRamp: denseRamps.get(rampName) } : {}),
       });
       tokens.push(token);
     }
   }
 
   return { tokens, surfaceByModeAndPath };
+}
+
+function buildDenseRamps(
+  config: ProjectConfig,
+  ramps: GeneratedRamp[],
+  scales: ColorScale[] | undefined,
+): Map<string, GeneratedRamp> | null {
+  const resolver = config.engine.resolver;
+  if (!resolver || resolver.mode !== 'continuous') return null;
+  if (!scales || scales.length === 0) {
+    throw new DriverError(
+      'engine.resolver.mode="continuous" requires scales to be passed to resolveAll()',
+    );
+  }
+  const steps = Math.max(
+    ramps.reduce((max, r) => Math.max(max, r.steps.length), 0) + 1,
+    resolver.fallbackSteps ?? DEFAULT_DENSE_STEPS,
+  );
+  const map = new Map<string, GeneratedRamp>();
+  for (const scale of scales) {
+    map.set(scale.name, generateRamp(densifyScale(scale, steps)));
+  }
+  return map;
+}
+
+function densifyScale(scale: ColorScale, targetSteps: number): ColorScale {
+  return {
+    ...scale,
+    stepCount: targetSteps,
+    curves: {
+      lightness: {
+        values: resampleCurve(scale.curves.lightness.values, targetSteps),
+        ...(scale.curves.lightness.smoothing !== undefined
+          ? { smoothing: scale.curves.lightness.smoothing }
+          : {}),
+      },
+      chroma: {
+        values: resampleCurve(scale.curves.chroma.values, targetSteps),
+        ...(scale.curves.chroma.smoothing !== undefined
+          ? { smoothing: scale.curves.chroma.smoothing }
+          : {}),
+      },
+      hue: {
+        values: resampleCurve(scale.curves.hue.values, targetSteps),
+        ...(scale.curves.hue.smoothing !== undefined
+          ? { smoothing: scale.curves.hue.smoothing }
+          : {}),
+      },
+    },
+  };
+}
+
+function resampleCurve(values: number[], targetLength: number): number[] {
+  if (values.length === targetLength) return values.slice();
+  if (values.length === 0) return new Array<number>(targetLength).fill(0);
+  if (values.length === 1) return new Array<number>(targetLength).fill(values[0] ?? 0);
+  if (targetLength <= 1) return [values[0] ?? 0];
+  const result = new Array<number>(targetLength);
+  for (let i = 0; i < targetLength; i++) {
+    const t = i / (targetLength - 1);
+    const src = t * (values.length - 1);
+    const lo = Math.floor(src);
+    const hi = Math.min(lo + 1, values.length - 1);
+    const frac = src - lo;
+    const a = values[lo] ?? 0;
+    const b = values[hi] ?? a;
+    result[i] = a + (b - a) * frac;
+  }
+  return result;
 }
 
 function resolveSurfaceReference(

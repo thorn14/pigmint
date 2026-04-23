@@ -12,7 +12,11 @@ const BASE: FormalIntent = {
 beforeEach(() => {
   useIntentStore.getState().clearAll();
   useIntentStore.getState().setEngineTarget('AA');
-  useIntentStore.getState().loadState({ engineModes: ['light'] });
+  useIntentStore.getState().loadState({
+    engineModes: ['light'],
+    engineCvd: [],
+    engineResolver: { mode: 'stepped' },
+  });
 });
 
 describe('intentStore', () => {
@@ -121,5 +125,39 @@ describe('intentStore', () => {
       >[0]['engineModes'],
     });
     expect(useIntentStore.getState().engineModes).toEqual(['light', 'dark']);
+  });
+
+  it('toggleEngineCvd adds and removes profiles in canonical order', () => {
+    useIntentStore.getState().toggleEngineCvd('tritanopia');
+    useIntentStore.getState().toggleEngineCvd('deuteranopia');
+    expect(useIntentStore.getState().engineCvd).toEqual([
+      'deuteranopia',
+      'tritanopia',
+    ]);
+    useIntentStore.getState().toggleEngineCvd('tritanopia');
+    expect(useIntentStore.getState().engineCvd).toEqual(['deuteranopia']);
+  });
+
+  it('loadState sanitizes unknown cvd profiles and resolver config', () => {
+    useIntentStore.getState().loadState({
+      engineCvd: ['deuteranopia', 'bogus'] as unknown as Parameters<
+        ReturnType<typeof useIntentStore.getState>['loadState']
+      >[0]['engineCvd'],
+      engineResolver: { mode: 'continuous', fallbackSteps: 64.8 },
+    });
+    const state = useIntentStore.getState();
+    expect(state.engineCvd).toEqual(['deuteranopia']);
+    expect(state.engineResolver).toEqual({ mode: 'continuous', fallbackSteps: 64 });
+  });
+
+  it('setResolverMode and setResolverFallbackSteps persist resolver settings', () => {
+    useIntentStore.getState().setResolverMode('continuous');
+    useIntentStore.getState().setResolverFallbackSteps(128);
+    expect(useIntentStore.getState().engineResolver).toEqual({
+      mode: 'continuous',
+      fallbackSteps: 128,
+    });
+    useIntentStore.getState().setResolverFallbackSteps(undefined);
+    expect(useIntentStore.getState().engineResolver).toEqual({ mode: 'continuous' });
   });
 });

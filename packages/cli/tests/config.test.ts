@@ -35,4 +35,39 @@ describe('validateProjectConfig', () => {
       /engine\.compliance/,
     );
   });
+
+  it('accepts known engine.cvd profiles', () => {
+    const raw = {
+      ...minimalValid,
+      engine: {
+        ...minimalValid.engine,
+        cvd: ['deuteranopia', 'tritanopia'],
+      },
+    };
+    expect(() => validateProjectConfig(raw, '/tmp/p.yaml')).not.toThrow();
+  });
+
+  it('rejects unknown engine.cvd profiles', () => {
+    const raw = {
+      ...minimalValid,
+      engine: {
+        ...minimalValid.engine,
+        cvd: ['deuteranopia', 'bogus'],
+      },
+    };
+    expect(() => validateProjectConfig(raw, '/tmp/p.yaml')).toThrow(
+      /engine\.cvd/,
+    );
+  });
+
+  it('accepts valid resolver config', () => {
+    const raw = {
+      ...minimalValid,
+      engine: {
+        ...minimalValid.engine,
+        resolver: { mode: 'continuous', fallbackSteps: 128 },
+      },
+    };
+    expect(() => validateProjectConfig(raw, '/tmp/p.yaml')).not.toThrow();
+  });
 });

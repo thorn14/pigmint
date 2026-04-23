@@ -26,6 +26,8 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineModes = useIntentStore((s) => s.engineModes);
+  const engineCvd = useIntentStore((s) => s.engineCvd);
+  const engineResolver = useIntentStore((s) => s.engineResolver);
   const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<string>('');
   const handleRef = useRef<FileSystemFileHandleLike | null>(null);
@@ -40,9 +42,11 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
           target: engineTarget,
           compliance: engineCompliance,
           modes: engineModes,
+          cvd: engineCvd,
+          resolver: engineResolver,
         },
       }),
-    [scales, intents, engineTarget, engineCompliance, engineModes],
+    [scales, intents, engineTarget, engineCompliance, engineModes, engineCvd, engineResolver],
   );
 
   useEffect(() => {

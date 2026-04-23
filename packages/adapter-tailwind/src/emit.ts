@@ -12,8 +12,8 @@ type Format = 'oklch' | 'hex';
 const MODE_SELECTORS: Record<string, string> = {
   light: ':root',
   dark: '.dark',
-  'light-high-contrast': ':root[data-contrast="high"]',
-  'dark-high-contrast': '.dark[data-contrast="high"]',
+  'light-high-contrast': '.light-high-contrast',
+  'dark-high-contrast': '.dark-high-contrast',
 };
 
 function selectorForMode(mode: string, isDefault: boolean): string {

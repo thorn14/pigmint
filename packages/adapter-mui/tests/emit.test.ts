@@ -10,7 +10,7 @@ import {
   type ColorScale,
   type ProjectConfig,
 } from '@pigmint/core';
-import { muiEmit, buildMuiOutput } from '../src/emit.js';
+import { muiEmit, buildMuiOutput } from '../src/emit';
 
 function makeRamp(sourceHex: string, name: string) {
   const sourceOklch = hexToOklch(sourceHex);
@@ -36,13 +36,30 @@ const config: ProjectConfig = {
   ramps: [
     { name: 'neutral', source: '#888888' },
     { name: 'blue', source: '#3366cc' },
+    { name: 'slate', source: '#64748b' },
+    { name: 'success', source: '#16a34a' },
+    { name: 'danger', source: '#dc2626' },
+    { name: 'warning', source: '#d97706' },
+    { name: 'info', source: '#0284c7' },
   ],
   output: { dtcg: './tokens.json' },
 };
 
+const RAMP_SOURCE: [string, string][] = [
+  ['#888888', 'neutral'],
+  ['#3366cc', 'blue'],
+  ['#64748b', 'slate'],
+  ['#16a34a', 'success'],
+  ['#dc2626', 'danger'],
+  ['#d97706', 'warning'],
+  ['#0284c7', 'info'],
+];
 function buildContainer() {
-  const ramps = [makeRamp('#888888', 'neutral'), makeRamp('#3366cc', 'blue')];
-  const tokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
+  const ramps = RAMP_SOURCE.map(([hex, name]) => makeRamp(hex, name));
+  const tokenRamp = buildDefaultTokenRamp(
+    VOCABULARY_V1_SLICE,
+    RAMP_SOURCE.map(([, n]) => n),
+  );
   const { tokens } = resolveAll({
     config,
     vocabulary: VOCABULARY_V1_SLICE,
@@ -100,14 +117,17 @@ describe('muiEmit', () => {
     }
   });
 
-  it('warns when some palette bindings are not covered by vocab', () => {
+  it('does not warn about missing palette bindings when the default vocabulary covers the MUI map', () => {
     const container = buildContainer();
-    const result = muiEmit({
-      container,
-      adapterConfig: { name: 'mui', output: './css', formats: ['hex'] },
-      projectConfig: config,
-    });
-    expect(result.warnings!.some((w) => w.includes('palette binding'))).toBe(true);
+    const { missingBindings } = buildMuiOutput(
+      {
+        container,
+        adapterConfig: { name: 'mui', output: './css', formats: ['hex'] },
+        projectConfig: config,
+      },
+      'hex',
+    );
+    expect(missingBindings).toEqual([]);
   });
 
   it('buildMuiOutput maps surface.main to background.default', () => {

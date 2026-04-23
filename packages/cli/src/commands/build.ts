@@ -9,7 +9,7 @@ import {
 } from '@pigmint/core';
 import type { AuditReport, Suggestion } from '@pigmint/audit';
 import { loadProjectConfig } from '../config.js';
-import { generateAllRamps } from '../ramps.js';
+import { generateAllRamps, generateAllScales } from '../ramps.js';
 import { resolveAdapter } from '../adapters.js';
 
 export interface BuildOptions {
@@ -57,6 +57,7 @@ function buildModeBindings(modes: string[]): ModeBinding[] {
     mode,
     scheme: MODE_SCHEMES[mode] ?? 'light',
     baselineHex: MODE_BASELINES[mode] ?? '#ffffff',
+    ...(mode.endsWith('-high-contrast') ? { thresholdElevation: 'hc' as const } : {}),
   }));
 }
 
@@ -67,6 +68,7 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
   const config = await loadProjectConfig(configPath);
 
   const ramps = generateAllRamps(config);
+  const scales = generateAllScales(config);
   const defaultMode = config.engine.modes[0] ?? 'light';
   const modes = buildModeBindings(config.engine.modes);
   const vocabulary = VOCABULARY_V1_SLICE;
@@ -82,6 +84,7 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     ramps,
     modes,
     tokenRamp,
+    scales,
   });
 
   const container = emitDtcg({

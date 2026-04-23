@@ -49,6 +49,8 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
       engineTarget: parsed.engine.target,
       engineCompliance: parsed.engine.compliance,
       engineModes: parsed.engine.modes,
+      engineCvd: parsed.engine.cvd,
+      engineResolver: parsed.engine.resolver,
     });
     onClose();
   }

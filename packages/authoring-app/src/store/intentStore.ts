@@ -5,6 +5,9 @@ import type {
   Preference,
   Consistency,
   ComplianceTarget,
+  CvdProfile,
+  ResolverConfig,
+  ResolverMode,
   SurfaceContext,
 } from '@pigmint/core';
 
@@ -30,10 +33,26 @@ export const ENGINE_MODE_OPTIONS: readonly EngineMode[] = [
   'dark-high-contrast',
 ];
 
+export const CVD_PROFILE_OPTIONS: readonly CvdProfile[] = [
+  'deuteranopia',
+  'protanopia',
+  'tritanopia',
+  'achromatopsia',
+];
+
+export const RESOLVER_MODE_OPTIONS: readonly ResolverMode[] = [
+  'stepped',
+  'continuous',
+];
+
+export const DEFAULT_RESOLVER_FALLBACK_STEPS = 256;
+
 export interface PersistedIntentState {
   engineTarget: ComplianceTarget;
   engineCompliance: EngineCompliance;
   engineModes: EngineMode[];
+  engineCvd: CvdProfile[];
+  engineResolver: ResolverConfig;
   overrides: IntentOverrides;
 }
 
@@ -42,6 +61,9 @@ interface IntentState extends PersistedIntentState {}
 interface IntentActions {
   setEngineTarget: (target: ComplianceTarget) => void;
   toggleEngineMode: (mode: EngineMode) => void;
+  toggleEngineCvd: (profile: CvdProfile) => void;
+  setResolverMode: (mode: ResolverMode) => void;
+  setResolverFallbackSteps: (steps: number | undefined) => void;
   setPreference: (path: string, preference: Preference) => void;
   setConsistency: (path: string, consistency: Consistency) => void;
   setSurfaceContext: (path: string, surfaceContext: SurfaceContext) => void;
@@ -55,6 +77,8 @@ const DEFAULT_STATE: PersistedIntentState = {
   engineTarget: 'AA',
   engineCompliance: 'wcag21',
   engineModes: ['light', 'dark'],
+  engineCvd: [],
+  engineResolver: { mode: 'stepped' },
   overrides: {},
 };
 
@@ -69,6 +93,28 @@ function sanitizeModes(raw: unknown): EngineMode[] {
   return ordered.length > 0 ? ordered : DEFAULT_STATE.engineModes;
 }
 
+export function sanitizeCvd(raw: unknown): CvdProfile[] {
+  if (!Array.isArray(raw)) return [];
+  const known = new Set<CvdProfile>(CVD_PROFILE_OPTIONS);
+  const filtered = raw.filter((p): p is CvdProfile =>
+    typeof p === 'string' && known.has(p as CvdProfile),
+  );
+  const deduped = Array.from(new Set(filtered));
+  return CVD_PROFILE_OPTIONS.filter((p) => deduped.includes(p));
+}
+
+export function sanitizeResolver(raw: unknown): ResolverConfig {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_STATE.engineResolver };
+  const obj = raw as Record<string, unknown>;
+  const mode: ResolverMode = obj.mode === 'continuous' ? 'continuous' : 'stepped';
+  const fallbackRaw = obj.fallbackSteps;
+  const fallbackSteps =
+    typeof fallbackRaw === 'number' && Number.isFinite(fallbackRaw) && fallbackRaw >= 2
+      ? Math.floor(fallbackRaw)
+      : undefined;
+  return fallbackSteps !== undefined ? { mode, fallbackSteps } : { mode };
+}
+
 function loadFromStorage(): PersistedIntentState {
   if (typeof localStorage === 'undefined') return DEFAULT_STATE;
   try {
@@ -80,6 +126,8 @@ function loadFromStorage(): PersistedIntentState {
         engineTarget: parsed.engineTarget === 'AAA' ? 'AAA' : 'AA',
         engineCompliance: 'wcag21',
         engineModes: sanitizeModes(parsed.engineModes),
+        engineCvd: sanitizeCvd(parsed.engineCvd),
+        engineResolver: sanitizeResolver(parsed.engineResolver),
         overrides:
           parsed.overrides && typeof parsed.overrides === 'object'
             ? (parsed.overrides as IntentOverrides)
@@ -106,6 +154,8 @@ function snapshot(state: PersistedIntentState): PersistedIntentState {
     engineTarget: state.engineTarget,
     engineCompliance: state.engineCompliance,
     engineModes: [...state.engineModes],
+    engineCvd: [...state.engineCvd],
+    engineResolver: { ...state.engineResolver },
     overrides: { ...state.overrides },
   };
 }
@@ -128,6 +178,33 @@ export const useIntentStore = create<IntentState & IntentActions>()(
           ? state.engineModes.filter((m) => m !== mode)
           : [...state.engineModes, mode];
         state.engineModes = sanitizeModes(next);
+        persist(snapshot(state));
+      }),
+
+    toggleEngineCvd: (profile) =>
+      set((state) => {
+        const has = state.engineCvd.includes(profile);
+        const next = has
+          ? state.engineCvd.filter((p) => p !== profile)
+          : [...state.engineCvd, profile];
+        state.engineCvd = sanitizeCvd(next);
+        persist(snapshot(state));
+      }),
+
+    setResolverMode: (mode) =>
+      set((state) => {
+        state.engineResolver = { ...state.engineResolver, mode };
+        persist(snapshot(state));
+      }),
+
+    setResolverFallbackSteps: (steps) =>
+      set((state) => {
+        if (steps === undefined) {
+          const { fallbackSteps: _drop, ...rest } = state.engineResolver;
+          state.engineResolver = rest;
+        } else {
+          state.engineResolver = { ...state.engineResolver, fallbackSteps: steps };
+        }
         persist(snapshot(state));
       }),
 
@@ -177,6 +254,8 @@ export const useIntentStore = create<IntentState & IntentActions>()(
           state.engineCompliance = next.engineCompliance === 'apca' ? 'wcag21' : next.engineCompliance;
         }
         if (next.engineModes) state.engineModes = sanitizeModes(next.engineModes);
+        if (next.engineCvd) state.engineCvd = sanitizeCvd(next.engineCvd);
+        if (next.engineResolver) state.engineResolver = sanitizeResolver(next.engineResolver);
         if (next.overrides) state.overrides = { ...next.overrides };
         persist(snapshot(state));
       }),

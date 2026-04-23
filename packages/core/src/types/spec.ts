@@ -132,11 +132,19 @@ export type CvdProfile =
   | 'tritanopia'
   | 'achromatopsia';
 
+export type ResolverMode = 'stepped' | 'continuous';
+
+export interface ResolverConfig {
+  mode: ResolverMode;
+  fallbackSteps?: number;
+}
+
 export interface EngineConfig {
   compliance: 'wcag21' | 'apca';
   target: ComplianceTarget;
   modes: string[];
   cvd?: CvdProfile[];
+  resolver?: ResolverConfig;
 }
 
 export interface RampConfig {

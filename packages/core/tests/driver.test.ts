@@ -9,10 +9,10 @@ import {
 } from '../src/index.js';
 import type { ColorScale, ProjectConfig } from '../src/index.js';
 
-function makeRamp(sourceHex: string, name: string) {
+function makeScale(sourceHex: string, name: string): ColorScale {
   const sourceOklch = hexToOklch(sourceHex);
   const curves = buildDefaultCurves(sourceOklch, 11);
-  const scale: ColorScale = {
+  return {
     id: name,
     name,
     sourceHex,
@@ -25,7 +25,10 @@ function makeRamp(sourceHex: string, name: string) {
     lightnessPreset: 'tailwind',
     chromaPeak: sourceOklch.c,
   };
-  return generateRamp(scale);
+}
+
+function makeRamp(sourceHex: string, name: string) {
+  return generateRamp(makeScale(sourceHex, name));
 }
 
 const config: ProjectConfig = {
@@ -33,13 +36,27 @@ const config: ProjectConfig = {
   ramps: [
     { name: 'neutral', source: '#888888' },
     { name: 'blue', source: '#3366cc' },
+    { name: 'slate', source: '#64748b' },
+    { name: 'success', source: '#16a34a' },
+    { name: 'danger', source: '#dc2626' },
+    { name: 'warning', source: '#d97706' },
+    { name: 'info', source: '#0284c7' },
   ],
   output: { dtcg: './tokens.json' },
 };
 
-const defaultRamps = () => [makeRamp('#888888', 'neutral'), makeRamp('#3366cc', 'blue')];
-
-const defaultTokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
+const RAMP_SPECS: [string, string][] = [
+  ['#888888', 'neutral'],
+  ['#3366cc', 'blue'],
+  ['#64748b', 'slate'],
+  ['#16a34a', 'success'],
+  ['#dc2626', 'danger'],
+  ['#d97706', 'warning'],
+  ['#0284c7', 'info'],
+];
+const defaultRamps = () => RAMP_SPECS.map(([hex, name]) => makeRamp(hex, name));
+const RAMP_NAMES = RAMP_SPECS.map(([, n]) => n);
+const defaultTokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, RAMP_NAMES);
 
 const defaultModes = [
   { mode: 'light' as const, scheme: 'light' as const, baselineHex: '#ffffff' },
@@ -140,5 +157,120 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     )!;
     expect(overFg.hex).toBe(baseFg.hex);
     expect(overFg.intent.preference).toBe(baseFg.intent.preference);
+  });
+
+  it('resolver.mode="continuous" picks off-step positions and labels nearest primitive', () => {
+    const scales = RAMP_SPECS.map(([hex, name]) => makeScale(hex, name));
+    const ramps = scales.map((s) => generateRamp(s));
+    const baseline = resolveAll({
+      config,
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: defaultModes,
+      tokenRamp: defaultTokenRamp,
+    });
+    const continuous = resolveAll({
+      config: {
+        ...config,
+        engine: {
+          ...config.engine,
+          resolver: { mode: 'continuous', fallbackSteps: 256 },
+        },
+      },
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: defaultModes,
+      tokenRamp: defaultTokenRamp,
+      scales,
+    });
+
+    const baseBtn = baseline.tokens.find(
+      (t) => t.path === 'color.action.primary.background' && t.mode === 'light',
+    )!;
+    const contBtn = continuous.tokens.find(
+      (t) => t.path === 'color.action.primary.background' && t.mode === 'light',
+    )!;
+
+    // Baseline snaps to an 11-step grid: position is an integer multiple of 0.1.
+    const baseSnap = Math.abs(baseBtn.source.position * 10 - Math.round(baseBtn.source.position * 10));
+    expect(baseSnap).toBeLessThan(1e-9);
+
+    // Continuous picks a finer position and meets the threshold more tightly.
+    const contSnap = Math.abs(contBtn.source.position * 10 - Math.round(contBtn.source.position * 10));
+    expect(contSnap).toBeGreaterThan(1e-6);
+    expect(contBtn.contrast?.wcag21 ?? 0).toBeGreaterThanOrEqual(3);
+    expect(contBtn.contrast?.wcag21 ?? 99).toBeLessThanOrEqual(baseBtn.contrast?.wcag21 ?? 99);
+
+    // nearestPrimitive remains a user-facing step name, not a 256-index.
+    expect(contBtn.source.nearestPrimitive).toMatch(/^blue\.(50|100|200|300|400|500|600|700|800|900|950)$/);
+  });
+
+  it('resolver.mode="continuous" throws without scales', () => {
+    const ramps = defaultRamps();
+    expect(() =>
+      resolveAll({
+        config: {
+          ...config,
+          engine: {
+            ...config.engine,
+            resolver: { mode: 'continuous' },
+          },
+        },
+        vocabulary: VOCABULARY_V1_SLICE,
+        ramps,
+        modes: defaultModes,
+        tokenRamp: defaultTokenRamp,
+      }),
+    ).toThrow(/continuous/);
+  });
+
+  it('thresholdElevation: "hc" raises the effective min so HC modes diverge from base', () => {
+    const ramps = defaultRamps();
+    const out = resolveAll({
+      config: {
+        ...config,
+        engine: {
+          ...config.engine,
+          modes: ['light', 'light-high-contrast'],
+        },
+      },
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: [
+        { mode: 'light', scheme: 'light', baselineHex: '#ffffff' },
+        {
+          mode: 'light-high-contrast',
+          scheme: 'light',
+          baselineHex: '#ffffff',
+          thresholdElevation: 'hc',
+        },
+      ],
+      tokenRamp: defaultTokenRamp,
+    });
+
+    const base = out.tokens.find(
+      (t) => t.path === 'color.action.primary.background' && t.mode === 'light',
+    )!;
+    const hc = out.tokens.find(
+      (t) =>
+        t.path === 'color.action.primary.background' && t.mode === 'light-high-contrast',
+    )!;
+
+    // Non-text AA (3:1) elevates to text AA (4.5:1); picker lands on a higher-contrast step.
+    expect(base.contrast?.wcag21 ?? 0).toBeLessThan(hc.contrast?.wcag21 ?? 0);
+    expect(hc.contrast?.wcag21 ?? 0).toBeGreaterThanOrEqual(4.5);
+    expect(hc.compliance?.thresholds?.nonText).toBe(4.5);
+    expect(base.compliance?.thresholds?.nonText).toBe(3);
+
+    const baseMuted = out.tokens.find(
+      (t) => t.path === 'color.foreground.muted' && t.mode === 'light',
+    )!;
+    const hcMuted = out.tokens.find(
+      (t) => t.path === 'color.foreground.muted' && t.mode === 'light-high-contrast',
+    )!;
+    // Text AA (4.5) elevates to text AAA (7); muted-foreground is AA-text in the default slice.
+    expect(baseMuted.compliance?.thresholds?.text).toBe(4.5);
+    expect(hcMuted.compliance?.thresholds?.text).toBe(7);
+    expect((hcMuted.contrast?.wcag21 ?? 0) > (baseMuted.contrast?.wcag21 ?? 0)).toBe(true);
   });
 });

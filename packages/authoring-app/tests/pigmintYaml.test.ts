@@ -54,6 +54,23 @@ describe('pigmintYaml', () => {
     expect(yaml).toContain('target: AAA');
   });
 
+  it('emits engine.cvd and engine.resolver when provided', () => {
+    const yaml = serializePigmintYaml({
+      scales: [scale('1', 'blue', '#3366cc')],
+      intents: {},
+      engine: {
+        cvd: ['deuteranopia', 'tritanopia'],
+        resolver: { mode: 'continuous', fallbackSteps: 128 },
+      },
+    });
+    expect(yaml).toContain('cvd:');
+    expect(yaml).toContain('- deuteranopia');
+    expect(yaml).toContain('- tritanopia');
+    expect(yaml).toContain('resolver:');
+    expect(yaml).toContain('mode: continuous');
+    expect(yaml).toContain('fallbackSteps: 128');
+  });
+
   it('emits intents block when overrides are present', () => {
     const yaml = serializePigmintYaml({
       scales: [scale('1', 'blue', '#3366cc')],
@@ -92,7 +109,12 @@ describe('pigmintYaml', () => {
     const yaml = serializePigmintYaml({
       scales: input,
       intents,
-      engine: { target: 'AAA', compliance: 'apca' },
+      engine: {
+        target: 'AAA',
+        compliance: 'apca',
+        cvd: ['deuteranopia'],
+        resolver: { mode: 'continuous', fallbackSteps: 64 },
+      },
     });
     const parsed = parsePigmintYaml(yaml);
     expect(parsed.scales[0].name).toBe('blue');
@@ -100,6 +122,8 @@ describe('pigmintYaml', () => {
     expect(parsed.intents['color.foreground.main']).toEqual({ preference: 'anchored' });
     expect(parsed.engine.target).toBe('AAA');
     expect(parsed.engine.compliance).toBe('apca');
+    expect(parsed.engine.cvd).toEqual(['deuteranopia']);
+    expect(parsed.engine.resolver).toEqual({ mode: 'continuous', fallbackSteps: 64 });
   });
 
   it('rejects ramps with missing source', () => {
@@ -152,5 +176,26 @@ describe('pigmintYaml', () => {
     ].join('\n');
     const parsed = parsePigmintYaml(text);
     expect(parsed.engine.modes).toEqual(['light', 'dark']);
+  });
+
+  it('parses known cvd profiles and sanitizes resolver config', () => {
+    const text = [
+      'engine:',
+      '  compliance: wcag21',
+      '  target: AA',
+      '  modes: [light]',
+      '  cvd:',
+      '    - deuteranopia',
+      '    - bogus',
+      '  resolver:',
+      '    mode: continuous',
+      '    fallbackSteps: 95.5',
+      'ramps:',
+      '  - name: blue',
+      '    source: "#3366cc"',
+    ].join('\n');
+    const parsed = parsePigmintYaml(text);
+    expect(parsed.engine.cvd).toEqual(['deuteranopia']);
+    expect(parsed.engine.resolver).toEqual({ mode: 'continuous', fallbackSteps: 95 });
   });
 });

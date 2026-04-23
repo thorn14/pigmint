@@ -3,6 +3,13 @@ import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ProjectConfig } from '@pigmint/core';
 
+const VALID_CVD_PROFILES = new Set([
+  'deuteranopia',
+  'protanopia',
+  'tritanopia',
+  'achromatopsia',
+]);
+
 export class ConfigError extends Error {
   constructor(
     message: string,
@@ -56,6 +63,42 @@ export function validateProjectConfig(raw: unknown, path: string): ProjectConfig
   }
   if (!Array.isArray(engine.modes) || engine.modes.length === 0) {
     throw new ConfigError('engine.modes must be a non-empty array', path);
+  }
+  if ('cvd' in engine && engine.cvd !== undefined) {
+    if (!Array.isArray(engine.cvd)) {
+      throw new ConfigError('engine.cvd must be an array when provided', path);
+    }
+    for (const profile of engine.cvd) {
+      if (typeof profile !== 'string' || !VALID_CVD_PROFILES.has(profile)) {
+        throw new ConfigError(
+          `engine.cvd contains unsupported profile ${JSON.stringify(profile)}`,
+          path,
+        );
+      }
+    }
+  }
+  if ('resolver' in engine && engine.resolver !== undefined) {
+    if (!isPlainObject(engine.resolver)) {
+      throw new ConfigError('engine.resolver must be a mapping', path);
+    }
+    const mode = engine.resolver.mode;
+    if (mode !== 'stepped' && mode !== 'continuous') {
+      throw new ConfigError(
+        `engine.resolver.mode must be "stepped" or "continuous" (got ${JSON.stringify(mode)})`,
+        path,
+      );
+    }
+    if (
+      'fallbackSteps' in engine.resolver &&
+      engine.resolver.fallbackSteps !== undefined &&
+      (typeof engine.resolver.fallbackSteps !== 'number' ||
+        engine.resolver.fallbackSteps < 2)
+    ) {
+      throw new ConfigError(
+        'engine.resolver.fallbackSteps must be a number >= 2',
+        path,
+      );
+    }
   }
 
   const ramps = raw.ramps;

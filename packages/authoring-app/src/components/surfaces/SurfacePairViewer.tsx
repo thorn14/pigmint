@@ -2,12 +2,13 @@ import { useMemo } from 'react';
 import type {
   ComplianceLevel,
   FormalIntent,
+  GeneratedRamp,
   IntentOverride as CoreIntentOverride,
   ResolvedToken,
 } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, type EngineMode } from '../../store/intentStore';
-import { runResolve } from '../../lib/resolveState';
+import { continuousStepLabel, runResolve } from '../../lib/resolveState';
 
 const MODE_LABELS: Record<EngineMode, string> = {
   light: 'Light',
@@ -36,7 +37,9 @@ function ratioBadge(t: ResolvedToken): string {
   return typeof ratio === 'number' ? `${ratio.toFixed(2)}:1` : '—';
 }
 
-function primitiveLabel(t: ResolvedToken): string {
+function primitiveLabel(t: ResolvedToken, rampsByName: Map<string, GeneratedRamp>): string {
+  const ramp = rampsByName.get(t.source.ramp);
+  if (ramp) return continuousStepLabel(t.source.position, ramp);
   const np = t.source.nearestPrimitive;
   if (np) return np;
   return `${t.source.ramp}@${(t.source.position * 100).toFixed(0)}%`;
@@ -45,9 +48,11 @@ function primitiveLabel(t: ResolvedToken): string {
 function ModeMatrix({
   mode,
   tokens,
+  rampsByName,
 }: {
   mode: EngineMode;
   tokens: ResolvedToken[];
+  rampsByName: Map<string, GeneratedRamp>;
 }) {
   const modeTokens = tokens.filter((t) => t.mode === mode);
   const surfaces = modeTokens.filter((t) => t.path.startsWith('color.surface.'));
@@ -100,7 +105,7 @@ function ModeMatrix({
                 <Swatch hex={s.hex} label={s.hex} />
               </td>
               <td style={cellBody}>
-                <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(s)}</span>
+                <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(s, rampsByName)}</span>
               </td>
             </tr>
           ))}
@@ -119,7 +124,6 @@ function ModeMatrix({
             <tr style={{ textAlign: 'left' }}>
               <th style={cellHeader}>Token</th>
               <th style={cellHeader}>Resolved</th>
-              <th style={cellHeader}>Against</th>
               <th style={cellHeader}>Contrast</th>
               <th style={cellHeader}>Compliance</th>
               <th style={cellHeader}>Source</th>
@@ -135,11 +139,6 @@ function ModeMatrix({
                 </td>
                 <td style={cellBody}>
                   <Swatch hex={t.hex} label={t.hex} />
-                </td>
-                <td style={cellBody}>
-                  <span style={{ fontFamily: 'monospace' }}>
-                    {t.resolvedAgainst ?? '—'}
-                  </span>
                 </td>
                 <td style={cellBody}>{ratioBadge(t)}</td>
                 <td style={cellBody}>
@@ -159,7 +158,7 @@ function ModeMatrix({
                   </span>
                 </td>
                 <td style={cellBody}>
-                  <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(t)}</span>
+                  <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(t, rampsByName)}</span>
                 </td>
               </tr>
             ))}
@@ -209,12 +208,26 @@ export function SurfacePairViewer() {
   const scales = usePaletteStore((s) => s.scales);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineResolver = useIntentStore((s) => s.engineResolver);
   const overrides = useIntentStore((s) => s.overrides);
 
   const state = useMemo(
-    () => runResolve(scales, engineModes, engineTarget, overrides as Record<string, CoreIntentOverride>),
-    [scales, engineModes, engineTarget, overrides],
+    () =>
+      runResolve(
+        scales,
+        engineModes,
+        engineTarget,
+        overrides as Record<string, CoreIntentOverride>,
+        engineResolver,
+      ),
+    [scales, engineModes, engineTarget, engineResolver, overrides],
   );
+
+  const rampsByName = useMemo(() => {
+    const map = new Map<string, GeneratedRamp>();
+    if (state.ok) for (const r of state.ramps) map.set(r.scaleName, r);
+    return map;
+  }, [state]);
 
   return (
     <div
@@ -253,7 +266,7 @@ export function SurfacePairViewer() {
         </div>
       ) : (
         engineModes.map((m) => (
-          <ModeMatrix key={m} mode={m} tokens={state.tokens} />
+          <ModeMatrix key={m} mode={m} tokens={state.tokens} rampsByName={rampsByName} />
         ))
       )}
     </div>

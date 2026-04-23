@@ -12,6 +12,8 @@ import type {
   Threshold,
 } from '../types/spec.js';
 
+export type ThresholdElevation = 'hc';
+
 export interface ResolveInput {
   tokenPath: string;
   mode: string;
@@ -19,6 +21,8 @@ export interface ResolveInput {
   ramp: GeneratedRamp;
   surfaceHex: string;
   surfaceRef: string;
+  thresholdElevation?: ThresholdElevation;
+  denseRamp?: GeneratedRamp;
 }
 
 export interface ResolveResult {
@@ -36,12 +40,16 @@ export class ResolveError extends Error {
   }
 }
 
-function wcagThreshold(t: Threshold): number {
+function wcagThreshold(t: Threshold, elevate?: ThresholdElevation): number {
   if (t.kind !== 'wcag') {
     throw new Error(`APCA threshold not yet supported (got kind=${t.kind})`);
   }
-  if (t.usage === 'text') return t.level === 'AAA' ? 7 : 4.5;
-  return 3;
+  const base = t.usage === 'text' ? (t.level === 'AAA' ? 7 : 4.5) : 3;
+  if (elevate === 'hc') {
+    if (base === 3) return 4.5;
+    if (base === 4.5) return 7;
+  }
+  return base;
 }
 
 function complianceLevelFor(t: Threshold, ratio: number): ComplianceLevel {
@@ -66,8 +74,9 @@ function pickStepLowestPassing(
   ramp: GeneratedRamp,
   surfaceHex: string,
   threshold: Threshold,
+  elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
-  const required = wcagThreshold(threshold);
+  const required = wcagThreshold(threshold, elevate);
   let best: { index: number; ratio: number } | null = null;
   for (let i = 0; i < ramp.steps.length; i++) {
     const step = ramp.steps[i];
@@ -85,8 +94,9 @@ function pickStepHighestContrast(
   ramp: GeneratedRamp,
   surfaceHex: string,
   threshold: Threshold,
+  elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
-  const required = wcagThreshold(threshold);
+  const required = wcagThreshold(threshold, elevate);
   let best: { index: number; ratio: number } | null = null;
   for (let i = 0; i < ramp.steps.length; i++) {
     const step = ramp.steps[i];
@@ -101,7 +111,7 @@ function pickStepHighestContrast(
 }
 
 export function resolveToken(input: ResolveInput): ResolveResult {
-  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef } = input;
+  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp } = input;
 
   if (intent.consistency !== 'independent') {
     throw new ResolveError(
@@ -110,11 +120,13 @@ export function resolveToken(input: ResolveInput): ResolveResult {
     );
   }
 
+  const pickRamp = denseRamp ?? ramp;
+
   let picked: { index: number; ratio: number } | null;
   if (intent.preference === 'lowest-passing') {
-    picked = pickStepLowestPassing(ramp, surfaceHex, intent.threshold);
+    picked = pickStepLowestPassing(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'highest-contrast') {
-    picked = pickStepHighestContrast(ramp, surfaceHex, intent.threshold);
+    picked = pickStepHighestContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
   } else {
     throw new ResolveError(
       `preference=${intent.preference} not yet implemented (slice supports lowest-passing and highest-contrast)`,
@@ -128,14 +140,16 @@ export function resolveToken(input: ResolveInput): ResolveResult {
     );
   }
 
-  const step = ramp.steps[picked.index];
+  const step = pickRamp.steps[picked.index];
   if (!step) {
     throw new ResolveError(`ramp step index ${picked.index} missing`, tokenPath);
   }
 
-  const stepCount = ramp.steps.length;
-  const position = stepCount === 1 ? 0 : picked.index / (stepCount - 1);
-  const nearestPrimitive = `${ramp.scaleName}.${step.name}`;
+  const pickStepCount = pickRamp.steps.length;
+  const position = pickStepCount === 1 ? 0 : picked.index / (pickStepCount - 1);
+  const nearestPrimitive = denseRamp
+    ? `${ramp.scaleName}.${nearestPrimitiveName(ramp, position)}`
+    : `${ramp.scaleName}.${step.name}`;
 
   const contrast: ContrastReceipt = {
     wcag21: round2(picked.ratio),
@@ -147,8 +161,8 @@ export function resolveToken(input: ResolveInput): ResolveResult {
     level: complianceLevelFor(intent.threshold, picked.ratio),
     thresholds:
       intent.threshold.usage === 'text'
-        ? { text: wcagThreshold(intent.threshold) }
-        : { nonText: wcagThreshold(intent.threshold) },
+        ? { text: wcagThreshold(intent.threshold, thresholdElevation) }
+        : { nonText: wcagThreshold(intent.threshold, thresholdElevation) },
   };
 
   const source: ReceiptSource = {
@@ -183,4 +197,13 @@ export function buildResolvedValue(step: GeneratedStep): ResolvedValue {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function nearestPrimitiveName(ramp: GeneratedRamp, position: number): string {
+  const n = ramp.steps.length;
+  if (n === 0) return String(position);
+  if (n === 1) return ramp.steps[0]?.name ?? '0';
+  const idx = Math.round(position * (n - 1));
+  const clamped = Math.max(0, Math.min(n - 1, idx));
+  return ramp.steps[clamped]?.name ?? String(clamped);
 }

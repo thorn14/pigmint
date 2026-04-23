@@ -1,10 +1,17 @@
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 import { parse as cssParse, formatHex } from 'culori';
-import { hexToOklch, type ComplianceTarget } from '@pigmint/core';
+import {
+  hexToOklch,
+  type ComplianceTarget,
+  type CvdProfile,
+  type ResolverConfig,
+} from '@pigmint/core';
 import type { ColorScale } from '../types/palette';
 import type { ImportedScale, ImportedStep } from './importTokens';
 import {
   ENGINE_MODE_OPTIONS,
+  sanitizeCvd,
+  sanitizeResolver,
   type EngineCompliance,
   type EngineMode,
   type IntentOverrides,
@@ -14,6 +21,8 @@ export interface PigmintEngine {
   compliance: EngineCompliance;
   target: ComplianceTarget;
   modes: EngineMode[];
+  cvd?: CvdProfile[];
+  resolver?: ResolverConfig;
 }
 
 export interface PigmintYamlDoc {
@@ -36,6 +45,8 @@ const DEFAULT_ENGINE: PigmintEngine = {
   compliance: 'wcag21',
   target: 'AA',
   modes: ['light', 'dark'],
+  cvd: [],
+  resolver: { mode: 'stepped' },
 };
 
 const DEFAULT_OUTPUT: PigmintYamlDoc['output'] = {
@@ -49,7 +60,14 @@ export interface SerializeInput {
 }
 
 export function serializePigmintYaml(input: SerializeInput): string {
-  const engine: PigmintEngine = { ...DEFAULT_ENGINE, ...(input.engine ?? {}) };
+  const engineInput = input.engine ?? {};
+  const engine: PigmintEngine = {
+    compliance: engineInput.compliance === 'apca' ? 'apca' : 'wcag21',
+    target: engineInput.target === 'AAA' ? 'AAA' : 'AA',
+    modes: sanitizeModes(engineInput.modes),
+    cvd: sanitizeCvd(engineInput.cvd),
+    resolver: sanitizeResolver(engineInput.resolver),
+  };
   const doc: PigmintYamlDoc = {
     engine,
     ramps: input.scales.map((s) => ({ name: s.name, source: s.sourceHex })),
@@ -71,14 +89,22 @@ function parseEngine(raw: unknown): PigmintEngine {
   if (!isObj(raw)) return DEFAULT_ENGINE;
   const compliance = raw.compliance === 'apca' ? 'apca' : 'wcag21';
   const target = raw.target === 'AAA' ? 'AAA' : 'AA';
+  const modes = sanitizeModes(raw.modes);
+  const cvd = sanitizeCvd(raw.cvd);
+  const resolver = sanitizeResolver(raw.resolver);
+  return { compliance, target, modes, cvd, resolver };
+}
+
+function sanitizeModes(raw: unknown): EngineMode[] {
   const known = new Set<EngineMode>(ENGINE_MODE_OPTIONS);
-  const filtered = Array.isArray(raw.modes)
-    ? raw.modes.filter((m): m is EngineMode =>
+  const filtered = Array.isArray(raw)
+    ? raw.filter((m): m is EngineMode =>
         typeof m === 'string' && known.has(m as EngineMode),
       )
     : [];
-  const modes = filtered.length ? filtered : DEFAULT_ENGINE.modes;
-  return { compliance, target, modes };
+  const deduped = Array.from(new Set(filtered));
+  const ordered = ENGINE_MODE_OPTIONS.filter((mode) => deduped.includes(mode));
+  return ordered.length > 0 ? ordered : DEFAULT_ENGINE.modes;
 }
 
 export function parsePigmintYaml(text: string): ParsedPigmintYaml {
