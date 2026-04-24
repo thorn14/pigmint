@@ -160,4 +160,15 @@ describe('intentStore', () => {
     useIntentStore.getState().setResolverFallbackSteps(undefined);
     expect(useIntentStore.getState().engineResolver).toEqual({ mode: 'continuous' });
   });
+
+  it('setMaterializeInterpolatedPrimitives toggles F1 emit flag', () => {
+    useIntentStore.getState().setResolverMode('continuous');
+    useIntentStore.getState().setMaterializeInterpolatedPrimitives(false);
+    expect(useIntentStore.getState().engineResolver).toEqual({
+      mode: 'continuous',
+      materializeInterpolatedPrimitives: false,
+    });
+    useIntentStore.getState().setMaterializeInterpolatedPrimitives(undefined);
+    expect(useIntentStore.getState().engineResolver).toEqual({ mode: 'continuous' });
+  });
 });

@@ -60,6 +60,17 @@ function ModeMatrix({
 
   if (modeTokens.length === 0) return null;
 
+  const rows = [
+    ...surfaces.map((token) => ({
+      kind: 'Surface' as const,
+      token,
+    })),
+    ...nonSurfaces.map((token) => ({
+      kind: 'Token' as const,
+      token,
+    })),
+  ];
+
   return (
     <section
       style={{
@@ -81,90 +92,77 @@ function ModeMatrix({
 
       <table
         style={{
+          width: '100%',
           borderCollapse: 'collapse',
+          tableLayout: 'fixed',
           fontSize: 12,
           color: 'var(--p-text-secondary)',
         }}
       >
+        <colgroup>
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '36%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '10%' }} />
+        </colgroup>
         <thead>
           <tr style={{ textAlign: 'left' }}>
-            <th style={cellHeader}>Surface</th>
+            <th style={cellHeader}>Type</th>
+            <th style={cellHeader}>Name</th>
             <th style={cellHeader}>Resolved</th>
+            <th style={cellHeader}>Contrast</th>
+            <th style={cellHeader}>Compliance</th>
             <th style={cellHeader}>Source</th>
           </tr>
         </thead>
         <tbody>
-          {surfaces.map((s) => (
-            <tr key={s.path}>
+          {rows.map(({ kind, token }) => (
+            <tr key={token.path}>
               <td style={cellBody}>
                 <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
-                  {s.path}
+                  {kind}
                 </span>
               </td>
               <td style={cellBody}>
-                <Swatch hex={s.hex} label={s.hex} />
+                <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
+                  {token.path}
+                </span>
               </td>
               <td style={cellBody}>
-                <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(s, rampsByName)}</span>
+                <Swatch hex={token.hex} label={token.hex} />
               </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {nonSurfaces.length > 0 && (
-        <table
-          style={{
-            borderCollapse: 'collapse',
-            fontSize: 12,
-            color: 'var(--p-text-secondary)',
-          }}
-        >
-          <thead>
-            <tr style={{ textAlign: 'left' }}>
-              <th style={cellHeader}>Token</th>
-              <th style={cellHeader}>Resolved</th>
-              <th style={cellHeader}>Contrast</th>
-              <th style={cellHeader}>Compliance</th>
-              <th style={cellHeader}>Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            {nonSurfaces.map((t) => (
-              <tr key={t.path}>
-                <td style={cellBody}>
-                  <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
-                    {t.path}
-                  </span>
-                </td>
-                <td style={cellBody}>
-                  <Swatch hex={t.hex} label={t.hex} />
-                </td>
-                <td style={cellBody}>{ratioBadge(t)}</td>
-                <td style={cellBody}>
+              <td style={cellBody}>
+                {kind === 'Token' ? ratioBadge(token) : '—'}
+              </td>
+              <td style={cellBody}>
+                {kind === 'Token' ? (
                   <span
                     style={{
                       display: 'inline-block',
                       padding: '2px 8px',
                       borderRadius: 999,
-                      background: complianceColor(t.compliance?.level),
+                      background: complianceColor(token.compliance?.level),
                       color: '#fff',
                       fontSize: 11,
                       fontWeight: 600,
                     }}
-                    title={`Intent preference: ${(t.intent as FormalIntent).preference}`}
+                    title={`Intent preference: ${(token.intent as FormalIntent).preference}`}
                   >
-                    {t.compliance?.level ?? 'fail'}
+                    {token.compliance?.level ?? 'fail'}
                   </span>
-                </td>
-                <td style={cellBody}>
-                  <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(t, rampsByName)}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td style={cellBody}>
+                <span style={{ fontFamily: 'monospace' }}>{primitiveLabel(token, rampsByName)}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
@@ -202,6 +200,9 @@ const cellBody: React.CSSProperties = {
   padding: '8px 12px',
   borderBottom: '1px solid var(--p-border)',
   verticalAlign: 'middle',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 };
 
 export function SurfacePairViewer() {

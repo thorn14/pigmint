@@ -40,7 +40,10 @@ export function buildTokenRamp(
 export interface ResolutionSuccess {
   ok: true;
   tokens: ResolvedToken[];
+  /** Stepped ramps for curve/overlay UI (excludes `c****` materialized DTCG steps). */
   ramps: GeneratedRamp[];
+  /** Merged ramp list for DTCG emit (includes F1 `c****` when continuous is on). */
+  dtcgRamps: GeneratedRamp[];
   vocabulary: VocabularyEntry[];
 }
 
@@ -91,7 +94,7 @@ export function runResolve(
   };
 
   try {
-    const { tokens } = resolveAll({
+    const { tokens, ramps: dtcgRamps } = resolveAll({
       config,
       vocabulary,
       ramps,
@@ -99,7 +102,7 @@ export function runResolve(
       tokenRamp,
       scales,
     });
-    return { ok: true, tokens, ramps, vocabulary };
+    return { ok: true, tokens, ramps, dtcgRamps, vocabulary };
   } catch (err) {
     return { ok: false, error: `Resolve failed: ${(err as Error).message}` };
   }
@@ -146,7 +149,7 @@ export function buildPigmintTokensJson(
     const container = emitDtcg({
       engineVersion: '0.0.0',
       defaultMode: engineModes[0] ?? 'light',
-      ramps: state.ramps,
+      ramps: state.dtcgRamps,
       resolvedTokens: state.tokens,
       vocabulary: state.vocabulary,
     });

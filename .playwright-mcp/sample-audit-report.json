@@ -1,0 +1,62 @@
+{
+  "artifactVersion": "audit-report@0.1",
+  "run": {
+    "id": "run-sample-001",
+    "timestamp": "2026-04-23T12:00:00.000Z",
+    "dtcgSource": "tokens.json",
+    "builtSource": "dist/tokens.css",
+    "profile": "wcag-srgb"
+  },
+  "summary": {
+    "violations": { "error": 1, "warning": 1, "info": 0 },
+    "tokensAudited": 18,
+    "tokensUsed": 14,
+    "surfacePairsObserved": 5,
+    "coverage": { "tokenUsage": 0.78 }
+  },
+  "violations": [
+    {
+      "severity": "error",
+      "type": "contrast.textAA",
+      "token": "color.foreground.main",
+      "mode": "light",
+      "actual": { "ratio": 3.82 },
+      "expected": { "ratio": 4.5 }
+    },
+    {
+      "severity": "warning",
+      "type": "contrast.nonTextAA",
+      "token": "color.border.default",
+      "mode": "dark",
+      "actual": { "ratio": 2.91 },
+      "expected": { "ratio": 3.0 }
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "sugg-1",
+      "channel": "intent-refinement",
+      "target": "color.foreground.main",
+      "rationale": "Text on bg-main fails AA in light mode at 3.82:1. Switch preference to highest-contrast to lift the picked step.",
+      "confidence": "high",
+      "change": {
+        "field": "defaultIntent.preference",
+        "op": "replace",
+        "value": "highest-contrast"
+      }
+    },
+    {
+      "id": "sugg-2",
+      "channel": "ramp-suggestion",
+      "target": "color.border.default",
+      "rationale": "Dark-mode border ramp has no step that reaches 3:1 against bg-main. Consider adding an anchor step at L*=65.",
+      "confidence": "medium",
+      "change": {
+        "field": "ramp.steps",
+        "op": "add",
+        "value": { "anchorL": 65 }
+      }
+    }
+  ],
+  "observations": { "undeclaredSurfacePairs": [] }
+}

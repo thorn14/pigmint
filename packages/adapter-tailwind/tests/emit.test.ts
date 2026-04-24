@@ -70,7 +70,7 @@ const RAMP_SOURCE: [string, string][] = [
 function buildContainer() {
   const ramps = RAMP_SOURCE.map(([hex, name]) => makeRamp(hex, name));
   const tokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, DEFAULT_RAMP_NAMES);
-  const { tokens } = resolveAll({
+  const { tokens, ramps: dtcgRamps } = resolveAll({
     config,
     vocabulary: VOCABULARY_V1_SLICE,
     ramps,
@@ -85,7 +85,7 @@ function buildContainer() {
   return emitDtcg({
     engineVersion: '0.0.0',
     defaultMode: 'light',
-    ramps,
+    ramps: dtcgRamps,
     resolvedTokens: tokens,
     vocabulary: VOCABULARY_V1_SLICE,
   });
@@ -137,5 +137,22 @@ describe('tailwindEmit', () => {
     const css = result.files[0]!.content;
     expect(css).toMatch(/#[0-9a-f]{6}/i);
     expect(css).not.toMatch(/oklch\(/);
+  });
+
+  it('records format-driven gamut default in header (ADR-015)', () => {
+    const container = buildContainer();
+    const oklchCss = tailwindEmit({
+      container,
+      adapterConfig: { name: 'tailwind', output: './css', formats: ['oklch'] },
+      projectConfig: config,
+    }).files[0]!.content;
+    expect(oklchCss).toMatch(/gamut: chroma-preserve/);
+
+    const hexCss = tailwindEmit({
+      container,
+      adapterConfig: { name: 'tailwind', output: './css', formats: ['hex'] },
+      projectConfig: config,
+    }).files[0]!.content;
+    expect(hexCss).toMatch(/gamut: chroma-reduce/);
   });
 });

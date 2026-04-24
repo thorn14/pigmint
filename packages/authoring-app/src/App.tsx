@@ -7,6 +7,7 @@ import { PalettePreview } from './components/preview/PalettePreview';
 import { AccessibleCombos } from './components/accessibility/AccessibleCombos';
 import { IntentEditor } from './components/intents/IntentEditor';
 import { SurfacePairViewer } from './components/surfaces/SurfacePairViewer';
+import { AuditIntegrator } from './components/audit/AuditIntegrator';
 import { ExportModal } from './components/export/ExportModal';
 import { ImportModal } from './components/export/ImportModal';
 import { ExportPigmintYamlModal } from './components/export/ExportPigmintYamlModal';
@@ -17,7 +18,7 @@ import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces';
+type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces' | 'audit';
 type AppTheme = 'dark' | 'light';
 
 function EditPanel({ scale }: { scale: ColorScale }) {
@@ -98,6 +99,10 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   function handleSave() {
     setSaveStatus('saving');
     try {
@@ -119,7 +124,6 @@ export default function App() {
 
   return (
     <div
-      data-theme={theme}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -160,6 +164,7 @@ export default function App() {
         {mode === 'combos' && <AccessibleCombos />}
         {mode === 'intents' && <IntentEditor />}
         {mode === 'surfaces' && <SurfacePairViewer />}
+        {mode === 'audit' && <AuditIntegrator />}
       </main>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}

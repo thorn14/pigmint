@@ -99,6 +99,16 @@ export function validateProjectConfig(raw: unknown, path: string): ProjectConfig
         path,
       );
     }
+    if (
+      'materializeInterpolatedPrimitives' in engine.resolver &&
+      engine.resolver.materializeInterpolatedPrimitives !== undefined &&
+      typeof engine.resolver.materializeInterpolatedPrimitives !== 'boolean'
+    ) {
+      throw new ConfigError(
+        'engine.resolver.materializeInterpolatedPrimitives must be a boolean when set',
+        path,
+      );
+    }
   }
 
   const ramps = raw.ramps;

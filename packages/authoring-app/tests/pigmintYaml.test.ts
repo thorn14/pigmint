@@ -136,6 +136,22 @@ describe('pigmintYaml', () => {
     expect(() => parsePigmintYaml(text)).toThrow();
   });
 
+  it('round-trips engine.resolver.materializeInterpolatedPrimitives', () => {
+    const scales = [scale('1', 'blue', '#3366cc')];
+    const yaml = serializePigmintYaml({
+      scales,
+      intents: {},
+      engine: {
+        resolver: { mode: 'continuous', materializeInterpolatedPrimitives: false },
+      },
+    });
+    const parsed = parsePigmintYaml(yaml);
+    expect(parsed.engine.resolver).toEqual({
+      mode: 'continuous',
+      materializeInterpolatedPrimitives: false,
+    });
+  });
+
   it('emits engine.modes in canonical order and filters duplicates', () => {
     const yaml = serializePigmintYaml({
       scales: [scale('1', 'blue', '#3366cc')],

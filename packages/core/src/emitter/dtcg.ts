@@ -1,6 +1,7 @@
 import { buildResolvedValue } from '../resolver/resolve.js';
 import type { GeneratedRamp, GeneratedStep } from '../types/palette.js';
 import type {
+  CvdProfile,
   ModeEntry,
   ResolvedToken,
   ResolvedValue,
@@ -17,7 +18,7 @@ export interface DtcgContainer {
       surfacePairsVersion?: string;
       generatedAt: string;
       defaultMode: string;
-      engine: { version: string };
+      engine: { version: string; cvd?: CvdProfile[] };
     };
   };
   color: {
@@ -66,6 +67,7 @@ export interface EmitInput {
   ramps: GeneratedRamp[];
   resolvedTokens: ResolvedToken[];
   vocabulary?: VocabularyEntry[];
+  cvd?: CvdProfile[];
 }
 
 function primitiveValue(step: GeneratedStep): DtcgColorValue {
@@ -122,6 +124,9 @@ function modeEntryFromResolved(
   token: ResolvedToken,
   value: ResolvedValue,
 ): ModeEntry {
+  const inSrgb = token.gamut === 'srgb';
+  const strategy = token.intent.constraints?.gamutStrategy
+    ?? (inSrgb ? 'chroma-preserve' : 'chroma-reduce');
   const entry: ModeEntry = {
     value,
     source: token.source,
@@ -129,9 +134,10 @@ function modeEntryFromResolved(
     contrast: token.contrast,
     compliance: token.compliance,
     gamut: {
-      inSrgb: token.gamut === 'srgb',
+      inSrgb,
       inP3: token.gamut === 'srgb' || token.gamut === 'p3',
-      clipped: token.gamut !== 'srgb',
+      clipped: !inSrgb,
+      strategy,
     },
   };
   return entry;
@@ -159,7 +165,10 @@ export function emitDtcg(input: EmitInput): DtcgContainer {
         ...(surfacePairsVersion ? { surfacePairsVersion } : {}),
         generatedAt,
         defaultMode,
-        engine: { version: engineVersion },
+        engine: {
+          version: engineVersion,
+          ...(input.cvd && input.cvd.length > 0 ? { cvd: [...input.cvd] } : {}),
+        },
       },
     },
     color: {

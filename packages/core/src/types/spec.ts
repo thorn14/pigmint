@@ -137,6 +137,8 @@ export type ResolverMode = 'stepped' | 'continuous';
 export interface ResolverConfig {
   mode: ResolverMode;
   fallbackSteps?: number;
+  /** When `mode` is `continuous` (default true), synthesize DTCG primitives for off-grid picks (F1). */
+  materializeInterpolatedPrimitives?: boolean;
 }
 
 export interface EngineConfig {

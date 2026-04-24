@@ -1,0 +1,51 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]:
+          - generic [ref=e9]: p
+        - generic [ref=e10]: pigmint
+      - generic [ref=e12]:
+        - textbox "Palette name" [ref=e13]: Default
+        - button "New palette" [ref=e14] [cursor=pointer]: +
+      - radiogroup "Contrast mode" [ref=e17]:
+        - radio "wcag" [checked] [ref=e18] [cursor=pointer]
+        - radio "apca" [ref=e19] [cursor=pointer]
+      - radiogroup "App mode" [ref=e20]:
+        - radio "edit" [ref=e21] [cursor=pointer]
+        - radio "preview" [ref=e22] [cursor=pointer]
+        - radio "combos" [ref=e23] [cursor=pointer]
+        - radio "intents" [ref=e24] [cursor=pointer]
+        - radio "surfaces" [ref=e25] [cursor=pointer]
+        - radio "audit" [checked] [active] [ref=e26] [cursor=pointer]
+      - radiogroup "Gamut preview" [ref=e28]:
+        - radio "Display P3 preview mode" [checked] [ref=e29] [cursor=pointer]: P3
+        - radio "sRGB preview mode" [ref=e30] [cursor=pointer]: sRGB
+      - button "Switch to light mode" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]
+      - generic [ref=e36]:
+        - button "Save" [ref=e37] [cursor=pointer]
+        - button "More save/export options" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+    - main [ref=e41]:
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - heading "Audit" [level=2] [ref=e101]
+            - generic [ref=e102]: Consume audit-report@0.1 JSON. Accept suggestions to update intents in place.
+          - button "Open report…" [ref=e104] [cursor=pointer]
+        - generic [ref=e105]:
+          - heading "Load an audit report" [level=2] [ref=e106]
+          - paragraph [ref=e107]:
+            - text: Run
+            - code [ref=e108]: pigmint audit
+            - text: on a project to produce an audit-report@0.1 JSON file, then open it here to review suggestions and apply them to your intents. Suggestions flagged as
+            - code [ref=e109]: intent-refinement
+            - text: can be applied in-place;
+            - code [ref=e110]: ramp-suggestion
+            - text: and
+            - code [ref=e111]: spec-gap
+            - text: channels surface read-only.
+          - button "Open audit report…" [ref=e112] [cursor=pointer]

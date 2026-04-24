@@ -43,7 +43,7 @@ body {
   --p-danger-subtle: #ffebe9;
 }
 
-/* Dark theme — applied via data-theme="dark" on root element */
+/* Dark theme — data-theme on <html> (see App.tsx) so portaled UI inherits the same tokens */
 [data-theme="dark"] {
   color-scheme: dark;
   --badge-aaa-bg: #14532d;   --badge-aaa-text: #86efac;

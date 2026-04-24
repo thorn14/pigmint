@@ -201,8 +201,39 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     expect(contBtn.contrast?.wcag21 ?? 0).toBeGreaterThanOrEqual(3);
     expect(contBtn.contrast?.wcag21 ?? 99).toBeLessThanOrEqual(baseBtn.contrast?.wcag21 ?? 99);
 
-    // nearestPrimitive remains a user-facing step name, not a 256-index.
-    expect(contBtn.source.nearestPrimitive).toMatch(/^blue\.(50|100|200|300|400|500|600|700|800|900|950)$/);
+    // F1: off-grid continuous picks get `c0000`–`c1000` primitives, not the nearest 11-step name.
+    expect(contBtn.source.nearestPrimitive).toMatch(/^blue\.c\d{4}$/);
+    const blueRamp = continuous.ramps.find((r) => r.scaleName === 'blue')!;
+    const stepName = contBtn.source.nearestPrimitive?.split('.').pop();
+    const step = blueRamp.steps.find((s) => s.name === stepName);
+    expect(step?.hex).toBe(contBtn.hex);
+  });
+
+  it('materializeInterpolatedPrimitives: false keeps named nearest for continuous off-grid (legacy alias path)', () => {
+    const scales = RAMP_SPECS.map(([hex, name]) => makeScale(hex, name));
+    const ramps = scales.map((s) => generateRamp(s));
+    const out = resolveAll({
+      config: {
+        ...config,
+        engine: {
+          ...config.engine,
+          resolver: {
+            mode: 'continuous',
+            fallbackSteps: 256,
+            materializeInterpolatedPrimitives: false,
+          },
+        },
+      },
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: defaultModes,
+      tokenRamp: defaultTokenRamp,
+      scales,
+    });
+    const btn = out.tokens.find(
+      (t) => t.path === 'color.action.primary.background' && t.mode === 'light',
+    )!;
+    expect(btn.source.nearestPrimitive).toMatch(/^blue\.(50|100|200|300|400|500|600|700|800|900|950)$/);
   });
 
   it('resolver.mode="continuous" throws without scales', () => {

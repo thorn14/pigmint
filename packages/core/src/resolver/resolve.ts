@@ -188,8 +188,12 @@ export function resolveToken(input: ResolveInput): ResolveResult {
 }
 
 export function buildResolvedValue(step: GeneratedStep): ResolvedValue {
+  const { l, c, h, alpha } = step.oklch;
+  const oklch =
+    formatCss({ mode: 'oklch', l, c, h, ...(alpha != null ? { alpha } : {}) }) ??
+    toOklchCss(step.hex);
   return {
-    oklch: toOklchCss(step.hex),
+    oklch,
     hex: step.hex,
     ...(step.displayP3 ? { p3: step.displayP3 } : {}),
   };

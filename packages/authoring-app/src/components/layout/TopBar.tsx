@@ -128,7 +128,7 @@ function PaletteSelector() {
   );
 }
 
-type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces';
+type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces' | 'audit';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -414,7 +414,7 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
       <div
         role="radiogroup"
         aria-label="App mode"
-        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'combos', 'intents', 'surfaces'] as const, mode, onModeChange, modeButtonsRef)}
+        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'combos', 'intents', 'surfaces', 'audit'] as const, mode, onModeChange, modeButtonsRef)}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -423,7 +423,7 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview', 'combos', 'intents', 'surfaces'] as const).map((m, i) => (
+        {(['edit', 'preview', 'combos', 'intents', 'surfaces', 'audit'] as const).map((m, i) => (
           <button
             key={m}
             role="radio"

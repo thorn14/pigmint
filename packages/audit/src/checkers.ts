@@ -2,6 +2,34 @@ import type { ComplianceLevel, ComplianceTarget, DtcgContainer } from '@pigmint/
 import type { Violation } from './types.js';
 import { collectSemanticTokens, type AuditToken } from './walker.js';
 
+// ADR-011 Option A: path-implied context for detecting mixed-usage declarations.
+// Segments are matched against dot-split token paths under `color.*`.
+type PathContext = 'text' | 'nonText' | 'decorative';
+interface PathRule {
+  match: (segments: string[]) => boolean;
+  context: PathContext;
+}
+const PATH_RULES: PathRule[] = [
+  { match: (s) => s[0] === 'decorative', context: 'decorative' },
+  { match: (s) => s[0] === 'foreground', context: 'text' },
+  { match: (s) => s[0] === 'surface', context: 'nonText' },
+  { match: (s) => s[0] === 'border', context: 'nonText' },
+  { match: (s) => s[0] === 'focus', context: 'nonText' },
+  { match: (s) => s.at(-1) === 'text' || s.at(-1) === 'label', context: 'text' },
+  {
+    match: (s) => s.at(-1) === 'background' || s.at(-1) === 'border',
+    context: 'nonText',
+  },
+];
+
+function pathContextFor(tokenPath: string): PathContext | null {
+  const segments = tokenPath.split('.').filter((s) => s !== 'color');
+  for (const rule of PATH_RULES) {
+    if (rule.match(segments)) return rule.context;
+  }
+  return null;
+}
+
 const LEVEL_RANK: Record<ComplianceLevel, number> = {
   'AAA-text': 4,
   'AAA-nonText': 3,
@@ -47,6 +75,17 @@ export function runCheckers(inputs: CheckInputs): {
   const violations: Violation[] = [];
 
   for (const token of tokens) {
+    const implied = pathContextFor(token.path);
+    if (implied && implied !== token.usage) {
+      violations.push({
+        severity: 'warning',
+        type: 'mixed-usage',
+        token: token.path,
+        expected: { usage: implied, source: 'path-convention' },
+        actual: { usage: token.usage, source: 'vocabulary-declaration' },
+      });
+    }
+
     for (const mode of expectedModes) {
       const entry = token.modes[mode];
       if (!entry) {

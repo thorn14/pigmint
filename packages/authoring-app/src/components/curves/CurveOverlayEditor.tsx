@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import type { IntentOverride as CoreIntentOverride, ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -6,6 +6,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues, oklchToHex, maxP3Chroma } from '../../lib/colorMath';
 import { buildCurvePath, buildMonotoneCubicInterpolant } from '../../lib/curveInterpolation';
 import { runResolve } from '../../lib/resolveState';
+import { IntentMarkerPopover, type IntentMarkerDetail } from './IntentMarkerPopover';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -764,6 +765,18 @@ function continuousStepLabel(position: number, ramp: GeneratedRamp): string | nu
   return `${ramp.scaleName}.${loName}`;
 }
 
+function groupKeyForToken(
+  hex: string,
+  stepLabel: string | null,
+  position: number,
+): string {
+  if (stepLabel) {
+    return `${hex}§${stepLabel}`;
+  }
+  const q = Math.round(position * 200) / 200;
+  return `${hex}§${q.toFixed(3)}`;
+}
+
 function IntentMarkers({
   tokens,
   ramp,
@@ -779,6 +792,9 @@ function IntentMarkers({
   height: number;
   pad: number;
 }) {
+  const [markerDetail, setMarkerDetail] = useState<IntentMarkerDetail | null>(null);
+  const [hoverGkey, setHoverGkey] = useState<string | null>(null);
+
   if (tokens.length === 0) {
     return (
       <foreignObject x={width / 2 - 140} y={height / 2 - 20} width={280} height={40}>
@@ -800,104 +816,215 @@ function IntentMarkers({
   }
 
   const LABEL_WIDTH = 160;
-  const ROW_HEIGHT  = 14;
+  const ROW_HEIGHT = 14;
   const placed = tokens
     .map((t) => {
-      const px = ((t.source.position * (n - 1)) + 0.5) / n * width;
+      const px = (((t.source.position * (n - 1) + 0.5) / n) * width);
       const py = pad + (1 - t.oklch.l) * (height - pad * 2);
       const shortPath = t.path.replace(/^color\./, '');
       const stepLabel = continuousStepLabel(t.source.position, ramp);
-      return { t, px, py, shortPath, stepLabel };
+      const gkey = groupKeyForToken(t.hex, stepLabel, t.source.position);
+      return { t, px, py, shortPath, stepLabel, gkey };
     })
     .sort((a, b) => a.px - b.px);
 
+  const groupAcc = new Map<
+    string,
+    { sumX: number; sumY: number; n: number; tokens: ResolvedToken[]; stepLabel: string | null; hex: string; oklch: ResolvedToken['oklch'] }
+  >();
+  for (const p of placed) {
+    let g = groupAcc.get(p.gkey);
+    if (!g) {
+      g = {
+        sumX: 0,
+        sumY: 0,
+        n: 0,
+        tokens: [],
+        stepLabel: p.stepLabel,
+        hex: p.t.hex,
+        oklch: p.t.oklch,
+      };
+      groupAcc.set(p.gkey, g);
+    }
+    g.sumX += p.px;
+    g.sumY += p.py;
+    g.n += 1;
+    g.tokens.push(p.t);
+    if (p.stepLabel) g.stepLabel = p.stepLabel;
+  }
+
+  const groupCenters = new Map<
+    string,
+    { cx: number; cy: number; tokens: ResolvedToken[]; stepLabel: string | null; hex: string; oklch: ResolvedToken['oklch'] }
+  >();
+  for (const [gk, g] of groupAcc) {
+    groupCenters.set(gk, {
+      cx: g.sumX / g.n,
+      cy: g.sumY / g.n,
+      tokens: g.tokens,
+      stepLabel: g.stepLabel,
+      hex: g.hex,
+      oklch: g.oklch,
+    });
+  }
+
+  const placedWithCenter = placed.map((p) => {
+    const c = groupCenters.get(p.gkey)!;
+    return { ...p, cx: c.cx, cy: c.cy };
+  });
+
   const rowEndPx: number[] = [];
   const rows = new Map<string, number>();
-  for (const item of placed) {
-    const start = item.px + 10;
+  for (const item of placedWithCenter) {
+    const start = item.cx + 10;
     let row = 0;
     while (row < rowEndPx.length && rowEndPx[row]! > start) row++;
     rowEndPx[row] = start + LABEL_WIDTH;
     rows.set(item.t.path, row);
   }
 
+  const lineStroke = 'rgba(255,255,255,0.7)';
+  const markerRadius = 7;
+  const openGroupPopover = (gk: string, el: SVGCircleElement) => {
+    setMarkerDetail((prev) => {
+      if (prev?.key === gk) {
+        return null;
+      }
+      const g = groupCenters.get(gk);
+      if (!g) {
+        return null;
+      }
+      return {
+        key: gk,
+        rect: el.getBoundingClientRect(),
+        hex: g.hex,
+        oklch: g.oklch,
+        stepLabel: g.stepLabel,
+        tokens: g.tokens,
+      };
+    });
+  };
+
   return (
-    <g>
-      {placed.map(({ t, px, py, shortPath, stepLabel }) => {
-        const row = rows.get(t.path) ?? 0;
-        const labelY = py + row * ROW_HEIGHT;
-        const lineStroke = 'rgba(255,255,255,0.7)';
-        const markerRadius = 7;
-        return (
-          <g key={t.path}>
-            <line
-              x1={px}
-              y1={py}
-              x2={px}
-              y2={height - pad}
-              stroke={lineStroke}
-              strokeWidth={1.5}
-              strokeDasharray="2 3"
-              opacity={0.6}
-            />
-            <circle
-              cx={px}
-              cy={py}
-              r={markerRadius + 3}
-              fill="none"
-              stroke="rgba(0,0,0,0.9)"
-              strokeWidth={2.5}
-            />
-            <circle
-              cx={px}
-              cy={py}
-              r={markerRadius + 1}
-              fill="none"
-              stroke="rgba(255,255,255,0.98)"
-              strokeWidth={2}
-            />
-            <circle
-              cx={px}
-              cy={py}
-              r={markerRadius}
-              fill={t.hex}
-              stroke="rgba(0,0,0,0.3)"
-              strokeWidth={0.75}
-            />
-            {row > 0 && (
-              <line
-                x1={px}
-                y1={py}
-                x2={px + 8}
-                y2={labelY}
-                stroke="rgba(255,255,255,0.45)"
-                strokeWidth={1}
-              />
-            )}
-            <text
-              x={px + 10}
-              y={labelY}
-              dy={4}
-              fontSize={10}
-              fontWeight={600}
-              fill="rgba(255,255,255,0.95)"
-              style={{
-                fontFamily: 'monospace',
-                paintOrder: 'stroke',
-                stroke: 'rgba(0,0,0,0.7)',
-                strokeWidth: 3,
-              }}
+    <Fragment>
+      <g>
+        {Array.from(groupCenters.entries()).map(([gkey, g]) => {
+          const isHover = hoverGkey === gkey;
+          return (
+            <g
+              key={gkey}
+              pointerEvents="all"
+              onPointerEnter={() => setHoverGkey(gkey)}
+              onPointerLeave={() => setHoverGkey(null)}
+              style={{ cursor: 'pointer' }}
             >
-              {shortPath}
-              {stepLabel ? (
-                <tspan fill="rgba(255,255,255,0.7)" style={{ fontWeight: 400 }}>
-                  {` · ${stepLabel}`}
-                </tspan>
-              ) : null}
-            </text>
-          </g>
-        );
-      })}
-    </g>
+              <line
+                x1={g.cx}
+                y1={g.cy}
+                x2={g.cx}
+                y2={height - pad}
+                stroke={lineStroke}
+                strokeWidth={isHover ? 1.75 : 1.5}
+                strokeDasharray="2 3"
+                opacity={isHover ? 0.9 : 0.6}
+                style={{ transition: 'opacity 0.16s ease-out, stroke-width 0.16s ease-out' }}
+              />
+              <g
+                style={{
+                  transform: `translate(${g.cx}px, ${g.cy}px) scale(${isHover ? 1.08 : 1}) translate(${-g.cx}px, ${-g.cy}px)`,
+                  transition: 'transform 0.16s ease-out, filter 0.16s ease-out',
+                  filter: isHover ? 'drop-shadow(0 0 5px rgba(255,255,255,0.4))' : 'none',
+                }}
+              >
+                <circle
+                  cx={g.cx}
+                  cy={g.cy}
+                  r={markerRadius + 3}
+                  fill="none"
+                  stroke="rgba(0,0,0,0.9)"
+                  strokeWidth={isHover ? 2.8 : 2.5}
+                  style={{ transition: 'stroke-width 0.16s ease-out' }}
+                />
+                <circle
+                  cx={g.cx}
+                  cy={g.cy}
+                  r={markerRadius + 1}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.98)"
+                  strokeWidth={isHover ? 2.4 : 2}
+                  style={{ transition: 'stroke-width 0.16s ease-out' }}
+                />
+                <circle
+                  cx={g.cx}
+                  cy={g.cy}
+                  r={markerRadius}
+                  fill={g.hex}
+                  stroke="rgba(0,0,0,0.3)"
+                  strokeWidth={0.75}
+                />
+                <circle
+                  data-intent-marker-hit
+                  cx={g.cx}
+                  cy={g.cy}
+                  r={markerRadius + 5}
+                  fill="transparent"
+                  stroke="none"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openGroupPopover(gkey, e.currentTarget);
+                  }}
+                />
+              </g>
+            </g>
+          );
+        })}
+
+        {placedWithCenter.map(({ t, cx, cy, shortPath, stepLabel }) => {
+          const row = rows.get(t.path) ?? 0;
+          const labelY = cy + row * ROW_HEIGHT;
+          return (
+            <g key={t.path} pointerEvents="none">
+              {row > 0 && (
+                <line
+                  x1={cx}
+                  y1={cy}
+                  x2={cx + 8}
+                  y2={labelY}
+                  stroke="rgba(255,255,255,0.45)"
+                  strokeWidth={1}
+                />
+              )}
+              <text
+                x={cx + 10}
+                y={labelY}
+                dy={4}
+                fontSize={10}
+                fontWeight={600}
+                fill="rgba(255,255,255,0.95)"
+                style={{
+                  fontFamily: 'monospace',
+                  paintOrder: 'stroke',
+                  stroke: 'rgba(0,0,0,0.7)',
+                  strokeWidth: 3,
+                }}
+              >
+                {shortPath}
+                {stepLabel ? (
+                  <tspan fill="rgba(255,255,255,0.7)" style={{ fontWeight: 400 }}>
+                    {` · ${stepLabel}`}
+                  </tspan>
+                ) : null}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+      <IntentMarkerPopover
+        detail={markerDetail}
+        onClose={() => setMarkerDetail(null)}
+        rampName={ramp.scaleName}
+      />
+    </Fragment>
   );
 }

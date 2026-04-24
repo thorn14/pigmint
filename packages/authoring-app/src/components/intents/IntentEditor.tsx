@@ -1,6 +1,5 @@
 import {
   VOCABULARY_V1_SLICE,
-  VOCABULARY_V1_VERSION,
   type ComplianceTarget,
   type Consistency,
   type CvdProfile,
@@ -9,6 +8,8 @@ import {
   type SurfaceContext,
   type VocabularyEntry,
 } from '@pigmint/core';
+import { HelpPopover } from '../ui/HelpPopover';
+import { intentHelp } from './intentHelpCopy';
 import {
   CVD_PROFILE_OPTIONS,
   DEFAULT_RESOLVER_FALLBACK_STEPS,
@@ -18,6 +19,17 @@ import {
   useIntentStore,
   type EngineMode,
 } from '../../store/intentStore';
+import {
+  ComplianceHelpBody,
+  CvdHelpBody,
+  ConsistencyColumnHelpBody,
+  EngineModesHelpBody,
+  PreferenceColumnHelpBody,
+  ResolverHelpBody,
+  SurfaceColumnHelpBody,
+  TargetLevelHelpBody,
+  TokenColumnHelpBody,
+} from './IntentHelpSections';
 
 const PREFERENCE_OPTIONS: Preference[] = [
   'lowest-passing',
@@ -50,18 +62,6 @@ const DEFAULT_INTENT: FormalIntent = {
 
 const GRID_COLUMNS = 'minmax(200px, 1.6fr) repeat(3, minmax(140px, 1fr)) 80px';
 
-function rowStyle(isOverridden: boolean): React.CSSProperties {
-  return {
-    display: 'grid',
-    gridTemplateColumns: GRID_COLUMNS,
-    gap: 12,
-    alignItems: 'center',
-    padding: '12px 16px',
-    borderBottom: '1px solid var(--p-border)',
-    background: isOverridden ? 'var(--p-bg-inset)' : 'transparent',
-  };
-}
-
 const headerCell: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
@@ -80,11 +80,27 @@ const selectStyle: React.CSSProperties = {
   borderRadius: 4,
 };
 
-interface RowProps {
-  entry: VocabularyEntry;
+function rowStyle(isOverridden: boolean): React.CSSProperties {
+  return {
+    display: 'grid',
+    gridTemplateColumns: GRID_COLUMNS,
+    gap: 12,
+    alignItems: 'center',
+    padding: '12px 16px',
+    borderBottom: '1px solid var(--p-border)',
+    background: isOverridden ? 'var(--p-bg-inset)' : 'transparent',
+  };
 }
 
-function IntentRow({ entry }: RowProps) {
+const headerLabelRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  minWidth: 0,
+  width: '100%',
+};
+
+function IntentRow({ entry }: { entry: VocabularyEntry }) {
   const override = useIntentStore((s) => s.overrides[entry.path]);
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
@@ -100,9 +116,7 @@ function IntentRow({ entry }: RowProps) {
   return (
     <div style={rowStyle(isOverridden)}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-text)' }}>
-          {entry.path}
-        </div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-text)' }}>{entry.path}</div>
         {entry.description && (
           <div
             style={{
@@ -113,7 +127,6 @@ function IntentRow({ entry }: RowProps) {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}
-            title={entry.description}
           >
             {entry.description}
           </div>
@@ -205,6 +218,9 @@ function EngineConfigPanel() {
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const setResolverMode = useIntentStore((s) => s.setResolverMode);
   const setResolverFallbackSteps = useIntentStore((s) => s.setResolverFallbackSteps);
+  const setMaterializeInterpolatedPrimitives = useIntentStore(
+    (s) => s.setMaterializeInterpolatedPrimitives,
+  );
 
   const fieldStyle: React.CSSProperties = {
     display: 'flex',
@@ -224,17 +240,26 @@ function EngineConfigPanel() {
   return (
     <div
       style={{
-        display: 'flex',
-        gap: 16,
-        padding: '14px 16px',
         borderBottom: '1px solid var(--p-border)',
         background: 'var(--p-bg-subtle)',
+      }}
+    >
+    <div
+      style={{
+        display: 'flex',
+        gap: 16,
+        padding: '14px 16px 6px',
         flexWrap: 'wrap',
         alignItems: 'flex-end',
       }}
     >
       <div style={fieldStyle}>
-        <span style={labelStyle}>Compliance</span>
+        <div style={headerLabelRow}>
+          <span style={labelStyle}>Compliance</span>
+          <HelpPopover title="Compliance">
+            <ComplianceHelpBody />
+          </HelpPopover>
+        </div>
         <span
           style={{
             fontSize: 12,
@@ -244,16 +269,20 @@ function EngineConfigPanel() {
             background: 'var(--p-bg)',
             color: 'var(--p-text-secondary)',
           }}
-          title="APCA resolution is deferred — see OQ-12 in plan.md"
         >
           WCAG 2.1
         </span>
       </div>
 
       <div style={fieldStyle}>
-        <label htmlFor="intent-engine-target" style={labelStyle}>
-          Target level
-        </label>
+        <div style={headerLabelRow}>
+          <label htmlFor="intent-engine-target" style={labelStyle}>
+            Target level
+          </label>
+          <HelpPopover title="Target level" triggerLabel="Help: target level (AA or AAA)">
+            <TargetLevelHelpBody />
+          </HelpPopover>
+        </div>
         <select
           id="intent-engine-target"
           value={engineTarget}
@@ -269,7 +298,12 @@ function EngineConfigPanel() {
       </div>
 
       <div style={{ ...fieldStyle, minWidth: 240 }}>
-        <span style={labelStyle}>Modes</span>
+        <div style={headerLabelRow}>
+          <span style={labelStyle}>Modes</span>
+          <HelpPopover title="Engine modes" triggerLabel="Help: which color scheme modes to build">
+            <EngineModesHelpBody />
+          </HelpPopover>
+        </div>
         <div role="group" aria-label="Engine modes" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {ENGINE_MODE_OPTIONS.map((m) => {
             const active = engineModes.includes(m);
@@ -306,9 +340,14 @@ function EngineConfigPanel() {
       </div>
 
       <div style={{ ...fieldStyle, minWidth: 300 }}>
-        <label htmlFor="intent-engine-resolver-mode" style={labelStyle}>
-          Resolver
-        </label>
+        <div style={headerLabelRow}>
+          <label htmlFor="intent-engine-resolver-mode" style={labelStyle}>
+            Resolver
+          </label>
+          <HelpPopover title="Resolver" triggerLabel="Help: stepped vs continuous resolver">
+            <ResolverHelpBody />
+          </HelpPopover>
+        </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             id="intent-engine-resolver-mode"
@@ -344,14 +383,47 @@ function EngineConfigPanel() {
               border: '1px solid var(--p-border)',
               borderRadius: 4,
               opacity: engineResolver.mode === 'continuous' ? 1 : 0.6,
+              cursor: engineResolver.mode === 'continuous' ? 'text' : 'not-allowed',
             }}
           />
+          {engineResolver.mode === 'continuous' && (
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                color: 'var(--p-text-secondary)',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={engineResolver.materializeInterpolatedPrimitives !== false}
+                onChange={(e) =>
+                  setMaterializeInterpolatedPrimitives(e.target.checked ? undefined : false)
+                }
+                style={{ accentColor: 'var(--p-accent)' }}
+              />
+              Materialize off-grid as primitives
+            </label>
+          )}
         </div>
       </div>
 
       <div style={{ ...fieldStyle, minWidth: 340 }}>
-        <span style={labelStyle}>CVD profiles</span>
-        <div role="group" aria-label="Engine color vision deficiency profiles" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={headerLabelRow}>
+          <span style={labelStyle}>CVD profiles</span>
+          <HelpPopover title="CVD profiles" triggerLabel="Help: color vision deficiency profiles">
+            <CvdHelpBody />
+          </HelpPopover>
+        </div>
+        <div
+          role="group"
+          aria-label="Engine color vision deficiency profiles"
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}
+        >
           {CVD_PROFILE_OPTIONS.map((profile) => {
             const active = engineCvd.includes(profile);
             return (
@@ -382,20 +454,20 @@ function EngineConfigPanel() {
           })}
         </div>
       </div>
+    </div>
 
-      <div
-        style={{
-          fontSize: 11,
-          color: 'var(--p-text-tertiary)',
-          maxWidth: 360,
-          lineHeight: 1.45,
-        }}
-      >
-        Applied to every token. Per-token overrides below adjust preference,
-        consistency, and surface only. Modes drive CLI output, CVD stays in
-        config for preview/export, and continuous mode uses the fallback grid as
-        its dense working set.
-      </div>
+    <p
+      style={{
+        margin: 0,
+        padding: '4px 16px 12px',
+        maxWidth: 800,
+        fontSize: 11,
+        color: 'var(--p-text-tertiary)',
+        lineHeight: 1.45,
+      }}
+    >
+      {intentHelp.engineStripCaption}
+    </p>
     </div>
   );
 }
@@ -418,37 +490,53 @@ export function IntentEditor() {
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
+          gap: 16,
           padding: '16px 16px 12px',
           borderBottom: '1px solid var(--p-border)',
         }}
       >
-        <div>
+        <div style={{ minWidth: 0, flex: 1, maxWidth: 720 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Intents</h2>
-          <div style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginTop: 4 }}>
-            Vocabulary {VOCABULARY_V1_VERSION} · {overrideCount} override
-            {overrideCount === 1 ? '' : 's'}
-          </div>
+          <p
+            style={{
+              margin: '6px 0 0',
+              fontSize: 11,
+              color: 'var(--p-text-tertiary)',
+              lineHeight: 1.45,
+            }}
+          >
+            {intentHelp.pageTitle}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={clearAll}
-          disabled={overrideCount === 0}
-          className="focus-visible-ring"
+        <div
           style={{
-            padding: '4px 10px',
-            fontSize: 11,
-            background: 'transparent',
-            color: overrideCount === 0 ? 'var(--p-text-tertiary)' : 'var(--p-text-secondary)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 4,
-            cursor: overrideCount === 0 ? 'default' : 'pointer',
-            opacity: overrideCount === 0 ? 0.5 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flex: '0 0 auto',
           }}
         >
-          Clear overrides
-        </button>
+          <button
+            type="button"
+            onClick={clearAll}
+            disabled={overrideCount === 0}
+            className="focus-visible-ring"
+            style={{
+              padding: '4px 10px',
+              fontSize: 11,
+              background: 'transparent',
+              color: overrideCount === 0 ? 'var(--p-text-tertiary)' : 'var(--p-text-secondary)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 4,
+              cursor: overrideCount === 0 ? 'default' : 'pointer',
+              opacity: overrideCount === 0 ? 0.5 : 1,
+            }}
+          >
+            Clear overrides
+          </button>
+        </div>
       </div>
 
       <EngineConfigPanel />
@@ -463,14 +551,36 @@ export function IntentEditor() {
           background: 'var(--p-bg-inset)',
           position: 'sticky',
           top: 0,
-          zIndex: 1,
+          zIndex: 2,
         }}
       >
-        <div style={headerCell}>Token</div>
-        <div style={headerCell}>Preference</div>
-        <div style={headerCell}>Consistency</div>
-        <div style={headerCell}>Surface</div>
-        <div style={headerCell} />
+        <div style={headerLabelRow}>
+          <span style={headerCell}>Token</span>
+          <HelpPopover title="Token column" triggerLabel="Help: token column">
+            <TokenColumnHelpBody />
+          </HelpPopover>
+        </div>
+        <div style={headerLabelRow}>
+          <span style={headerCell}>Preference</span>
+          <HelpPopover title="Preference" triggerLabel="Help: intent preference">
+            <PreferenceColumnHelpBody />
+          </HelpPopover>
+        </div>
+        <div style={headerLabelRow}>
+          <span style={headerCell}>Consistency</span>
+          <HelpPopover title="Consistency" triggerLabel="Help: cross-ramp consistency">
+            <ConsistencyColumnHelpBody />
+          </HelpPopover>
+        </div>
+        <div style={headerLabelRow}>
+          <span style={headerCell}>Surface</span>
+          <HelpPopover title="Surface context" triggerLabel="Help: which surface to contrast against">
+            <SurfaceColumnHelpBody />
+          </HelpPopover>
+        </div>
+        <div style={headerCell} aria-hidden>
+          {'\u00a0'}
+        </div>
       </div>
 
       {VOCABULARY_V1_SLICE.map((entry) => (

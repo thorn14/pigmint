@@ -60,7 +60,7 @@ function buildContainer() {
     VOCABULARY_V1_SLICE,
     RAMP_SOURCE.map(([, n]) => n),
   );
-  const { tokens } = resolveAll({
+  const { tokens, ramps: dtcgRamps } = resolveAll({
     config,
     vocabulary: VOCABULARY_V1_SLICE,
     ramps,
@@ -73,7 +73,7 @@ function buildContainer() {
   return emitDtcg({
     engineVersion: '0.0.0',
     defaultMode: 'light',
-    ramps,
+    ramps: dtcgRamps,
     resolvedTokens: tokens,
     vocabulary: VOCABULARY_V1_SLICE,
   });

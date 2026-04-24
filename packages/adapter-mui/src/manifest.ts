@@ -1,5 +1,9 @@
 import type { AdapterManifest } from '@pigmint/core';
 
+// OQ-11 ratified: MUI v6 is the minimum target. The adapter assumes stable
+// `CssVarsProvider`, `extendTheme`, and `theme.applyStyles()`, and emits a single
+// theme object with `colorSchemes: { light, dark, ... }`. No v5 fallback is
+// maintained. v7 upgrade path stays cheap (same CssVarsProvider contract).
 export const manifest: AdapterManifest = {
   name: 'mui',
   version: '0.0.0',

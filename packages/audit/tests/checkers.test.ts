@@ -154,6 +154,60 @@ describe('runCheckers', () => {
     expect(violations).toHaveLength(0);
   });
 
+  it('flags mixed-usage when declared usage conflicts with path context (ADR-011)', () => {
+    const container = buildContainer({
+      decorative: {
+        backdrop: {
+          $type: 'color',
+          $value: '{color.primitive.blue.300}',
+          $extensions: {
+            'com.pigmint': {
+              usage: 'text',
+              modes: { light: makeEntry() },
+            },
+          },
+        },
+      },
+    });
+
+    const { violations } = runCheckers({
+      container,
+      target: 'AA',
+      expectedModes: ['light'],
+    });
+
+    const mixed = violations.find((v) => v.type === 'mixed-usage');
+    expect(mixed).toBeDefined();
+    expect(mixed?.severity).toBe('warning');
+    expect(mixed?.expected?.usage).toBe('decorative');
+    expect(mixed?.actual?.usage).toBe('text');
+  });
+
+  it('does not flag mixed-usage when declared usage matches path context', () => {
+    const container = buildContainer({
+      foreground: {
+        main: {
+          $type: 'color',
+          $value: '{color.primitive.neutral.900}',
+          $extensions: {
+            'com.pigmint': {
+              usage: 'text',
+              modes: { light: makeEntry() },
+            },
+          },
+        },
+      },
+    });
+
+    const { violations } = runCheckers({
+      container,
+      target: 'AA',
+      expectedModes: ['light'],
+    });
+
+    expect(violations.find((v) => v.type === 'mixed-usage')).toBeUndefined();
+  });
+
   it('does not flag passing tokens at or above the target', () => {
     const container = buildContainer({
       foreground: {

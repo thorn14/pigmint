@@ -1,0 +1,603 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]:
+          - generic [ref=e9]: p
+        - generic [ref=e10]: pigmint
+      - generic [ref=e12]:
+        - textbox "Palette name" [ref=e13]: Default
+        - button "New palette" [ref=e14] [cursor=pointer]: +
+      - radiogroup "Contrast mode" [ref=e17]:
+        - radio "wcag" [checked] [ref=e18] [cursor=pointer]
+        - radio "apca" [ref=e19] [cursor=pointer]
+      - radiogroup "App mode" [ref=e20]:
+        - radio "edit" [ref=e21] [cursor=pointer]
+        - radio "preview" [ref=e22] [cursor=pointer]
+        - radio "combos" [ref=e23] [cursor=pointer]
+        - radio "intents" [checked] [active] [ref=e24] [cursor=pointer]
+        - radio "surfaces" [ref=e25] [cursor=pointer]
+        - radio "audit" [ref=e26] [cursor=pointer]
+      - radiogroup "Gamut preview" [ref=e28]:
+        - radio "Display P3 preview mode" [checked] [ref=e29] [cursor=pointer]: P3
+        - radio "sRGB preview mode" [ref=e30] [cursor=pointer]: sRGB
+      - button "Switch to light mode" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]
+      - generic [ref=e36]:
+        - button "Save" [ref=e37] [cursor=pointer]
+        - button "More save/export options" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+    - main [ref=e41]:
+      - generic [ref=e175]:
+        - generic [ref=e176]:
+          - generic [ref=e177]:
+            - heading "Intents" [level=2] [ref=e178]
+            - generic [ref=e179]: Vocabulary vocabulary@0.1 · 1 override
+          - button "Clear overrides" [ref=e180] [cursor=pointer]
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - generic [ref=e183]: Compliance
+            - generic "APCA resolution is deferred — see OQ-12 in plan.md" [ref=e184]: WCAG 2.1
+          - generic [ref=e185]:
+            - generic [ref=e186]: Target level
+            - combobox "Target level" [ref=e187]:
+              - option "AA" [selected]
+              - option "AAA"
+          - generic [ref=e188]:
+            - generic [ref=e189]: Modes
+            - group "Engine modes" [ref=e190]:
+              - generic [ref=e191] [cursor=pointer]:
+                - checkbox "Light" [checked] [ref=e192]
+                - text: Light
+              - generic [ref=e193] [cursor=pointer]:
+                - checkbox "Dark" [checked] [ref=e194]
+                - text: Dark
+              - generic [ref=e195] [cursor=pointer]:
+                - checkbox "Light HC" [ref=e196]
+                - text: Light HC
+              - generic [ref=e197] [cursor=pointer]:
+                - checkbox "Dark HC" [ref=e198]
+                - text: Dark HC
+          - generic [ref=e199]:
+            - generic [ref=e200]: Resolver
+            - generic [ref=e201]:
+              - combobox "Resolver" [ref=e202]:
+                - option "stepped" [selected]
+                - option "continuous"
+              - spinbutton "Resolver fallback steps" [disabled] [ref=e203]: "256"
+          - generic [ref=e204]:
+            - generic [ref=e205]: CVD profiles
+            - group "Engine color vision deficiency profiles" [ref=e206]:
+              - generic [ref=e207] [cursor=pointer]:
+                - checkbox "Deuteranopia" [ref=e208]
+                - text: Deuteranopia
+              - generic [ref=e209] [cursor=pointer]:
+                - checkbox "Protanopia" [ref=e210]
+                - text: Protanopia
+              - generic [ref=e211] [cursor=pointer]:
+                - checkbox "Tritanopia" [ref=e212]
+                - text: Tritanopia
+              - generic [ref=e213] [cursor=pointer]:
+                - checkbox "Achromatopsia" [ref=e214]
+                - text: Achromatopsia
+          - generic [ref=e215]: Applied to every token. Per-token overrides below adjust preference, consistency, and surface only. Modes drive CLI output, CVD stays in config for preview/export, and continuous mode uses the fallback grid as its dense working set.
+        - generic [ref=e216]:
+          - generic [ref=e217]: Token
+          - generic [ref=e218]: Preference
+          - generic [ref=e219]: Consistency
+          - generic [ref=e220]: Surface
+        - generic [ref=e222]:
+          - generic [ref=e223]:
+            - generic [ref=e224]: color.surface.main
+            - generic "Document background." [ref=e225]
+          - combobox "color.surface.main preference" [ref=e226]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.surface.main consistency" [ref=e227]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.surface.main surface context" [ref=e228]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e229]
+        - generic [ref=e230]:
+          - generic [ref=e231]:
+            - generic [ref=e232]: color.surface.elevated
+            - generic "Raised surface (cards, popovers) above main." [ref=e233]
+          - combobox "color.surface.elevated preference" [ref=e234]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.surface.elevated consistency" [ref=e235]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.surface.elevated surface context" [ref=e236]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e237]
+        - generic [ref=e238]:
+          - generic [ref=e239]:
+            - generic [ref=e240]: color.surface.subtle
+            - generic "Recessed surface (muted panels) between main and elevated." [ref=e241]
+          - combobox "color.surface.subtle preference" [ref=e242]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.surface.subtle consistency" [ref=e243]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.surface.subtle surface context" [ref=e244]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e245]
+        - generic [ref=e246]:
+          - generic [ref=e247]:
+            - generic [ref=e248]: color.surface.inverse
+            - generic "Inverted document surface." [ref=e249]
+          - combobox "color.surface.inverse preference" [ref=e250]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.surface.inverse consistency" [ref=e251]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.surface.inverse surface context" [ref=e252]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e253]
+        - generic [ref=e254]:
+          - generic [ref=e255]:
+            - generic [ref=e256]: color.foreground.main
+            - generic "Primary text on main surface." [ref=e257]
+          - combobox "color.foreground.main preference" [ref=e258]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.foreground.main consistency" [ref=e259]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.foreground.main surface context" [ref=e260]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [ref=e261] [cursor=pointer]
+        - generic [ref=e262]:
+          - generic [ref=e263]:
+            - generic [ref=e264]: color.foreground.muted
+            - generic "Secondary text weight; passes AA-text by the slimmest margin." [ref=e265]
+          - combobox "color.foreground.muted preference" [ref=e266]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.foreground.muted consistency" [ref=e267]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.foreground.muted surface context" [ref=e268]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e269]
+        - generic [ref=e270]:
+          - generic [ref=e271]:
+            - generic [ref=e272]: color.foreground.subtle
+            - generic "Tertiary annotation; passes AA-nonText only. Use for icons or large decorative type." [ref=e273]
+          - combobox "color.foreground.subtle preference" [ref=e274]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.foreground.subtle consistency" [ref=e275]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.foreground.subtle surface context" [ref=e276]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e277]
+        - generic [ref=e278]:
+          - generic [ref=e279]:
+            - generic [ref=e280]: color.foreground.inverse
+            - generic "Text on inverted surfaces." [ref=e281]
+          - combobox "color.foreground.inverse preference" [ref=e282]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.foreground.inverse consistency" [ref=e283]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.foreground.inverse surface context" [ref=e284]:
+            - option "primary"
+            - option "elevated"
+            - option "inverse" [selected]
+            - option "current"
+          - button "Reset" [disabled] [ref=e285]
+        - generic [ref=e286]:
+          - generic [ref=e287]:
+            - generic [ref=e288]: color.action.primary.background
+            - generic "Primary action (button) background on main surface. Spec/09 default is matched-across-ramps; slice uses independent until that policy lands." [ref=e289]
+          - combobox "color.action.primary.background preference" [ref=e290]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.action.primary.background consistency" [ref=e291]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.action.primary.background surface context" [ref=e292]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e293]
+        - generic [ref=e294]:
+          - generic [ref=e295]:
+            - generic [ref=e296]: color.action.primary.text
+            - 'generic "Text on the primary action background. `surfaceContext: current` degrades to primary in compile-time adapters." [ref=e297]'
+          - combobox "color.action.primary.text preference" [ref=e298]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.action.primary.text consistency" [ref=e299]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.action.primary.text surface context" [ref=e300]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e301]
+        - generic [ref=e302]:
+          - generic [ref=e303]:
+            - generic [ref=e304]: color.action.secondary.background
+            - generic "Secondary action surface on main; bind a calmer ramp (e.g. slate) via the token ramp map." [ref=e305]
+          - combobox "color.action.secondary.background preference" [ref=e306]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.action.secondary.background consistency" [ref=e307]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.action.secondary.background surface context" [ref=e308]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e309]
+        - generic [ref=e310]:
+          - generic [ref=e311]:
+            - generic [ref=e312]: color.action.secondary.text
+            - generic "Text on the secondary action background against main surface." [ref=e313]
+          - combobox "color.action.secondary.text preference" [ref=e314]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.action.secondary.text consistency" [ref=e315]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.action.secondary.text surface context" [ref=e316]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e317]
+        - generic [ref=e318]:
+          - generic [ref=e319]:
+            - generic [ref=e320]: color.feedback.danger.background
+            - generic "Error / destructive status fill on main (inline alerts, form errors)." [ref=e321]
+          - combobox "color.feedback.danger.background preference" [ref=e322]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.danger.background consistency" [ref=e323]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.danger.background surface context" [ref=e324]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e325]
+        - generic [ref=e326]:
+          - generic [ref=e327]:
+            - generic [ref=e328]: color.feedback.danger.text
+            - generic "Error text and labels on main surface (slice resolves against main like primary.text)." [ref=e329]
+          - combobox "color.feedback.danger.text preference" [ref=e330]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.danger.text consistency" [ref=e331]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.danger.text surface context" [ref=e332]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e333]
+        - generic [ref=e334]:
+          - generic [ref=e335]:
+            - generic [ref=e336]: color.feedback.danger.border
+            - generic "Error outline / separator derived from the danger ramp." [ref=e337]
+          - combobox "color.feedback.danger.border preference" [ref=e338]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.danger.border consistency" [ref=e339]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.danger.border surface context" [ref=e340]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e341]
+        - generic [ref=e342]:
+          - generic [ref=e343]:
+            - generic [ref=e344]: color.feedback.success.background
+            - generic "Positive status fill (saved, verified)." [ref=e345]
+          - combobox "color.feedback.success.background preference" [ref=e346]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.success.background consistency" [ref=e347]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.success.background surface context" [ref=e348]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e349]
+        - generic [ref=e350]:
+          - generic [ref=e351]:
+            - generic [ref=e352]: color.feedback.success.text
+            - generic "Success message text on main surface." [ref=e353]
+          - combobox "color.feedback.success.text preference" [ref=e354]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.success.text consistency" [ref=e355]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.success.text surface context" [ref=e356]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e357]
+        - generic [ref=e358]:
+          - generic [ref=e359]:
+            - generic [ref=e360]: color.feedback.success.border
+            - generic "Success outline / border accent." [ref=e361]
+          - combobox "color.feedback.success.border preference" [ref=e362]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.success.border consistency" [ref=e363]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.success.border surface context" [ref=e364]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e365]
+        - generic [ref=e366]:
+          - generic [ref=e367]:
+            - generic [ref=e368]: color.feedback.warning.background
+            - generic "Caution / attention status fill." [ref=e369]
+          - combobox "color.feedback.warning.background preference" [ref=e370]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.warning.background consistency" [ref=e371]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.warning.background surface context" [ref=e372]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e373]
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - generic [ref=e376]: color.feedback.warning.text
+            - generic "Warning copy on main surface." [ref=e377]
+          - combobox "color.feedback.warning.text preference" [ref=e378]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.warning.text consistency" [ref=e379]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.warning.text surface context" [ref=e380]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e381]
+        - generic [ref=e382]:
+          - generic [ref=e383]:
+            - generic [ref=e384]: color.feedback.info.background
+            - generic "Informational callout fill." [ref=e385]
+          - combobox "color.feedback.info.background preference" [ref=e386]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.info.background consistency" [ref=e387]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.info.background surface context" [ref=e388]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e389]
+        - generic [ref=e390]:
+          - generic [ref=e391]:
+            - generic [ref=e392]: color.feedback.info.text
+            - generic "Info text on main surface." [ref=e393]
+          - combobox "color.feedback.info.text preference" [ref=e394]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.feedback.info.text consistency" [ref=e395]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.feedback.info.text surface context" [ref=e396]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e397]
+        - generic [ref=e398]:
+          - generic [ref=e399]:
+            - generic [ref=e400]: color.border.main
+            - generic "Standard hairline against main surface." [ref=e401]
+          - combobox "color.border.main preference" [ref=e402]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.border.main consistency" [ref=e403]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.border.main surface context" [ref=e404]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e405]
+        - generic [ref=e406]:
+          - generic [ref=e407]:
+            - generic [ref=e408]: color.border.subtle
+            - generic "Quiet divider; same threshold as main until matched-to-set lands." [ref=e409]
+          - combobox "color.border.subtle preference" [ref=e410]:
+            - option "lowest-passing" [selected]
+            - option "highest-contrast"
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.border.subtle consistency" [ref=e411]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.border.subtle surface context" [ref=e412]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e413]
+        - generic [ref=e414]:
+          - generic [ref=e415]:
+            - generic [ref=e416]: color.border.prominent
+            - generic "Stronger outline (focusable chrome, high-visibility hairlines)." [ref=e417]
+          - combobox "color.border.prominent preference" [ref=e418]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.border.prominent consistency" [ref=e419]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.border.prominent surface context" [ref=e420]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e421]
+        - generic [ref=e422]:
+          - generic [ref=e423]:
+            - generic [ref=e424]: color.focus.ring
+            - generic "Focus indicator ring." [ref=e425]
+          - combobox "color.focus.ring preference" [ref=e426]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.focus.ring consistency" [ref=e427]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.focus.ring surface context" [ref=e428]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e429]
+        - generic [ref=e430]:
+          - generic [ref=e431]:
+            - generic [ref=e432]: color.focus.outline
+            - generic "Full outline for forced-colors / outline-offset patterns." [ref=e433]
+          - combobox "color.focus.outline preference" [ref=e434]:
+            - option "lowest-passing"
+            - option "highest-contrast" [selected]
+            - option "matched-to-set"
+            - option "anchored"
+          - combobox "color.focus.outline consistency" [ref=e435]:
+            - option "independent" [selected]
+            - option "matched-across-ramps"
+            - option "anchored-to-reference"
+          - combobox "color.focus.outline surface context" [ref=e436]:
+            - option "primary" [selected]
+            - option "elevated"
+            - option "inverse"
+            - option "current"
+          - button "Reset" [disabled] [ref=e437]

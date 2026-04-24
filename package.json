@@ -10,5 +10,9 @@
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "start": "pnpm --filter @pigmint/authoring-app dev",
+    "sticker:tailwind": "pnpm --filter @pigmint/sticker-sheet-tailwind dev"
+  }
 }

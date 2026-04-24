@@ -6,6 +6,10 @@ engine:
     - dark
     - light-high-contrast
     - dark-high-contrast
+  cvd:
+    - deuteranopia
+    - protanopia
+    - tritanopia
 ramps:
   - name: neutral
     source: "#888888"
@@ -29,3 +33,6 @@ adapters:
       - oklch
 output:
   dtcg: ../src/generated/tokens.json
+audit:
+  report: ../src/generated/audit.json
+  profile: wcag-srgb

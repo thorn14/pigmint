@@ -78,7 +78,7 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
   }
   const tokenRamp = buildDefaultTokenRamp(vocabulary, rampNames);
 
-  const { tokens } = resolveAll({
+  const { tokens, ramps: dtcgRamps } = resolveAll({
     config,
     vocabulary,
     ramps,
@@ -90,9 +90,12 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
   const container = emitDtcg({
     engineVersion: '0.0.0',
     defaultMode,
-    ramps,
+    ramps: dtcgRamps,
     resolvedTokens: tokens,
     vocabulary,
+    ...(config.engine.cvd && config.engine.cvd.length > 0
+      ? { cvd: config.engine.cvd }
+      : {}),
   });
 
   const outputPath = resolve(dirname(configPath), config.output.dtcg);

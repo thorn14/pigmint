@@ -58,6 +58,9 @@ importers:
 
   packages/authoring-app:
     dependencies:
+      '@pigmint/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@pigmint/core':
         specifier: workspace:*
         version: link:../core

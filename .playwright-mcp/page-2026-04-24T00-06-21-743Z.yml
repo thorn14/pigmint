@@ -1,0 +1,989 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Sticker sheet · Tailwind adapter" [level=1] [ref=e5]
+    - paragraph [ref=e6]:
+      - text: Verification surface for
+      - code [ref=e7]: "@pigmint/adapter-tailwind"
+      - text: . Each panel renders the same component set against a different engine mode using the CSS vars in
+      - code [ref=e8]: src/generated/tokens.css
+      - text: . Regenerate via
+      - code [ref=e9]: pnpm --filter @pigmint/sticker-sheet-tailwind generate:tokens
+      - text: . HC panels pick higher-contrast primitives than their base-mode counterparts — text AA floors lift to 7:1, non-text floors lift to 4.5:1. CVD rows apply Machado 2009 feColorMatrix filters to the rendered output to preview how the same tokens appear under colour-vision deficiency; filters are purely visual — tokens and receipts are unchanged.
+  - region "Normal vision" [ref=e10]:
+    - strong [ref=e12]: Normal vision
+    - generic [ref=e13]:
+      - 'region "Mode: light" [ref=e14]':
+        - generic [ref=e15]:
+          - heading "Light" [level=2] [ref=e16]
+          - code [ref=e17]: light
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - paragraph [ref=e20]: Heading on main surface
+            - paragraph [ref=e21]: Muted supporting copy on the main surface.
+            - paragraph [ref=e22]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e23]:
+            - button "Primary" [ref=e24] [cursor=pointer]
+            - button "Outline" [ref=e25] [cursor=pointer]
+            - button "Secondary" [ref=e26] [cursor=pointer]
+            - button "Ghost" [ref=e27] [cursor=pointer]
+            - button "Destructive" [ref=e28] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e29]
+          - generic [ref=e30]:
+            - strong [ref=e31]: Feedback
+            - generic [ref=e32]:
+              - strong [ref=e33]: Success
+              - generic [ref=e34]: Background, text, and border from the success ramp.
+            - generic [ref=e35]:
+              - strong [ref=e36]: Danger
+              - generic [ref=e37]: Destructive status and actions share the danger ramp.
+            - generic [ref=e38]:
+              - strong [ref=e39]: Warning
+              - generic [ref=e40]: Caution copy and surfaces.
+            - generic [ref=e41]:
+              - strong [ref=e42]: Info
+              - generic [ref=e43]: Informational panels and hints.
+          - generic [ref=e44]:
+            - generic [ref=e45]:
+              - strong [ref=e46]: Elevated card
+              - generic [ref=e47]: badge
+            - paragraph [ref=e48]:
+              - text: Rendered on
+              - code [ref=e49]: "--card"
+              - text: (
+              - code [ref=e50]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e51]:
+            - strong [ref=e52]: Borders
+            - generic [ref=e53]:
+              - generic "color.border.main" [ref=e54]
+              - generic "color.border.subtle" [ref=e55]
+              - generic "color.border.prominent" [ref=e56]
+          - generic [ref=e57]:
+            - generic [ref=e58]: Email
+            - textbox "Email We never share your address." [ref=e59]:
+              - /placeholder: you@example.com
+            - generic [ref=e60]: We never share your address.
+          - generic [ref=e61]:
+            - strong [ref=e62]: Heads up
+            - generic [ref=e63]: Callout rendered on the subtle surface.
+          - generic [ref=e64]:
+            - strong [ref=e65]: Inverse surface
+            - generic [ref=e66]:
+              - text: Text resolves against
+              - code [ref=e67]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark" [ref=e68]':
+        - generic [ref=e69]:
+          - heading "Dark" [level=2] [ref=e70]
+          - code [ref=e71]: dark
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - paragraph [ref=e74]: Heading on main surface
+            - paragraph [ref=e75]: Muted supporting copy on the main surface.
+            - paragraph [ref=e76]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e77]:
+            - button "Primary" [ref=e78] [cursor=pointer]
+            - button "Outline" [ref=e79] [cursor=pointer]
+            - button "Secondary" [ref=e80] [cursor=pointer]
+            - button "Ghost" [ref=e81] [cursor=pointer]
+            - button "Destructive" [ref=e82] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e83]
+          - generic [ref=e84]:
+            - strong [ref=e85]: Feedback
+            - generic [ref=e86]:
+              - strong [ref=e87]: Success
+              - generic [ref=e88]: Background, text, and border from the success ramp.
+            - generic [ref=e89]:
+              - strong [ref=e90]: Danger
+              - generic [ref=e91]: Destructive status and actions share the danger ramp.
+            - generic [ref=e92]:
+              - strong [ref=e93]: Warning
+              - generic [ref=e94]: Caution copy and surfaces.
+            - generic [ref=e95]:
+              - strong [ref=e96]: Info
+              - generic [ref=e97]: Informational panels and hints.
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - strong [ref=e100]: Elevated card
+              - generic [ref=e101]: badge
+            - paragraph [ref=e102]:
+              - text: Rendered on
+              - code [ref=e103]: "--card"
+              - text: (
+              - code [ref=e104]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e105]:
+            - strong [ref=e106]: Borders
+            - generic [ref=e107]:
+              - generic "color.border.main" [ref=e108]
+              - generic "color.border.subtle" [ref=e109]
+              - generic "color.border.prominent" [ref=e110]
+          - generic [ref=e111]:
+            - generic [ref=e112]: Email
+            - textbox "Email We never share your address." [ref=e113]:
+              - /placeholder: you@example.com
+            - generic [ref=e114]: We never share your address.
+          - generic [ref=e115]:
+            - strong [ref=e116]: Heads up
+            - generic [ref=e117]: Callout rendered on the subtle surface.
+          - generic [ref=e118]:
+            - strong [ref=e119]: Inverse surface
+            - generic [ref=e120]:
+              - text: Text resolves against
+              - code [ref=e121]: color.surface.inverse
+              - text: .
+      - 'region "Mode: light-high-contrast" [ref=e122]':
+        - generic [ref=e123]:
+          - heading "Light · HC" [level=2] [ref=e124]
+          - code [ref=e125]: light-high-contrast
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - paragraph [ref=e128]: Heading on main surface
+            - paragraph [ref=e129]: Muted supporting copy on the main surface.
+            - paragraph [ref=e130]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e131]:
+            - button "Primary" [ref=e132] [cursor=pointer]
+            - button "Outline" [ref=e133] [cursor=pointer]
+            - button "Secondary" [ref=e134] [cursor=pointer]
+            - button "Ghost" [ref=e135] [cursor=pointer]
+            - button "Destructive" [ref=e136] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e137]
+          - generic [ref=e138]:
+            - strong [ref=e139]: Feedback
+            - generic [ref=e140]:
+              - strong [ref=e141]: Success
+              - generic [ref=e142]: Background, text, and border from the success ramp.
+            - generic [ref=e143]:
+              - strong [ref=e144]: Danger
+              - generic [ref=e145]: Destructive status and actions share the danger ramp.
+            - generic [ref=e146]:
+              - strong [ref=e147]: Warning
+              - generic [ref=e148]: Caution copy and surfaces.
+            - generic [ref=e149]:
+              - strong [ref=e150]: Info
+              - generic [ref=e151]: Informational panels and hints.
+          - generic [ref=e152]:
+            - generic [ref=e153]:
+              - strong [ref=e154]: Elevated card
+              - generic [ref=e155]: badge
+            - paragraph [ref=e156]:
+              - text: Rendered on
+              - code [ref=e157]: "--card"
+              - text: (
+              - code [ref=e158]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e159]:
+            - strong [ref=e160]: Borders
+            - generic [ref=e161]:
+              - generic "color.border.main" [ref=e162]
+              - generic "color.border.subtle" [ref=e163]
+              - generic "color.border.prominent" [ref=e164]
+          - generic [ref=e165]:
+            - generic [ref=e166]: Email
+            - textbox "Email We never share your address." [ref=e167]:
+              - /placeholder: you@example.com
+            - generic [ref=e168]: We never share your address.
+          - generic [ref=e169]:
+            - strong [ref=e170]: Heads up
+            - generic [ref=e171]: Callout rendered on the subtle surface.
+          - generic [ref=e172]:
+            - strong [ref=e173]: Inverse surface
+            - generic [ref=e174]:
+              - text: Text resolves against
+              - code [ref=e175]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark-high-contrast" [ref=e176]':
+        - generic [ref=e177]:
+          - heading "Dark · HC" [level=2] [ref=e178]
+          - code [ref=e179]: dark-high-contrast
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - paragraph [ref=e182]: Heading on main surface
+            - paragraph [ref=e183]: Muted supporting copy on the main surface.
+            - paragraph [ref=e184]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e185]:
+            - button "Primary" [ref=e186] [cursor=pointer]
+            - button "Outline" [ref=e187] [cursor=pointer]
+            - button "Secondary" [ref=e188] [cursor=pointer]
+            - button "Ghost" [ref=e189] [cursor=pointer]
+            - button "Destructive" [ref=e190] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e191]
+          - generic [ref=e192]:
+            - strong [ref=e193]: Feedback
+            - generic [ref=e194]:
+              - strong [ref=e195]: Success
+              - generic [ref=e196]: Background, text, and border from the success ramp.
+            - generic [ref=e197]:
+              - strong [ref=e198]: Danger
+              - generic [ref=e199]: Destructive status and actions share the danger ramp.
+            - generic [ref=e200]:
+              - strong [ref=e201]: Warning
+              - generic [ref=e202]: Caution copy and surfaces.
+            - generic [ref=e203]:
+              - strong [ref=e204]: Info
+              - generic [ref=e205]: Informational panels and hints.
+          - generic [ref=e206]:
+            - generic [ref=e207]:
+              - strong [ref=e208]: Elevated card
+              - generic [ref=e209]: badge
+            - paragraph [ref=e210]:
+              - text: Rendered on
+              - code [ref=e211]: "--card"
+              - text: (
+              - code [ref=e212]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e213]:
+            - strong [ref=e214]: Borders
+            - generic [ref=e215]:
+              - generic "color.border.main" [ref=e216]
+              - generic "color.border.subtle" [ref=e217]
+              - generic "color.border.prominent" [ref=e218]
+          - generic [ref=e219]:
+            - generic [ref=e220]: Email
+            - textbox "Email We never share your address." [ref=e221]:
+              - /placeholder: you@example.com
+            - generic [ref=e222]: We never share your address.
+          - generic [ref=e223]:
+            - strong [ref=e224]: Heads up
+            - generic [ref=e225]: Callout rendered on the subtle surface.
+          - generic [ref=e226]:
+            - strong [ref=e227]: Inverse surface
+            - generic [ref=e228]:
+              - text: Text resolves against
+              - code [ref=e229]: color.surface.inverse
+              - text: .
+  - region "Deuteranopia" [ref=e230]:
+    - generic [ref=e231]:
+      - strong [ref=e232]: Deuteranopia
+      - code [ref=e233]: "filter: deuteranopia"
+    - generic [ref=e234]:
+      - 'region "Mode: light" [ref=e235]':
+        - generic [ref=e236]:
+          - heading "Light" [level=2] [ref=e237]
+          - code [ref=e238]: light
+        - generic [ref=e239]:
+          - generic [ref=e240]:
+            - paragraph [ref=e241]: Heading on main surface
+            - paragraph [ref=e242]: Muted supporting copy on the main surface.
+            - paragraph [ref=e243]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e244]:
+            - button "Primary" [ref=e245] [cursor=pointer]
+            - button "Outline" [ref=e246] [cursor=pointer]
+            - button "Secondary" [ref=e247] [cursor=pointer]
+            - button "Ghost" [ref=e248] [cursor=pointer]
+            - button "Destructive" [ref=e249] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e250]
+          - generic [ref=e251]:
+            - strong [ref=e252]: Feedback
+            - generic [ref=e253]:
+              - strong [ref=e254]: Success
+              - generic [ref=e255]: Background, text, and border from the success ramp.
+            - generic [ref=e256]:
+              - strong [ref=e257]: Danger
+              - generic [ref=e258]: Destructive status and actions share the danger ramp.
+            - generic [ref=e259]:
+              - strong [ref=e260]: Warning
+              - generic [ref=e261]: Caution copy and surfaces.
+            - generic [ref=e262]:
+              - strong [ref=e263]: Info
+              - generic [ref=e264]: Informational panels and hints.
+          - generic [ref=e265]:
+            - generic [ref=e266]:
+              - strong [ref=e267]: Elevated card
+              - generic [ref=e268]: badge
+            - paragraph [ref=e269]:
+              - text: Rendered on
+              - code [ref=e270]: "--card"
+              - text: (
+              - code [ref=e271]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e272]:
+            - strong [ref=e273]: Borders
+            - generic [ref=e274]:
+              - generic "color.border.main" [ref=e275]
+              - generic "color.border.subtle" [ref=e276]
+              - generic "color.border.prominent" [ref=e277]
+          - generic [ref=e278]:
+            - generic [ref=e279]: Email
+            - textbox "Email We never share your address." [ref=e280]:
+              - /placeholder: you@example.com
+            - generic [ref=e281]: We never share your address.
+          - generic [ref=e282]:
+            - strong [ref=e283]: Heads up
+            - generic [ref=e284]: Callout rendered on the subtle surface.
+          - generic [ref=e285]:
+            - strong [ref=e286]: Inverse surface
+            - generic [ref=e287]:
+              - text: Text resolves against
+              - code [ref=e288]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark" [ref=e289]':
+        - generic [ref=e290]:
+          - heading "Dark" [level=2] [ref=e291]
+          - code [ref=e292]: dark
+        - generic [ref=e293]:
+          - generic [ref=e294]:
+            - paragraph [ref=e295]: Heading on main surface
+            - paragraph [ref=e296]: Muted supporting copy on the main surface.
+            - paragraph [ref=e297]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e298]:
+            - button "Primary" [ref=e299] [cursor=pointer]
+            - button "Outline" [ref=e300] [cursor=pointer]
+            - button "Secondary" [ref=e301] [cursor=pointer]
+            - button "Ghost" [ref=e302] [cursor=pointer]
+            - button "Destructive" [ref=e303] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e304]
+          - generic [ref=e305]:
+            - strong [ref=e306]: Feedback
+            - generic [ref=e307]:
+              - strong [ref=e308]: Success
+              - generic [ref=e309]: Background, text, and border from the success ramp.
+            - generic [ref=e310]:
+              - strong [ref=e311]: Danger
+              - generic [ref=e312]: Destructive status and actions share the danger ramp.
+            - generic [ref=e313]:
+              - strong [ref=e314]: Warning
+              - generic [ref=e315]: Caution copy and surfaces.
+            - generic [ref=e316]:
+              - strong [ref=e317]: Info
+              - generic [ref=e318]: Informational panels and hints.
+          - generic [ref=e319]:
+            - generic [ref=e320]:
+              - strong [ref=e321]: Elevated card
+              - generic [ref=e322]: badge
+            - paragraph [ref=e323]:
+              - text: Rendered on
+              - code [ref=e324]: "--card"
+              - text: (
+              - code [ref=e325]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e326]:
+            - strong [ref=e327]: Borders
+            - generic [ref=e328]:
+              - generic "color.border.main" [ref=e329]
+              - generic "color.border.subtle" [ref=e330]
+              - generic "color.border.prominent" [ref=e331]
+          - generic [ref=e332]:
+            - generic [ref=e333]: Email
+            - textbox "Email We never share your address." [ref=e334]:
+              - /placeholder: you@example.com
+            - generic [ref=e335]: We never share your address.
+          - generic [ref=e336]:
+            - strong [ref=e337]: Heads up
+            - generic [ref=e338]: Callout rendered on the subtle surface.
+          - generic [ref=e339]:
+            - strong [ref=e340]: Inverse surface
+            - generic [ref=e341]:
+              - text: Text resolves against
+              - code [ref=e342]: color.surface.inverse
+              - text: .
+      - 'region "Mode: light-high-contrast" [ref=e343]':
+        - generic [ref=e344]:
+          - heading "Light · HC" [level=2] [ref=e345]
+          - code [ref=e346]: light-high-contrast
+        - generic [ref=e347]:
+          - generic [ref=e348]:
+            - paragraph [ref=e349]: Heading on main surface
+            - paragraph [ref=e350]: Muted supporting copy on the main surface.
+            - paragraph [ref=e351]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e352]:
+            - button "Primary" [ref=e353] [cursor=pointer]
+            - button "Outline" [ref=e354] [cursor=pointer]
+            - button "Secondary" [ref=e355] [cursor=pointer]
+            - button "Ghost" [ref=e356] [cursor=pointer]
+            - button "Destructive" [ref=e357] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e358]
+          - generic [ref=e359]:
+            - strong [ref=e360]: Feedback
+            - generic [ref=e361]:
+              - strong [ref=e362]: Success
+              - generic [ref=e363]: Background, text, and border from the success ramp.
+            - generic [ref=e364]:
+              - strong [ref=e365]: Danger
+              - generic [ref=e366]: Destructive status and actions share the danger ramp.
+            - generic [ref=e367]:
+              - strong [ref=e368]: Warning
+              - generic [ref=e369]: Caution copy and surfaces.
+            - generic [ref=e370]:
+              - strong [ref=e371]: Info
+              - generic [ref=e372]: Informational panels and hints.
+          - generic [ref=e373]:
+            - generic [ref=e374]:
+              - strong [ref=e375]: Elevated card
+              - generic [ref=e376]: badge
+            - paragraph [ref=e377]:
+              - text: Rendered on
+              - code [ref=e378]: "--card"
+              - text: (
+              - code [ref=e379]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e380]:
+            - strong [ref=e381]: Borders
+            - generic [ref=e382]:
+              - generic "color.border.main" [ref=e383]
+              - generic "color.border.subtle" [ref=e384]
+              - generic "color.border.prominent" [ref=e385]
+          - generic [ref=e386]:
+            - generic [ref=e387]: Email
+            - textbox "Email We never share your address." [ref=e388]:
+              - /placeholder: you@example.com
+            - generic [ref=e389]: We never share your address.
+          - generic [ref=e390]:
+            - strong [ref=e391]: Heads up
+            - generic [ref=e392]: Callout rendered on the subtle surface.
+          - generic [ref=e393]:
+            - strong [ref=e394]: Inverse surface
+            - generic [ref=e395]:
+              - text: Text resolves against
+              - code [ref=e396]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark-high-contrast" [ref=e397]':
+        - generic [ref=e398]:
+          - heading "Dark · HC" [level=2] [ref=e399]
+          - code [ref=e400]: dark-high-contrast
+        - generic [ref=e401]:
+          - generic [ref=e402]:
+            - paragraph [ref=e403]: Heading on main surface
+            - paragraph [ref=e404]: Muted supporting copy on the main surface.
+            - paragraph [ref=e405]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e406]:
+            - button "Primary" [ref=e407] [cursor=pointer]
+            - button "Outline" [ref=e408] [cursor=pointer]
+            - button "Secondary" [ref=e409] [cursor=pointer]
+            - button "Ghost" [ref=e410] [cursor=pointer]
+            - button "Destructive" [ref=e411] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e412]
+          - generic [ref=e413]:
+            - strong [ref=e414]: Feedback
+            - generic [ref=e415]:
+              - strong [ref=e416]: Success
+              - generic [ref=e417]: Background, text, and border from the success ramp.
+            - generic [ref=e418]:
+              - strong [ref=e419]: Danger
+              - generic [ref=e420]: Destructive status and actions share the danger ramp.
+            - generic [ref=e421]:
+              - strong [ref=e422]: Warning
+              - generic [ref=e423]: Caution copy and surfaces.
+            - generic [ref=e424]:
+              - strong [ref=e425]: Info
+              - generic [ref=e426]: Informational panels and hints.
+          - generic [ref=e427]:
+            - generic [ref=e428]:
+              - strong [ref=e429]: Elevated card
+              - generic [ref=e430]: badge
+            - paragraph [ref=e431]:
+              - text: Rendered on
+              - code [ref=e432]: "--card"
+              - text: (
+              - code [ref=e433]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e434]:
+            - strong [ref=e435]: Borders
+            - generic [ref=e436]:
+              - generic "color.border.main" [ref=e437]
+              - generic "color.border.subtle" [ref=e438]
+              - generic "color.border.prominent" [ref=e439]
+          - generic [ref=e440]:
+            - generic [ref=e441]: Email
+            - textbox "Email We never share your address." [ref=e442]:
+              - /placeholder: you@example.com
+            - generic [ref=e443]: We never share your address.
+          - generic [ref=e444]:
+            - strong [ref=e445]: Heads up
+            - generic [ref=e446]: Callout rendered on the subtle surface.
+          - generic [ref=e447]:
+            - strong [ref=e448]: Inverse surface
+            - generic [ref=e449]:
+              - text: Text resolves against
+              - code [ref=e450]: color.surface.inverse
+              - text: .
+  - region "Protanopia" [ref=e451]:
+    - generic [ref=e452]:
+      - strong [ref=e453]: Protanopia
+      - code [ref=e454]: "filter: protanopia"
+    - generic [ref=e455]:
+      - 'region "Mode: light" [ref=e456]':
+        - generic [ref=e457]:
+          - heading "Light" [level=2] [ref=e458]
+          - code [ref=e459]: light
+        - generic [ref=e460]:
+          - generic [ref=e461]:
+            - paragraph [ref=e462]: Heading on main surface
+            - paragraph [ref=e463]: Muted supporting copy on the main surface.
+            - paragraph [ref=e464]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e465]:
+            - button "Primary" [ref=e466] [cursor=pointer]
+            - button "Outline" [ref=e467] [cursor=pointer]
+            - button "Secondary" [ref=e468] [cursor=pointer]
+            - button "Ghost" [ref=e469] [cursor=pointer]
+            - button "Destructive" [ref=e470] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e471]
+          - generic [ref=e472]:
+            - strong [ref=e473]: Feedback
+            - generic [ref=e474]:
+              - strong [ref=e475]: Success
+              - generic [ref=e476]: Background, text, and border from the success ramp.
+            - generic [ref=e477]:
+              - strong [ref=e478]: Danger
+              - generic [ref=e479]: Destructive status and actions share the danger ramp.
+            - generic [ref=e480]:
+              - strong [ref=e481]: Warning
+              - generic [ref=e482]: Caution copy and surfaces.
+            - generic [ref=e483]:
+              - strong [ref=e484]: Info
+              - generic [ref=e485]: Informational panels and hints.
+          - generic [ref=e486]:
+            - generic [ref=e487]:
+              - strong [ref=e488]: Elevated card
+              - generic [ref=e489]: badge
+            - paragraph [ref=e490]:
+              - text: Rendered on
+              - code [ref=e491]: "--card"
+              - text: (
+              - code [ref=e492]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e493]:
+            - strong [ref=e494]: Borders
+            - generic [ref=e495]:
+              - generic "color.border.main" [ref=e496]
+              - generic "color.border.subtle" [ref=e497]
+              - generic "color.border.prominent" [ref=e498]
+          - generic [ref=e499]:
+            - generic [ref=e500]: Email
+            - textbox "Email We never share your address." [ref=e501]:
+              - /placeholder: you@example.com
+            - generic [ref=e502]: We never share your address.
+          - generic [ref=e503]:
+            - strong [ref=e504]: Heads up
+            - generic [ref=e505]: Callout rendered on the subtle surface.
+          - generic [ref=e506]:
+            - strong [ref=e507]: Inverse surface
+            - generic [ref=e508]:
+              - text: Text resolves against
+              - code [ref=e509]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark" [ref=e510]':
+        - generic [ref=e511]:
+          - heading "Dark" [level=2] [ref=e512]
+          - code [ref=e513]: dark
+        - generic [ref=e514]:
+          - generic [ref=e515]:
+            - paragraph [ref=e516]: Heading on main surface
+            - paragraph [ref=e517]: Muted supporting copy on the main surface.
+            - paragraph [ref=e518]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e519]:
+            - button "Primary" [ref=e520] [cursor=pointer]
+            - button "Outline" [ref=e521] [cursor=pointer]
+            - button "Secondary" [ref=e522] [cursor=pointer]
+            - button "Ghost" [ref=e523] [cursor=pointer]
+            - button "Destructive" [ref=e524] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e525]
+          - generic [ref=e526]:
+            - strong [ref=e527]: Feedback
+            - generic [ref=e528]:
+              - strong [ref=e529]: Success
+              - generic [ref=e530]: Background, text, and border from the success ramp.
+            - generic [ref=e531]:
+              - strong [ref=e532]: Danger
+              - generic [ref=e533]: Destructive status and actions share the danger ramp.
+            - generic [ref=e534]:
+              - strong [ref=e535]: Warning
+              - generic [ref=e536]: Caution copy and surfaces.
+            - generic [ref=e537]:
+              - strong [ref=e538]: Info
+              - generic [ref=e539]: Informational panels and hints.
+          - generic [ref=e540]:
+            - generic [ref=e541]:
+              - strong [ref=e542]: Elevated card
+              - generic [ref=e543]: badge
+            - paragraph [ref=e544]:
+              - text: Rendered on
+              - code [ref=e545]: "--card"
+              - text: (
+              - code [ref=e546]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e547]:
+            - strong [ref=e548]: Borders
+            - generic [ref=e549]:
+              - generic "color.border.main" [ref=e550]
+              - generic "color.border.subtle" [ref=e551]
+              - generic "color.border.prominent" [ref=e552]
+          - generic [ref=e553]:
+            - generic [ref=e554]: Email
+            - textbox "Email We never share your address." [ref=e555]:
+              - /placeholder: you@example.com
+            - generic [ref=e556]: We never share your address.
+          - generic [ref=e557]:
+            - strong [ref=e558]: Heads up
+            - generic [ref=e559]: Callout rendered on the subtle surface.
+          - generic [ref=e560]:
+            - strong [ref=e561]: Inverse surface
+            - generic [ref=e562]:
+              - text: Text resolves against
+              - code [ref=e563]: color.surface.inverse
+              - text: .
+      - 'region "Mode: light-high-contrast" [ref=e564]':
+        - generic [ref=e565]:
+          - heading "Light · HC" [level=2] [ref=e566]
+          - code [ref=e567]: light-high-contrast
+        - generic [ref=e568]:
+          - generic [ref=e569]:
+            - paragraph [ref=e570]: Heading on main surface
+            - paragraph [ref=e571]: Muted supporting copy on the main surface.
+            - paragraph [ref=e572]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e573]:
+            - button "Primary" [ref=e574] [cursor=pointer]
+            - button "Outline" [ref=e575] [cursor=pointer]
+            - button "Secondary" [ref=e576] [cursor=pointer]
+            - button "Ghost" [ref=e577] [cursor=pointer]
+            - button "Destructive" [ref=e578] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e579]
+          - generic [ref=e580]:
+            - strong [ref=e581]: Feedback
+            - generic [ref=e582]:
+              - strong [ref=e583]: Success
+              - generic [ref=e584]: Background, text, and border from the success ramp.
+            - generic [ref=e585]:
+              - strong [ref=e586]: Danger
+              - generic [ref=e587]: Destructive status and actions share the danger ramp.
+            - generic [ref=e588]:
+              - strong [ref=e589]: Warning
+              - generic [ref=e590]: Caution copy and surfaces.
+            - generic [ref=e591]:
+              - strong [ref=e592]: Info
+              - generic [ref=e593]: Informational panels and hints.
+          - generic [ref=e594]:
+            - generic [ref=e595]:
+              - strong [ref=e596]: Elevated card
+              - generic [ref=e597]: badge
+            - paragraph [ref=e598]:
+              - text: Rendered on
+              - code [ref=e599]: "--card"
+              - text: (
+              - code [ref=e600]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e601]:
+            - strong [ref=e602]: Borders
+            - generic [ref=e603]:
+              - generic "color.border.main" [ref=e604]
+              - generic "color.border.subtle" [ref=e605]
+              - generic "color.border.prominent" [ref=e606]
+          - generic [ref=e607]:
+            - generic [ref=e608]: Email
+            - textbox "Email We never share your address." [ref=e609]:
+              - /placeholder: you@example.com
+            - generic [ref=e610]: We never share your address.
+          - generic [ref=e611]:
+            - strong [ref=e612]: Heads up
+            - generic [ref=e613]: Callout rendered on the subtle surface.
+          - generic [ref=e614]:
+            - strong [ref=e615]: Inverse surface
+            - generic [ref=e616]:
+              - text: Text resolves against
+              - code [ref=e617]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark-high-contrast" [ref=e618]':
+        - generic [ref=e619]:
+          - heading "Dark · HC" [level=2] [ref=e620]
+          - code [ref=e621]: dark-high-contrast
+        - generic [ref=e622]:
+          - generic [ref=e623]:
+            - paragraph [ref=e624]: Heading on main surface
+            - paragraph [ref=e625]: Muted supporting copy on the main surface.
+            - paragraph [ref=e626]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e627]:
+            - button "Primary" [ref=e628] [cursor=pointer]
+            - button "Outline" [ref=e629] [cursor=pointer]
+            - button "Secondary" [ref=e630] [cursor=pointer]
+            - button "Ghost" [ref=e631] [cursor=pointer]
+            - button "Destructive" [ref=e632] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e633]
+          - generic [ref=e634]:
+            - strong [ref=e635]: Feedback
+            - generic [ref=e636]:
+              - strong [ref=e637]: Success
+              - generic [ref=e638]: Background, text, and border from the success ramp.
+            - generic [ref=e639]:
+              - strong [ref=e640]: Danger
+              - generic [ref=e641]: Destructive status and actions share the danger ramp.
+            - generic [ref=e642]:
+              - strong [ref=e643]: Warning
+              - generic [ref=e644]: Caution copy and surfaces.
+            - generic [ref=e645]:
+              - strong [ref=e646]: Info
+              - generic [ref=e647]: Informational panels and hints.
+          - generic [ref=e648]:
+            - generic [ref=e649]:
+              - strong [ref=e650]: Elevated card
+              - generic [ref=e651]: badge
+            - paragraph [ref=e652]:
+              - text: Rendered on
+              - code [ref=e653]: "--card"
+              - text: (
+              - code [ref=e654]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e655]:
+            - strong [ref=e656]: Borders
+            - generic [ref=e657]:
+              - generic "color.border.main" [ref=e658]
+              - generic "color.border.subtle" [ref=e659]
+              - generic "color.border.prominent" [ref=e660]
+          - generic [ref=e661]:
+            - generic [ref=e662]: Email
+            - textbox "Email We never share your address." [ref=e663]:
+              - /placeholder: you@example.com
+            - generic [ref=e664]: We never share your address.
+          - generic [ref=e665]:
+            - strong [ref=e666]: Heads up
+            - generic [ref=e667]: Callout rendered on the subtle surface.
+          - generic [ref=e668]:
+            - strong [ref=e669]: Inverse surface
+            - generic [ref=e670]:
+              - text: Text resolves against
+              - code [ref=e671]: color.surface.inverse
+              - text: .
+  - region "Tritanopia" [ref=e672]:
+    - generic [ref=e673]:
+      - strong [ref=e674]: Tritanopia
+      - code [ref=e675]: "filter: tritanopia"
+    - generic [ref=e676]:
+      - 'region "Mode: light" [ref=e677]':
+        - generic [ref=e678]:
+          - heading "Light" [level=2] [ref=e679]
+          - code [ref=e680]: light
+        - generic [ref=e681]:
+          - generic [ref=e682]:
+            - paragraph [ref=e683]: Heading on main surface
+            - paragraph [ref=e684]: Muted supporting copy on the main surface.
+            - paragraph [ref=e685]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e686]:
+            - button "Primary" [ref=e687] [cursor=pointer]
+            - button "Outline" [ref=e688] [cursor=pointer]
+            - button "Secondary" [ref=e689] [cursor=pointer]
+            - button "Ghost" [ref=e690] [cursor=pointer]
+            - button "Destructive" [ref=e691] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e692]
+          - generic [ref=e693]:
+            - strong [ref=e694]: Feedback
+            - generic [ref=e695]:
+              - strong [ref=e696]: Success
+              - generic [ref=e697]: Background, text, and border from the success ramp.
+            - generic [ref=e698]:
+              - strong [ref=e699]: Danger
+              - generic [ref=e700]: Destructive status and actions share the danger ramp.
+            - generic [ref=e701]:
+              - strong [ref=e702]: Warning
+              - generic [ref=e703]: Caution copy and surfaces.
+            - generic [ref=e704]:
+              - strong [ref=e705]: Info
+              - generic [ref=e706]: Informational panels and hints.
+          - generic [ref=e707]:
+            - generic [ref=e708]:
+              - strong [ref=e709]: Elevated card
+              - generic [ref=e710]: badge
+            - paragraph [ref=e711]:
+              - text: Rendered on
+              - code [ref=e712]: "--card"
+              - text: (
+              - code [ref=e713]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e714]:
+            - strong [ref=e715]: Borders
+            - generic [ref=e716]:
+              - generic "color.border.main" [ref=e717]
+              - generic "color.border.subtle" [ref=e718]
+              - generic "color.border.prominent" [ref=e719]
+          - generic [ref=e720]:
+            - generic [ref=e721]: Email
+            - textbox "Email We never share your address." [ref=e722]:
+              - /placeholder: you@example.com
+            - generic [ref=e723]: We never share your address.
+          - generic [ref=e724]:
+            - strong [ref=e725]: Heads up
+            - generic [ref=e726]: Callout rendered on the subtle surface.
+          - generic [ref=e727]:
+            - strong [ref=e728]: Inverse surface
+            - generic [ref=e729]:
+              - text: Text resolves against
+              - code [ref=e730]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark" [ref=e731]':
+        - generic [ref=e732]:
+          - heading "Dark" [level=2] [ref=e733]
+          - code [ref=e734]: dark
+        - generic [ref=e735]:
+          - generic [ref=e736]:
+            - paragraph [ref=e737]: Heading on main surface
+            - paragraph [ref=e738]: Muted supporting copy on the main surface.
+            - paragraph [ref=e739]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e740]:
+            - button "Primary" [ref=e741] [cursor=pointer]
+            - button "Outline" [ref=e742] [cursor=pointer]
+            - button "Secondary" [ref=e743] [cursor=pointer]
+            - button "Ghost" [ref=e744] [cursor=pointer]
+            - button "Destructive" [ref=e745] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e746]
+          - generic [ref=e747]:
+            - strong [ref=e748]: Feedback
+            - generic [ref=e749]:
+              - strong [ref=e750]: Success
+              - generic [ref=e751]: Background, text, and border from the success ramp.
+            - generic [ref=e752]:
+              - strong [ref=e753]: Danger
+              - generic [ref=e754]: Destructive status and actions share the danger ramp.
+            - generic [ref=e755]:
+              - strong [ref=e756]: Warning
+              - generic [ref=e757]: Caution copy and surfaces.
+            - generic [ref=e758]:
+              - strong [ref=e759]: Info
+              - generic [ref=e760]: Informational panels and hints.
+          - generic [ref=e761]:
+            - generic [ref=e762]:
+              - strong [ref=e763]: Elevated card
+              - generic [ref=e764]: badge
+            - paragraph [ref=e765]:
+              - text: Rendered on
+              - code [ref=e766]: "--card"
+              - text: (
+              - code [ref=e767]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e768]:
+            - strong [ref=e769]: Borders
+            - generic [ref=e770]:
+              - generic "color.border.main" [ref=e771]
+              - generic "color.border.subtle" [ref=e772]
+              - generic "color.border.prominent" [ref=e773]
+          - generic [ref=e774]:
+            - generic [ref=e775]: Email
+            - textbox "Email We never share your address." [ref=e776]:
+              - /placeholder: you@example.com
+            - generic [ref=e777]: We never share your address.
+          - generic [ref=e778]:
+            - strong [ref=e779]: Heads up
+            - generic [ref=e780]: Callout rendered on the subtle surface.
+          - generic [ref=e781]:
+            - strong [ref=e782]: Inverse surface
+            - generic [ref=e783]:
+              - text: Text resolves against
+              - code [ref=e784]: color.surface.inverse
+              - text: .
+      - 'region "Mode: light-high-contrast" [ref=e785]':
+        - generic [ref=e786]:
+          - heading "Light · HC" [level=2] [ref=e787]
+          - code [ref=e788]: light-high-contrast
+        - generic [ref=e789]:
+          - generic [ref=e790]:
+            - paragraph [ref=e791]: Heading on main surface
+            - paragraph [ref=e792]: Muted supporting copy on the main surface.
+            - paragraph [ref=e793]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e794]:
+            - button "Primary" [ref=e795] [cursor=pointer]
+            - button "Outline" [ref=e796] [cursor=pointer]
+            - button "Secondary" [ref=e797] [cursor=pointer]
+            - button "Ghost" [ref=e798] [cursor=pointer]
+            - button "Destructive" [ref=e799] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e800]
+          - generic [ref=e801]:
+            - strong [ref=e802]: Feedback
+            - generic [ref=e803]:
+              - strong [ref=e804]: Success
+              - generic [ref=e805]: Background, text, and border from the success ramp.
+            - generic [ref=e806]:
+              - strong [ref=e807]: Danger
+              - generic [ref=e808]: Destructive status and actions share the danger ramp.
+            - generic [ref=e809]:
+              - strong [ref=e810]: Warning
+              - generic [ref=e811]: Caution copy and surfaces.
+            - generic [ref=e812]:
+              - strong [ref=e813]: Info
+              - generic [ref=e814]: Informational panels and hints.
+          - generic [ref=e815]:
+            - generic [ref=e816]:
+              - strong [ref=e817]: Elevated card
+              - generic [ref=e818]: badge
+            - paragraph [ref=e819]:
+              - text: Rendered on
+              - code [ref=e820]: "--card"
+              - text: (
+              - code [ref=e821]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e822]:
+            - strong [ref=e823]: Borders
+            - generic [ref=e824]:
+              - generic "color.border.main" [ref=e825]
+              - generic "color.border.subtle" [ref=e826]
+              - generic "color.border.prominent" [ref=e827]
+          - generic [ref=e828]:
+            - generic [ref=e829]: Email
+            - textbox "Email We never share your address." [ref=e830]:
+              - /placeholder: you@example.com
+            - generic [ref=e831]: We never share your address.
+          - generic [ref=e832]:
+            - strong [ref=e833]: Heads up
+            - generic [ref=e834]: Callout rendered on the subtle surface.
+          - generic [ref=e835]:
+            - strong [ref=e836]: Inverse surface
+            - generic [ref=e837]:
+              - text: Text resolves against
+              - code [ref=e838]: color.surface.inverse
+              - text: .
+      - 'region "Mode: dark-high-contrast" [ref=e839]':
+        - generic [ref=e840]:
+          - heading "Dark · HC" [level=2] [ref=e841]
+          - code [ref=e842]: dark-high-contrast
+        - generic [ref=e843]:
+          - generic [ref=e844]:
+            - paragraph [ref=e845]: Heading on main surface
+            - paragraph [ref=e846]: Muted supporting copy on the main surface.
+            - paragraph [ref=e847]: Subtle caption — lowest foreground emphasis.
+          - generic [ref=e848]:
+            - button "Primary" [ref=e849] [cursor=pointer]
+            - button "Outline" [ref=e850] [cursor=pointer]
+            - button "Secondary" [ref=e851] [cursor=pointer]
+            - button "Ghost" [ref=e852] [cursor=pointer]
+            - button "Destructive" [ref=e853] [cursor=pointer]
+            - button "Disabled" [disabled] [ref=e854]
+          - generic [ref=e855]:
+            - strong [ref=e856]: Feedback
+            - generic [ref=e857]:
+              - strong [ref=e858]: Success
+              - generic [ref=e859]: Background, text, and border from the success ramp.
+            - generic [ref=e860]:
+              - strong [ref=e861]: Danger
+              - generic [ref=e862]: Destructive status and actions share the danger ramp.
+            - generic [ref=e863]:
+              - strong [ref=e864]: Warning
+              - generic [ref=e865]: Caution copy and surfaces.
+            - generic [ref=e866]:
+              - strong [ref=e867]: Info
+              - generic [ref=e868]: Informational panels and hints.
+          - generic [ref=e869]:
+            - generic [ref=e870]:
+              - strong [ref=e871]: Elevated card
+              - generic [ref=e872]: badge
+            - paragraph [ref=e873]:
+              - text: Rendered on
+              - code [ref=e874]: "--card"
+              - text: (
+              - code [ref=e875]: color.surface.elevated
+              - text: ) with a subtle-border outline.
+          - generic [ref=e876]:
+            - strong [ref=e877]: Borders
+            - generic [ref=e878]:
+              - generic "color.border.main" [ref=e879]
+              - generic "color.border.subtle" [ref=e880]
+              - generic "color.border.prominent" [ref=e881]
+          - generic [ref=e882]:
+            - generic [ref=e883]: Email
+            - textbox "Email We never share your address." [ref=e884]:
+              - /placeholder: you@example.com
+            - generic [ref=e885]: We never share your address.
+          - generic [ref=e886]:
+            - strong [ref=e887]: Heads up
+            - generic [ref=e888]: Callout rendered on the subtle surface.
+          - generic [ref=e889]:
+            - strong [ref=e890]: Inverse surface
+            - generic [ref=e891]:
+              - text: Text resolves against
+              - code [ref=e892]: color.surface.inverse
+              - text: .

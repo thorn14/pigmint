@@ -1,4 +1,5 @@
 import { resolveToken, type ThresholdElevation } from './resolve.js';
+import { materializeContinuousRamps } from './materialize-continuous.js';
 import { resolveSurface, type SurfaceRole } from './surfaces.js';
 import { generateRamp } from '../math/ramp.js';
 import type { ColorScale, GeneratedRamp } from '../types/palette.js';
@@ -9,6 +10,15 @@ import type {
   ResolvedToken,
   VocabularyEntry,
 } from '../types/spec.js';
+
+// ADR-016 (post-v1): alpha sub-resolver.
+// The default reference surfaces for alpha-composited tokens are `color.surface.main`
+// for scheme=light and `color.surface.inverse` for scheme=dark (i.e. the canonical
+// "light-on-dark" and "dark-on-light" baselines). When the sub-resolver lands it
+// should consume `AdapterConfig.alpha.referenceSurface` as an override and fall
+// back to these defaults. Until then, alpha is authored as pre-composited color
+// and the driver resolves against the opaque reference directly — see
+// `ModeBinding.baselineHex` below.
 
 const DEFAULT_DENSE_STEPS = 256;
 
@@ -30,6 +40,8 @@ export interface ResolveAllInput {
 
 export interface ResolveAllOutput {
   tokens: ResolvedToken[];
+  /** Stepped ramps plus any synthesized `c0000`–`c1000` primitives (continuous + F1). */
+  ramps: GeneratedRamp[];
   surfaceByModeAndPath: Record<string, Record<string, string>>;
 }
 
@@ -153,7 +165,12 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
     }
   }
 
-  return { tokens, surfaceByModeAndPath };
+  const materialized = materializeContinuousRamps(config, ramps, tokens);
+  return {
+    tokens: materialized.tokens,
+    ramps: materialized.ramps,
+    surfaceByModeAndPath,
+  };
 }
 
 function buildDenseRamps(

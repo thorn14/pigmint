@@ -10,6 +10,23 @@ export function suggestionForViolation(
   violation: Violation,
   runId: string,
 ): Suggestion | null {
+  if (violation.type === 'mixed-usage') {
+    const expectedUsage = violation.expected?.usage;
+    const actualUsage = violation.actual?.usage;
+    return {
+      id: suggestionId(violation, runId),
+      channel: 'spec-gap',
+      target: violation.token,
+      rationale: `Token ${violation.token} is declared usage=${actualUsage} but its path implies ${expectedUsage}. Split into two tokens at design time (ADR-011): one for text/non-text contrast duty and one for decorative/visual use — a single token cannot satisfy both contexts without compromise.`,
+      change: {
+        field: 'vocabulary.usage',
+        op: 'replace',
+        value: expectedUsage,
+      },
+      confidence: 'medium',
+    };
+  }
+
   if (
     violation.type !== 'contrast-failure' &&
     violation.type !== 'contrast-under-target'

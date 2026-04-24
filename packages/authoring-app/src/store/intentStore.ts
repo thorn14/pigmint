@@ -64,6 +64,7 @@ interface IntentActions {
   toggleEngineCvd: (profile: CvdProfile) => void;
   setResolverMode: (mode: ResolverMode) => void;
   setResolverFallbackSteps: (steps: number | undefined) => void;
+  setMaterializeInterpolatedPrimitives: (value: boolean | undefined) => void;
   setPreference: (path: string, preference: Preference) => void;
   setConsistency: (path: string, consistency: Consistency) => void;
   setSurfaceContext: (path: string, surfaceContext: SurfaceContext) => void;
@@ -112,7 +113,19 @@ export function sanitizeResolver(raw: unknown): ResolverConfig {
     typeof fallbackRaw === 'number' && Number.isFinite(fallbackRaw) && fallbackRaw >= 2
       ? Math.floor(fallbackRaw)
       : undefined;
-  return fallbackSteps !== undefined ? { mode, fallbackSteps } : { mode };
+  const mat = obj.materializeInterpolatedPrimitives;
+  const materializeInterpolatedPrimitives =
+    mat === false ? false : mat === true ? true : undefined;
+  const base: ResolverConfig = { mode };
+  const withFallback =
+    fallbackSteps !== undefined ? { ...base, fallbackSteps } : base;
+  if (materializeInterpolatedPrimitives === false) {
+    return { ...withFallback, materializeInterpolatedPrimitives: false };
+  }
+  if (materializeInterpolatedPrimitives === true) {
+    return { ...withFallback, materializeInterpolatedPrimitives: true };
+  }
+  return withFallback;
 }
 
 function loadFromStorage(): PersistedIntentState {
@@ -204,6 +217,20 @@ export const useIntentStore = create<IntentState & IntentActions>()(
           state.engineResolver = rest;
         } else {
           state.engineResolver = { ...state.engineResolver, fallbackSteps: steps };
+        }
+        persist(snapshot(state));
+      }),
+
+    setMaterializeInterpolatedPrimitives: (value) =>
+      set((state) => {
+        if (value === undefined) {
+          const { materializeInterpolatedPrimitives: _d, ...rest } = state.engineResolver;
+          state.engineResolver = rest;
+        } else {
+          state.engineResolver = {
+            ...state.engineResolver,
+            materializeInterpolatedPrimitives: value,
+          };
         }
         persist(snapshot(state));
       }),
