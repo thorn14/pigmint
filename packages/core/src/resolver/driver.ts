@@ -11,6 +11,7 @@ import { resolveSurface, type SurfaceRole } from './surfaces.js';
 import { generateRamp } from '../math/ramp.js';
 import type { ColorScale, GeneratedRamp } from '../types/palette.js';
 import type {
+  ContrastKind,
   FormalIntent,
   IntentOverride,
   ProjectConfig,
@@ -117,9 +118,30 @@ function intentGroupKey(intent: FormalIntent): string {
   });
 }
 
+/** Engine compliance chooses WCAG vs APCA for the formal `threshold.kind` on every entry. */
+function coerceVocabularyThresholdKinds(
+  entries: VocabularyEntry[],
+  compliance: ProjectConfig['engine']['compliance'],
+): VocabularyEntry[] {
+  const kind: ContrastKind = compliance === 'apca' ? 'apca' : 'wcag';
+  return entries.map((e) => {
+    if (!e.defaultIntent) return e;
+    return {
+      ...e,
+      defaultIntent: {
+        ...e.defaultIntent,
+        threshold: { ...e.defaultIntent.threshold, kind },
+      },
+    };
+  });
+}
+
 export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
   const { config, ramps, modes, tokenRamp, scales } = input;
-  const vocabulary = applyIntentOverrides(input.vocabulary, config.intents);
+  const vocabulary = coerceVocabularyThresholdKinds(
+    applyIntentOverrides(input.vocabulary, config.intents),
+    config.engine.compliance,
+  );
   const denseRamps = buildDenseRamps(config, ramps, scales);
 
   const tokens: ResolvedToken[] = [];

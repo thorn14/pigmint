@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
+import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
@@ -75,7 +76,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const removeScale = usePaletteStore((s) => s.removeScale);
   const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
-  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const apca = useIntentStore((s) => s.engineCompliance === 'apca');
   const ramp = useGeneratedRamp(scale);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -604,7 +605,7 @@ export function RightPanel({ scale, activeStep }: Props) {
 
           {/* Contrast */}
           <div style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-            {contrastMode === 'apca'
+            {apca
               ? [['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
                   const lc = getApcaContrast(activeStep.hex, bg);
                   const absLc = Math.abs(lc);

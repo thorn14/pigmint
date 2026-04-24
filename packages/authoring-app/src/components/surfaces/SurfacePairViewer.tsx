@@ -17,10 +17,18 @@ const MODE_LABELS: Record<EngineMode, string> = {
   'dark-high-contrast': 'Dark HC',
 };
 
-function complianceColor(level: ComplianceLevel | undefined): string {
+function complianceTextColor(
+  level: ComplianceLevel | undefined,
+  apcaLc: { achieved: number; required: number } | undefined,
+  useApcaLc: boolean,
+): string {
+  if (useApcaLc && apcaLc) {
+    return apcaLc.achieved + 1e-9 >= apcaLc.required ? '#3ca86b' : '#d4574a';
+  }
   switch (level) {
     case 'AAA-text':
     case 'AAA-nonText':
+    case 'apca-pass':
       return '#3ca86b';
     case 'AA-text':
     case 'AA-nonText':
@@ -32,7 +40,18 @@ function complianceColor(level: ComplianceLevel | undefined): string {
   }
 }
 
-function ratioBadge(t: ResolvedToken): string {
+/** Minimum |Lc| the resolver required for this row (achieved is in the APCA column). */
+function formatApcaMinOnly(apcaLc: { required: number }): string {
+  return Number.isInteger(apcaLc.required) ? String(apcaLc.required) : apcaLc.required.toFixed(1);
+}
+
+function ratioBadge(t: ResolvedToken, engineCompliance: 'wcag21' | 'apca'): string {
+  if (engineCompliance === 'apca') {
+    const lc = t.contrast?.apca;
+    return typeof lc === 'number' && Number.isFinite(lc)
+      ? `Lc ${Math.abs(lc).toFixed(1)}`
+      : '—';
+  }
   const ratio = t.contrast?.wcag21;
   return typeof ratio === 'number' ? `${ratio.toFixed(2)}:1` : '—';
 }
@@ -49,11 +68,14 @@ function ModeMatrix({
   mode,
   tokens,
   rampsByName,
+  engineCompliance,
 }: {
   mode: EngineMode;
   tokens: ResolvedToken[];
   rampsByName: Map<string, GeneratedRamp>;
+  engineCompliance: 'wcag21' | 'apca';
 }) {
+  const useApcaCompliance = engineCompliance === 'apca';
   const modeTokens = tokens.filter((t) => t.mode === mode);
   const surfaces = modeTokens.filter((t) => t.path.startsWith('color.surface.'));
   const nonSurfaces = modeTokens.filter((t) => !t.path.startsWith('color.surface.'));
@@ -112,8 +134,10 @@ function ModeMatrix({
             <th style={cellHeader}>Type</th>
             <th style={cellHeader}>Name</th>
             <th style={cellHeader}>Resolved</th>
-            <th style={cellHeader}>Contrast</th>
-            <th style={cellHeader}>Compliance</th>
+            <th style={cellHeader}>
+              {engineCompliance === 'apca' ? 'APCA' : 'Contrast'}
+            </th>
+            <th style={cellHeader}>{useApcaCompliance ? 'Min Lc' : 'Compliance'}</th>
             <th style={cellHeader}>Source</th>
           </tr>
         </thead>
@@ -134,23 +158,30 @@ function ModeMatrix({
                 <Swatch hex={token.hex} label={token.hex} />
               </td>
               <td style={cellBody}>
-                {kind === 'Token' ? ratioBadge(token) : '—'}
+                {kind === 'Token' ? ratioBadge(token, engineCompliance) : '—'}
               </td>
               <td style={cellBody}>
                 {kind === 'Token' ? (
                   <span
                     style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      background: complianceColor(token.compliance?.level),
-                      color: '#fff',
-                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
                       fontWeight: 600,
+                      color: complianceTextColor(
+                        token.compliance?.level,
+                        token.compliance?.apcaLc,
+                        useApcaCompliance,
+                      ),
                     }}
-                    title={`Intent preference: ${(token.intent as FormalIntent).preference}`}
+                    title={
+                      useApcaCompliance && token.compliance?.apcaLc
+                        ? 'Minimum |Lc| the resolver used for this token; achieved is in the APCA column'
+                        : `Intent preference: ${(token.intent as FormalIntent).preference}`
+                    }
                   >
-                    {token.compliance?.level ?? 'fail'}
+                    {useApcaCompliance && token.compliance?.apcaLc
+                      ? formatApcaMinOnly(token.compliance.apcaLc)
+                      : (token.compliance?.level ?? 'fail')}
                   </span>
                 ) : (
                   '—'
@@ -209,6 +240,7 @@ export function SurfacePairViewer() {
   const scales = usePaletteStore((s) => s.scales);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const overrides = useIntentStore((s) => s.overrides);
 
@@ -218,10 +250,11 @@ export function SurfacePairViewer() {
         scales,
         engineModes,
         engineTarget,
+        engineCompliance,
         overrides as Record<string, CoreIntentOverride>,
         engineResolver,
       ),
-    [scales, engineModes, engineTarget, engineResolver, overrides],
+    [scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides],
   );
 
   const rampsByName = useMemo(() => {
@@ -250,7 +283,15 @@ export function SurfacePairViewer() {
         </h2>
         <p style={{ fontSize: 12, color: 'var(--p-text-tertiary)', margin: '4px 0 0' }}>
           Every vocabulary token resolved against its surface, per engine mode.
-          Target {engineTarget} · WCAG 2.1.
+          {engineCompliance === 'apca' ? (
+            <>
+              APCA · text min |Lc| {engineTarget === 'AAA' ? '90' : '60'} (non-text from vocabulary).
+            </>
+          ) : (
+            <>
+              WCAG 2.1 · target {engineTarget}.
+            </>
+          )}
         </p>
       </header>
 
@@ -267,7 +308,13 @@ export function SurfacePairViewer() {
         </div>
       ) : (
         engineModes.map((m) => (
-          <ModeMatrix key={m} mode={m} tokens={state.tokens} rampsByName={rampsByName} />
+          <ModeMatrix
+            key={m}
+            mode={m}
+            tokens={state.tokens}
+            rampsByName={rampsByName}
+            engineCompliance={engineCompliance}
+          />
         ))
       )}
     </div>

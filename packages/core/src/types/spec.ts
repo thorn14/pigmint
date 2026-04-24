@@ -62,6 +62,7 @@ export type ComplianceLevel =
   | 'AAA-nonText'
   | 'AA-text'
   | 'AA-nonText'
+  | 'apca-pass'
   | 'fail'
   | 'exempt';
 
@@ -69,6 +70,11 @@ export interface ComplianceReceipt {
   target?: ComplianceTarget;
   level: ComplianceLevel;
   thresholds?: { text?: number; nonText?: number };
+  /**
+   * When the engine used APCA: |Lc| achieved (for pass/resolve) vs the minimum |Lc| required
+   * for this token. WCAG-style labels (AA/AAA) do not apply; use this for compliance display.
+   */
+  apcaLc?: { achieved: number; required: number };
 }
 
 export interface GamutReceipt {

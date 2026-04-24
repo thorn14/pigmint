@@ -2,7 +2,7 @@ import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from 'rea
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import type { IntentOverride as CoreIntentOverride, ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
-import { useIntentStore } from '../../store/intentStore';
+import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues, oklchToHex, maxP3Chroma } from '../../lib/colorMath';
 import { buildCurvePath, buildMonotoneCubicInterpolant } from '../../lib/curveInterpolation';
 import { runResolve } from '../../lib/resolveState';
@@ -62,7 +62,6 @@ const VIEW_MODES: readonly ViewMode[] = ['curves', 'gradient'];
 const GRADIENT_SAMPLES = 64;
 
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
-  const contrastMode = usePaletteStore((s) => s.contrastMode);
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
@@ -72,6 +71,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const scales = usePaletteStore((s) => s.scales);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
+  const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const overrides = useIntentStore((s) => s.overrides);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -127,6 +128,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
       scales,
       engineModes,
       engineTarget,
+      engineCompliance,
       overrides as Record<string, CoreIntentOverride>,
       engineResolver.mode === 'continuous'
         ? engineResolver
@@ -141,7 +143,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     return state.tokens.filter(
       (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
     );
-  }, [viewMode, scales, engineModes, engineTarget, engineResolver, overrides, scale.name, activeMarkerMode]);
+  }, [viewMode, scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides, scale.name, activeMarkerMode]);
 
 
   useEffect(() => {

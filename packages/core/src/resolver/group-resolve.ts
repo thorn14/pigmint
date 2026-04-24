@@ -3,10 +3,10 @@ import type { FormalIntent, ResolvedToken, VocabularyEntry } from '../types/spec
 import { DriverError } from './errors.js';
 import {
   makeResolveResultFromPicked,
+  passThreshold,
   pickStepAnchored,
   pickStepAtNormalizedT,
   resolveToken,
-  wcagThreshold,
   type ThresholdElevation,
 } from './resolve.js';
 
@@ -68,7 +68,9 @@ export function resolveMatchedAcrossRamps(
     throw new DriverError('resolveMatchedAcrossRamps: invalid intent (internal)');
   }
 
-  const req = wcagThreshold(intent.threshold, binding.thresholdElevation);
+  const th = intent.threshold;
+  const req = passThreshold(th, binding.thresholdElevation);
+  const kind = th.kind;
 
   let bestT: number | null = null;
   let bestVar = Infinity;
@@ -79,7 +81,7 @@ export function resolveMatchedAcrossRamps(
     const ratios: number[] = [];
     let ok = true;
     for (const m of members) {
-      const got = pickStepAtNormalizedT(m.pickRamp, m.surfaceHex, t, req);
+      const got = pickStepAtNormalizedT(m.pickRamp, m.surfaceHex, t, req, kind);
       if (!got) {
         ok = false;
         break;
@@ -120,7 +122,7 @@ export function resolveMatchedAcrossRamps(
 
   const out: ResolvedToken[] = [];
   for (const m of members) {
-    const g = pickStepAtNormalizedT(m.pickRamp, m.surfaceHex, bestT, req);
+    const g = pickStepAtNormalizedT(m.pickRamp, m.surfaceHex, bestT, req, kind);
     if (!g) {
       throw new DriverError('matched-across-ramps: internal pick at bestT failed');
     }
@@ -160,7 +162,7 @@ function referenceResolutionIntent(base: FormalIntent): FormalIntent {
 }
 
 /**
- * First token on `constraints.referenceRamp` defines the target WCAG ratio; others match it.
+ * First token on `constraints.referenceRamp` defines the target resolution metric; others match it.
  */
 export function resolveAnchoredToReference(
   intent: FormalIntent,
@@ -192,9 +194,13 @@ export function resolveAnchoredToReference(
     thresholdElevation: binding.thresholdElevation,
     ...(refMem.denseRamp ? { denseRamp: refMem.denseRamp } : {}),
   });
-  const target = refTok.contrast?.wcag21;
-  if (target == null) {
-    throw new DriverError('anchored-to-reference: reference token has no WCAG ratio');
+  const k = refTok.intent.threshold.kind;
+  const target =
+    k === 'apca'
+      ? Math.abs(refTok.contrast?.apca ?? 0)
+      : refTok.contrast?.wcag21;
+  if (target == null || !Number.isFinite(target)) {
+    throw new DriverError('anchored-to-reference: reference token has no contrast metric');
   }
 
   const byPath: Map<string, ResolvedToken> = new Map();

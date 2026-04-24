@@ -60,6 +60,7 @@ interface IntentState extends PersistedIntentState {}
 
 interface IntentActions {
   setEngineTarget: (target: ComplianceTarget) => void;
+  setEngineCompliance: (compliance: EngineCompliance) => void;
   toggleEngineMode: (mode: EngineMode) => void;
   toggleEngineCvd: (profile: CvdProfile) => void;
   setResolverMode: (mode: ResolverMode) => void;
@@ -92,6 +93,10 @@ function sanitizeModes(raw: unknown): EngineMode[] {
   const deduped = Array.from(new Set(filtered));
   const ordered = ENGINE_MODE_OPTIONS.filter((m) => deduped.includes(m));
   return ordered.length > 0 ? ordered : DEFAULT_STATE.engineModes;
+}
+
+function sanitizeEngineCompliance(raw: unknown): EngineCompliance {
+  return raw === 'apca' ? 'apca' : 'wcag21';
 }
 
 export function sanitizeCvd(raw: unknown): CvdProfile[] {
@@ -137,7 +142,7 @@ function loadFromStorage(): PersistedIntentState {
     if (parsed && typeof parsed === 'object') {
       return {
         engineTarget: parsed.engineTarget === 'AAA' ? 'AAA' : 'AA',
-        engineCompliance: 'wcag21',
+        engineCompliance: sanitizeEngineCompliance(parsed.engineCompliance),
         engineModes: sanitizeModes(parsed.engineModes),
         engineCvd: sanitizeCvd(parsed.engineCvd),
         engineResolver: sanitizeResolver(parsed.engineResolver),
@@ -180,6 +185,12 @@ export const useIntentStore = create<IntentState & IntentActions>()(
     setEngineTarget: (target) =>
       set((state) => {
         state.engineTarget = target;
+        persist(snapshot(state));
+      }),
+
+    setEngineCompliance: (compliance) =>
+      set((state) => {
+        state.engineCompliance = compliance;
         persist(snapshot(state));
       }),
 
@@ -278,7 +289,7 @@ export const useIntentStore = create<IntentState & IntentActions>()(
       set((state) => {
         if (next.engineTarget) state.engineTarget = next.engineTarget;
         if (next.engineCompliance) {
-          state.engineCompliance = next.engineCompliance === 'apca' ? 'wcag21' : next.engineCompliance;
+          state.engineCompliance = sanitizeEngineCompliance(next.engineCompliance);
         }
         if (next.engineModes) state.engineModes = sanitizeModes(next.engineModes);
         if (next.engineCvd) state.engineCvd = sanitizeCvd(next.engineCvd);

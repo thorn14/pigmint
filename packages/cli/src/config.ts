@@ -55,9 +55,9 @@ export function validateProjectConfig(raw: unknown, path: string): ProjectConfig
   requireKey(engine, 'compliance', path);
   requireKey(engine, 'target', path);
   requireKey(engine, 'modes', path);
-  if (engine.compliance !== 'wcag21') {
+  if (engine.compliance !== 'wcag21' && engine.compliance !== 'apca') {
     throw new ConfigError(
-      `engine.compliance=${JSON.stringify(engine.compliance)} is not supported yet; only "wcag21" is implemented (see OQ-12 in plan.md for APCA status)`,
+      `engine.compliance must be "wcag21" or "apca" (got ${JSON.stringify(engine.compliance)})`,
       path,
     );
   }

@@ -19,9 +19,12 @@ export const intentHelp = {
     'Which surface token in the current mode to measure contrast against when this token is not a surface (foreground, border, action, etc.).',
 
   engineCompliance:
-    'Contrast is evaluated with WCAG 2.1 relative luminance. APCA is not available in the authoring app build yet; see plan (OQ-12) for the roadmap.',
+    'Choose which contrast engine drives resolution: WCAG 2.1 (relative luminance and ratio) or APCA (perceptual Lc, signed; the engine uses the absolute Lc for pass/fail and matching). The same project vocabulary applies; the formal threshold `kind` follows this setting.',
   engineTarget:
     'Selects the AA or AAA level carried on each token’s contrast threshold, together with the vocabulary’s text vs. non-text usage, so the resolver knows which minimum ratio to enforce when choosing a step.',
+
+  apcaLcTarget:
+    'With APCA, the resolver uses minimum |Lc| (APCA), not WCAG ratio. The two options map to typical text Lc floors: the first requires |Lc| ≥ 60, the stricter one |Lc| ≥ 90. Non-text tokens use separate Lc floors from the vocabulary (body text vs. non-text usage).',
   engineModes:
     'Each selected mode is fully resolved in `pigmint build` and written to the project config. You must always keep at least one mode on.',
   modeLight: 'Light appearance: uses the light scheme and its light baseline (e.g. white) when resolving surface ramps and non-surface tokens.',

@@ -132,9 +132,13 @@ function formatContrastComment(
   const c = entry.contrast;
   if (!c) return '';
   if (c.againstBaseline != null) return ` · baseline ${c.againstBaseline.toFixed(2)}:1`;
+  const apcaLc = entry.compliance?.apcaLc;
+  if (apcaLc) {
+    return ` · Lc ${apcaLc.achieved.toFixed(1)} (min ${apcaLc.required.toFixed(0)})`;
+  }
   const parts: string[] = [];
   if (c.wcag21 != null) parts.push(`wcag ${c.wcag21.toFixed(2)}:1`);
-  if (c.apca != null) parts.push(`apca ${c.apca.toFixed(1)}`);
+  if (c.apca != null) parts.push(`apca Lc ${c.apca.toFixed(1)}`);
   if (entry.compliance?.level) parts.push(entry.compliance.level);
   return parts.length ? ` · ${parts.join(', ')}` : '';
 }

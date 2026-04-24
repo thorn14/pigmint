@@ -89,6 +89,7 @@ export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const overrides = useIntentStore((s) => s.overrides);
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
@@ -126,7 +127,7 @@ export function ExportModal({ onClose }: Props) {
     apca?: string;
   }>({ key: null });
 
-  const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${JSON.stringify(engineResolver)}|${JSON.stringify(overrides)}`;
+  const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${engineCompliance}|${JSON.stringify(engineResolver)}|${JSON.stringify(overrides)}`;
   if (exportCacheRef.current.key !== cacheKey) {
     exportCacheRef.current = { key: cacheKey };
   }
@@ -139,6 +140,7 @@ export function ExportModal({ onClose }: Props) {
           scales,
           engineModes,
           engineTarget,
+          engineCompliance,
           overrides as Record<string, CoreIntentOverride>,
           engineResolver,
         );
@@ -158,7 +160,7 @@ export function ExportModal({ onClose }: Props) {
     }
     if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
     return cache.apca;
-  }, [ramps, scales, engineModes, engineTarget, engineResolver, overrides, activeTab]);
+  }, [ramps, scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides, activeTab]);
   const downloadName =
     activeTab === 'pigmint-tokens' ? 'tokens.json'
     : activeTab === 'colors' ? 'colors.json'

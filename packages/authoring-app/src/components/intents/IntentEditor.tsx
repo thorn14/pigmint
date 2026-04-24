@@ -17,6 +17,7 @@ import {
   RESOLVER_MODE_OPTIONS,
   mergeIntent,
   useIntentStore,
+  type EngineCompliance,
   type EngineMode,
 } from '../../store/intentStore';
 import {
@@ -52,6 +53,20 @@ const SURFACE_CONTEXT_OPTIONS: SurfaceContext[] = [
 ];
 
 const LEVEL_OPTIONS: ComplianceTarget[] = ['AA', 'AAA'];
+
+/** WCAG uses AA/AAA; APCA uses the same internal `level` to pick minimum |Lc| (see `apcaThreshold` in core). */
+const TARGET_LABEL: Record<EngineCompliance, Record<ComplianceTarget, string>> = {
+  wcag21: { AA: 'AA', AAA: 'AAA' },
+  apca: {
+    AA: '|Lc| ≥ 60 (text)',
+    AAA: '|Lc| ≥ 90 (text)',
+  },
+};
+
+const COMPLIANCE_OPTIONS: { value: EngineCompliance; label: string }[] = [
+  { value: 'wcag21', label: 'WCAG 2.1' },
+  { value: 'apca', label: 'APCA' },
+];
 
 const DEFAULT_INTENT: FormalIntent = {
   threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
@@ -211,6 +226,8 @@ const CVD_LABELS: Record<CvdProfile, string> = {
 function EngineConfigPanel() {
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const setEngineTarget = useIntentStore((s) => s.setEngineTarget);
+  const engineCompliance = useIntentStore((s) => s.engineCompliance);
+  const setEngineCompliance = useIntentStore((s) => s.setEngineCompliance);
   const engineModes = useIntentStore((s) => s.engineModes);
   const toggleEngineMode = useIntentStore((s) => s.toggleEngineMode);
   const engineCvd = useIntentStore((s) => s.engineCvd);
@@ -260,27 +277,35 @@ function EngineConfigPanel() {
             <ComplianceHelpBody />
           </HelpPopover>
         </div>
-        <span
-          style={{
-            fontSize: 12,
-            padding: '6px 10px',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            background: 'var(--p-bg)',
-            color: 'var(--p-text-secondary)',
-          }}
+        <select
+          id="intent-engine-compliance"
+          aria-label="Engine contrast standard"
+          value={engineCompliance}
+          onChange={(e) => setEngineCompliance(e.target.value as EngineCompliance)}
+          style={selectStyle}
         >
-          WCAG 2.1
-        </span>
+          {COMPLIANCE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div style={fieldStyle}>
         <div style={headerLabelRow}>
           <label htmlFor="intent-engine-target" style={labelStyle}>
-            Target level
+            {engineCompliance === 'apca' ? 'Min |Lc| (text)' : 'Target level'}
           </label>
-          <HelpPopover title="Target level" triggerLabel="Help: target level (AA or AAA)">
-            <TargetLevelHelpBody />
+          <HelpPopover
+            title={engineCompliance === 'apca' ? 'APCA Lc floors' : 'Target level'}
+            triggerLabel={
+              engineCompliance === 'apca'
+                ? 'Help: APCA minimum Lc'
+                : 'Help: target level (AA or AAA)'
+            }
+          >
+            <TargetLevelHelpBody engineCompliance={engineCompliance} />
           </HelpPopover>
         </div>
         <select
@@ -291,7 +316,7 @@ function EngineConfigPanel() {
         >
           {LEVEL_OPTIONS.map((l) => (
             <option key={l} value={l}>
-              {l}
+              {TARGET_LABEL[engineCompliance][l]}
             </option>
           ))}
         </select>

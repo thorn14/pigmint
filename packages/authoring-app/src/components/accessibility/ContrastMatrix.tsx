@@ -4,15 +4,15 @@ import type { GeneratedRamp } from '../../types/palette';
 import { useContrastMatrix, useApcaContrastMatrix } from '../../hooks/useContrastMatrix';
 import { ContrastBadge } from './ContrastBadge';
 import { ApcaBadge } from './ApcaBadge';
-import { usePaletteStore } from '../../store/paletteStore';
+import { useIntentStore } from '../../store/intentStore';
 
 interface Props {
   ramp: GeneratedRamp;
 }
 
 export function ContrastMatrix({ ramp }: Props) {
-  const contrastMode = usePaletteStore((s) => s.contrastMode);
-  if (contrastMode === 'apca') return <ApcaContrastMatrixGrid ramp={ramp} />;
+  const apca = useIntentStore((s) => s.engineCompliance === 'apca');
+  if (apca) return <ApcaContrastMatrixGrid ramp={ramp} />;
   return <WcagContrastMatrixGrid ramp={ramp} />;
 }
 

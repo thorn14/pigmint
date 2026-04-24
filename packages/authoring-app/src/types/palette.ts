@@ -12,10 +12,9 @@ export type {
   GeneratedRamp,
   WCAGLevel,
   ContrastResult,
-  ContrastMode,
 } from '@pigmint/core';
 
-import type { ColorScale, ContrastMode } from '@pigmint/core';
+import type { ColorScale } from '@pigmint/core';
 
 export interface ContrastMapColorRef {
   ramp: string;
@@ -44,7 +43,6 @@ export interface PaletteState {
   scales: ColorScale[];
   activeScaleId: string | null;
   focusedStepRef: { scaleId: string; stepName: string } | null;
-  contrastMode: ContrastMode;
   srgbPreview: boolean;
   savedPalettes: SavedPalette[];
   activePaletteId: string | null;

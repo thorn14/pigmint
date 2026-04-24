@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
-import type { ColorScale, PaletteState, SavedPalette, StepNamingConfig, StepNamingPreset, ContrastMode } from '../types/palette';
+import type { ColorScale, PaletteState, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
@@ -72,7 +72,6 @@ interface PaletteActions {
   setChromaShapeAll: (low: number, peak: number, high: number) => void;
   setChromaCurveValues: (id: string, values: number[]) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
-  setContrastMode: (mode: ContrastMode) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
   toggleSrgbPreview: () => void;
@@ -345,7 +344,6 @@ function loadInitialState(): PaletteState {
       scales: active.scales,
       activeScaleId: active.activeScaleId,
       focusedStepRef: null,
-      contrastMode: 'wcag',
       srgbPreview: false,
     };
   }
@@ -365,7 +363,6 @@ function loadInitialState(): PaletteState {
       scales,
       activeScaleId,
       focusedStepRef: null,
-      contrastMode: 'wcag',
       srgbPreview: false,
     };
   }
@@ -379,7 +376,6 @@ function loadInitialState(): PaletteState {
     scales: [],
     activeScaleId: null,
     focusedStepRef: null,
-    contrastMode: 'wcag',
     srgbPreview: false,
   };
 }
@@ -837,10 +833,6 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     setFocusedStep: (ref) => set((state) => {
       state.focusedStepRef = ref;
-    }),
-
-    setContrastMode: (mode) => set((state) => {
-      state.contrastMode = mode;
     }),
 
     bulkCreateScales: (scaleInputs, namingPreset, lightnessPreset) => set((state) => {

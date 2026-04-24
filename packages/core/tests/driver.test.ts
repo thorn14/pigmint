@@ -93,6 +93,26 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     expect(btnLight.source.ramp).toBe('blue');
   });
 
+  it('engine.compliance apca drives formal threshold kind and Lc in receipts', () => {
+    const apcaConfig: ProjectConfig = { ...config, engine: { ...config.engine, compliance: 'apca' } };
+    const ramps = defaultRamps();
+    const out = resolveAll({
+      config: apcaConfig,
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: defaultModes,
+      tokenRamp: defaultTokenRamp,
+    });
+    const fg = out.tokens.find((t) => t.path === 'color.foreground.main' && t.mode === 'light');
+    expect(fg?.intent.threshold.kind).toBe('apca');
+    expect(typeof fg?.contrast?.apca).toBe('number');
+    expect(Number.isFinite(fg?.contrast?.apca ?? NaN)).toBe(true);
+    expect(fg?.compliance?.level).toBe('apca-pass');
+    expect(fg?.compliance?.apcaLc).toBeDefined();
+    const { achieved, required } = fg!.compliance!.apcaLc!;
+    expect(achieved).toBeGreaterThanOrEqual(required);
+  });
+
   it('applies config.intents overrides to vocabulary defaults', () => {
     const ramps = defaultRamps();
     const base = resolveAll({

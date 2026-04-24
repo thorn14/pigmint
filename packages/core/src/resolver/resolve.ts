@@ -4,6 +4,7 @@ import type { GeneratedRamp, GeneratedStep } from '../types/palette.js';
 import type {
   ComplianceLevel,
   ComplianceReceipt,
+  ContrastKind,
   ContrastReceipt,
   FormalIntent,
   ReceiptSource,
@@ -42,7 +43,9 @@ export class ResolveError extends Error {
 
 export function wcagThreshold(t: Threshold, elevate?: ThresholdElevation): number {
   if (t.kind !== 'wcag') {
-    throw new Error(`APCA threshold not yet supported (got kind=${t.kind})`);
+    throw new Error(
+      `internal: wcagThreshold with kind=${(t as Threshold).kind} (use passThreshold)`,
+    );
   }
   const base = t.usage === 'text' ? (t.level === 'AAA' ? 7 : 4.5) : 3;
   if (elevate === 'hc') {
@@ -52,7 +55,54 @@ export function wcagThreshold(t: Threshold, elevate?: ThresholdElevation): numbe
   return base;
 }
 
-function complianceLevelFor(t: Threshold, ratio: number): ComplianceLevel {
+/**
+ * Minimum absolute Lc to clear the level for APCA. Convention (OQ-12, bridge from WCAG tiers):
+ * - AA text: Lc 60, AAA text: 90, AA nonText: 45, AAA nonText: 60.
+ * HC elevation moves each band one step up in the nontext ladder, and nudges text toward stricter.
+ */
+export function apcaThreshold(t: Threshold, elevate?: ThresholdElevation): number {
+  if (t.kind !== 'apca') {
+    throw new Error(`internal: apcaThreshold with kind=${(t as Threshold).kind}`);
+  }
+  const baseText = t.level === 'AAA' ? 90 : 60;
+  const baseNon = t.level === 'AAA' ? 60 : 45;
+  let base = t.usage === 'text' ? baseText : baseNon;
+  if (elevate === 'hc') {
+    if (t.usage === 'text') {
+      if (base === 60) base = 75;
+      else if (base === 90) base = 100;
+    } else {
+      if (base === 45) base = 60;
+      else if (base === 60) base = 75;
+    }
+  }
+  return base;
+}
+
+export function passThreshold(t: Threshold, elevate?: ThresholdElevation): number {
+  if (t.kind === 'apca') {
+    return apcaThreshold(t, elevate);
+  }
+  return wcagThreshold(t, elevate);
+}
+
+function absApcaLc(fg: string, bg: string): number {
+  return Math.abs(getApcaContrast(fg, bg));
+}
+
+/** The scalar used to compare “passing” and drive preference for this threshold kind. */
+export function resolutionMetric(
+  kind: ContrastKind,
+  stepHex: string,
+  surfaceHex: string,
+): number {
+  if (kind === 'wcag') {
+    return getWcagContrast(stepHex, surfaceHex).ratio;
+  }
+  return absApcaLc(stepHex, surfaceHex);
+}
+
+function complianceLevelWcag(t: Threshold, ratio: number): ComplianceLevel {
   if (t.usage === 'text') {
     if (ratio >= 7) return 'AAA-text';
     if (ratio >= 4.5) return 'AA-text';
@@ -60,6 +110,18 @@ function complianceLevelFor(t: Threshold, ratio: number): ComplianceLevel {
   }
   if (ratio >= 3) return 'AA-nonText';
   return 'fail';
+}
+
+function complianceForThreshold(
+  t: Threshold,
+  usedMetric: number,
+  thresholdElevation?: ThresholdElevation,
+): ComplianceLevel {
+  if (t.kind === 'apca') {
+    const required = passThreshold(t, thresholdElevation);
+    return usedMetric + 1e-9 < required ? 'fail' : 'apca-pass';
+  }
+  return complianceLevelWcag(t, usedMetric);
 }
 
 function toOklchCss(hex: string): string {
@@ -76,15 +138,16 @@ function pickStepLowestPassing(
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
-  const required = wcagThreshold(threshold, elevate);
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, elevate);
   let best: { index: number; ratio: number } | null = null;
   for (let i = 0; i < ramp.steps.length; i++) {
     const step = ramp.steps[i];
     if (!step) continue;
-    const { ratio } = getWcagContrast(step.hex, surfaceHex);
-    if (ratio < required) continue;
-    if (best === null || ratio < best.ratio) {
-      best = { index: i, ratio };
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    if (m < required) continue;
+    if (best === null || m < best.ratio) {
+      best = { index: i, ratio: m };
     }
   }
   return best;
@@ -96,21 +159,22 @@ function pickStepHighestContrast(
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
-  const required = wcagThreshold(threshold, elevate);
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, elevate);
   let best: { index: number; ratio: number } | null = null;
   for (let i = 0; i < ramp.steps.length; i++) {
     const step = ramp.steps[i];
     if (!step) continue;
-    const { ratio } = getWcagContrast(step.hex, surfaceHex);
-    if (ratio < required) continue;
-    if (best === null || ratio > best.ratio) {
-      best = { index: i, ratio };
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    if (m < required) continue;
+    if (best === null || m > best.ratio) {
+      best = { index: i, ratio: m };
     }
   }
   return best;
 }
 
-/** Among passing steps, pick the one with WCAG ratio closest to `anchor`. Ties: lower index. */
+/** Among passing steps, pick the one whose **resolution metric** is closest to `anchor` (same units: ratio or Lc). */
 export function pickStepAnchored(
   pickRamp: GeneratedRamp,
   surfaceHex: string,
@@ -118,20 +182,21 @@ export function pickStepAnchored(
   anchor: number,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
-  const required = wcagThreshold(threshold, elevate);
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, elevate);
   let best: { index: number; ratio: number; dist: number } | null = null;
   for (let i = 0; i < pickRamp.steps.length; i++) {
     const step = pickRamp.steps[i];
     if (!step) continue;
-    const { ratio } = getWcagContrast(step.hex, surfaceHex);
-    if (ratio < required) continue;
-    const dist = Math.abs(ratio - anchor);
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    if (m < required) continue;
+    const dist = Math.abs(m - anchor);
     if (
       best === null ||
       dist < best.dist - 1e-9 ||
       (Math.abs(dist - best.dist) <= 1e-9 && i < best.index)
     ) {
-      best = { index: i, ratio, dist };
+      best = { index: i, ratio: m, dist };
     }
   }
   if (!best) return null;
@@ -145,19 +210,20 @@ export function indexAtNormalizedT(len: number, t: number): number {
   return Math.max(0, Math.min(len - 1, Math.round(tt * (len - 1))));
 }
 
-/** Step and ratio at normalized t; null if below required ratio. */
+/** @param required — pass result from `passThreshold` for the same `threshold.kind` */
 export function pickStepAtNormalizedT(
   pickRamp: GeneratedRamp,
   surfaceHex: string,
   t: number,
   required: number,
+  kind: ContrastKind,
 ): { index: number; ratio: number; step: GeneratedStep } | null {
   const i = indexAtNormalizedT(pickRamp.steps.length, t);
   const step = pickRamp.steps[i];
   if (!step) return null;
-  const { ratio } = getWcagContrast(step.hex, surfaceHex);
-  if (ratio < required) return null;
-  return { index: i, ratio, step };
+  const m = resolutionMetric(kind, step.hex, surfaceHex);
+  if (m < required) return null;
+  return { index: i, ratio: m, step };
 }
 
 export function makeResolveResultFromPicked(
@@ -173,24 +239,38 @@ export function makeResolveResultFromPicked(
   step: GeneratedStep,
   thresholdElevation?: ThresholdElevation,
 ): ResolveResult {
+  const kind = intent.threshold.kind;
   const pickStepCount = pickRamp.steps.length;
   const position = pickStepCount === 1 ? 0 : picked.index / (pickStepCount - 1);
   const nearestPrimitive = denseRamp
     ? `${ramp.scaleName}.${nearestPrimitiveName(ramp, position)}`
     : `${ramp.scaleName}.${step.name}`;
 
+  const wcR = getWcagContrast(step.hex, surfaceHex).ratio;
+  const apL = getApcaContrast(step.hex, surfaceHex);
+  const resMetric = resolutionMetric(kind, step.hex, surfaceHex);
   const contrast: ContrastReceipt = {
-    wcag21: round2(picked.ratio),
-    apca: round2(getApcaContrast(step.hex, surfaceHex)),
+    wcag21: round2(wcR),
+    apca: round2(apL),
   };
 
+  const t = intent.threshold;
+  const apcaRequired = t.kind === 'apca' ? passThreshold(t, thresholdElevation) : undefined;
   const compliance: ComplianceReceipt = {
-    target: intent.threshold.level,
-    level: complianceLevelFor(intent.threshold, picked.ratio),
+    target: t.level,
+    level: complianceForThreshold(t, resMetric, thresholdElevation),
+    apcaLc:
+      t.kind === 'apca' && apcaRequired != null
+        ? { achieved: resMetric, required: apcaRequired }
+        : undefined,
     thresholds:
-      intent.threshold.usage === 'text'
-        ? { text: wcagThreshold(intent.threshold, thresholdElevation) }
-        : { nonText: wcagThreshold(intent.threshold, thresholdElevation) },
+      t.kind === 'apca'
+        ? t.usage === 'text'
+          ? { text: apcaThreshold(t, thresholdElevation) }
+          : { nonText: apcaThreshold(t, thresholdElevation) }
+        : t.usage === 'text'
+          ? { text: wcagThreshold(t, thresholdElevation) }
+          : { nonText: wcagThreshold(t, thresholdElevation) },
   };
 
   const source: ReceiptSource = {

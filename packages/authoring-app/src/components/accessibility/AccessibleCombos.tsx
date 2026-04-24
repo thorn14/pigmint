@@ -1,9 +1,10 @@
 import { useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
-import type { WcagMapEntry, ApcaMapEntry, ContrastMapColorRef, ContrastMode } from '../../types/palette';
+import type { WcagMapEntry, ApcaMapEntry, ContrastMapColorRef } from '../../types/palette';
 
 type WcagLevel = 'aaa' | 'aa' | 'aa-large';
 type ApcaLevel = 'lc75' | 'lc60' | 'lc45';
@@ -162,7 +163,7 @@ function FilterBar({
   setApcaLevel,
   sortAsc,
   setSortAsc,
-  contrastMode,
+  useWcag,
 }: {
   search: string;
   setSearch: (s: string) => void;
@@ -174,7 +175,7 @@ function FilterBar({
   setApcaLevel: (l: ApcaLevel) => void;
   sortAsc: boolean;
   setSortAsc: (v: boolean) => void;
-  contrastMode: ContrastMode;
+  useWcag: boolean;
 }) {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
@@ -206,7 +207,7 @@ function FilterBar({
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <label htmlFor="combos-level" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Level:</label>
-        {contrastMode === 'wcag' ? (
+        {useWcag ? (
           <select
             id="combos-level"
             value={wcagLevel}
@@ -252,7 +253,7 @@ function FilterBar({
 
 export function AccessibleCombos() {
   const scales = usePaletteStore((s) => s.scales);
-  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const useWcag = useIntentStore((s) => s.engineCompliance === 'wcag21');
 
   const [search, setSearch] = useState('');
   const [polarity, setPolarity] = useState<Polarity>('all');
@@ -288,7 +289,7 @@ export function AccessibleCombos() {
           if (!matchesPolarity(fg, bg, polarity)) continue;
           if (!matchesSearch(fg, bg, search)) continue;
 
-          if (contrastMode === 'wcag') {
+          if (useWcag) {
             const { ratio } = getContrast(fg.hex, bg.hex);
             let pass = false;
             if (wcagLevel === 'aaa') pass = ratio >= 7;
@@ -313,16 +314,16 @@ export function AccessibleCombos() {
     }
 
     const dir = sortAsc ? 1 : -1;
-    if (contrastMode === 'wcag') {
+    if (useWcag) {
       (results as WcagMapEntry[]).sort((a, b) => dir * (a.ratio - b.ratio));
     } else {
       (results as ApcaMapEntry[]).sort((a, b) => dir * (Math.abs(a.lc) - Math.abs(b.lc)));
     }
 
     return results;
-  }, [stepsByRamp, contrastMode, search, polarity, wcagLevel, apcaLevel, sortAsc]);
+  }, [stepsByRamp, useWcag, search, polarity, wcagLevel, apcaLevel, sortAsc]);
 
-  const activeLevel = contrastMode === 'wcag'
+  const activeLevel = useWcag
     ? WCAG_LEVELS.find((l) => l.key === wcagLevel)!
     : APCA_LEVELS.find((l) => l.key === apcaLevel)!;
 
@@ -348,10 +349,10 @@ export function AccessibleCombos() {
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: '0 0 4px 0' }}>
-            Accessible Combinations — {contrastMode === 'wcag' ? 'WCAG 2.1' : 'APCA'}
+            Accessible Combinations — {useWcag ? 'WCAG 2.1' : 'APCA'}
           </h2>
           <p style={{ fontSize: 12, color: 'var(--p-text-secondary)', margin: 0 }}>
-            {totalSteps} color steps across {scales.length} ramps (same-ramp pairs). Toggle WCAG / APCA in the toolbar.
+            {totalSteps} color steps across {scales.length} ramps (same-ramp pairs). Toggle WCAG / APCA in the top bar.
           </p>
         </div>
 
@@ -366,7 +367,7 @@ export function AccessibleCombos() {
           setApcaLevel={setApcaLevel}
           sortAsc={sortAsc}
           setSortAsc={setSortAsc}
-          contrastMode={contrastMode}
+          useWcag={useWcag}
         />
 
         <div style={{ marginBottom: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -412,7 +413,7 @@ export function AccessibleCombos() {
                     gap: ROW_GAP,
                   }}
                 >
-                  {contrastMode === 'wcag'
+                  {useWcag
                     ? (rowEntries as WcagMapEntry[]).map((entry, i) => (
                         <WcagComboCard key={startIdx + i} entry={entry} />
                       ))

@@ -20,6 +20,13 @@ beforeEach(() => {
 });
 
 describe('intentStore', () => {
+  it('setEngineCompliance switches the formal contrast kind used by mergeIntent', () => {
+    useIntentStore.getState().setEngineCompliance('apca');
+    expect(useIntentStore.getState().engineCompliance).toBe('apca');
+    useIntentStore.getState().setEngineCompliance('wcag21');
+    expect(useIntentStore.getState().engineCompliance).toBe('wcag21');
+  });
+
   it('engine target is global, not per-token', () => {
     useIntentStore.getState().setEngineTarget('AAA');
     expect(useIntentStore.getState().engineTarget).toBe('AAA');
@@ -51,7 +58,7 @@ describe('intentStore', () => {
     expect(useIntentStore.getState().engineTarget).toBe('AAA');
   });
 
-  it('loadState replaces overrides + target and coerces apca compliance to wcag21', () => {
+  it('loadState replaces overrides + target and keeps apca compliance', () => {
     useIntentStore.getState().setPreference('x', 'anchored');
     useIntentStore.getState().loadState({
       overrides: { 'color.foreground.main': { preference: 'highest-contrast' } },
@@ -62,7 +69,7 @@ describe('intentStore', () => {
     expect(s.overrides['x']).toBeUndefined();
     expect(s.overrides['color.foreground.main']?.preference).toBe('highest-contrast');
     expect(s.engineTarget).toBe('AAA');
-    expect(s.engineCompliance).toBe('wcag21');
+    expect(s.engineCompliance).toBe('apca');
   });
 
   it('mergeIntent applies engine target to threshold regardless of base', () => {

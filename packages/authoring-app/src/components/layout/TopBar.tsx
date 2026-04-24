@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
+import { useIntentStore } from '../../store/intentStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
@@ -189,8 +190,9 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
-  const contrastMode = usePaletteStore((s) => s.contrastMode);
-  const setContrastMode = usePaletteStore((s) => s.setContrastMode);
+  const engineCompliance = useIntentStore((s) => s.engineCompliance);
+  const setEngineCompliance = useIntentStore((s) => s.setEngineCompliance);
+  const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const contrastButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
@@ -371,7 +373,13 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
       <div
         role="radiogroup"
         aria-label="Contrast mode"
-        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['wcag', 'apca'] as const, contrastMode, setContrastMode, contrastButtonsRef)}
+        onKeyDown={(event) => handleRadioGroupKeyDown(
+          event,
+          ['wcag', 'apca'] as const,
+          contrastMode,
+          (m) => setEngineCompliance(m === 'apca' ? 'apca' : 'wcag21'),
+          contrastButtonsRef,
+        )}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -385,7 +393,7 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
             key={m}
             role="radio"
             aria-checked={contrastMode === m}
-            onClick={() => setContrastMode(m)}
+            onClick={() => setEngineCompliance(m === 'apca' ? 'apca' : 'wcag21')}
             ref={(node) => { contrastButtonsRef.current[i] = node; }}
             tabIndex={contrastMode === m ? 0 : -1}
             className="focus-visible-ring"

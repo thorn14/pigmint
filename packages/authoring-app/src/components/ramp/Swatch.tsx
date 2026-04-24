@@ -2,6 +2,7 @@ import type { GeneratedStep } from '../../types/palette';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
 import { ContrastBadge } from '../accessibility/ContrastBadge';
 import { ApcaBadge } from '../accessibility/ApcaBadge';
+import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
@@ -14,11 +15,11 @@ interface Props {
 
 export function Swatch({ step, isActive, onClick }: Props) {
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
-  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const apca = useIntentStore((s) => s.engineCompliance === 'apca');
 
   const bgColor = (!srgbPreview && supportsP3 && step.displayP3) || step.hex;
 
-  if (contrastMode === 'apca') {
+  if (apca) {
     const lcWhite = getApcaContrast('#ffffff', step.hex);
     const lcBlack = getApcaContrast('#000000', step.hex);
     const bestLc = Math.abs(lcBlack) >= Math.abs(lcWhite) ? lcBlack : lcWhite;

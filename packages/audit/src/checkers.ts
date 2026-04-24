@@ -35,6 +35,7 @@ const LEVEL_RANK: Record<ComplianceLevel, number> = {
   'AAA-nonText': 3,
   'AA-text': 2,
   'AA-nonText': 1,
+  'apca-pass': 3,
   fail: 0,
   exempt: 5,
 };
@@ -121,6 +122,7 @@ export function runCheckers(inputs: CheckInputs): {
         continue;
       }
       if (compliance.level === 'exempt') continue;
+      if (compliance.level === 'apca-pass' || compliance.apcaLc) continue;
 
       const required = requiredLevelFor(token.usage, inputs.target);
       if (!required) continue;

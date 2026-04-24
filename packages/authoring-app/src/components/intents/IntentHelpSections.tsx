@@ -1,6 +1,11 @@
 import type { CvdProfile } from '@pigmint/core';
 import type { CSSProperties } from 'react';
-import { CVD_PROFILE_OPTIONS, ENGINE_MODE_OPTIONS, type EngineMode } from '../../store/intentStore';
+import {
+  CVD_PROFILE_OPTIONS,
+  ENGINE_MODE_OPTIONS,
+  type EngineCompliance,
+  type EngineMode,
+} from '../../store/intentStore';
 import { intentHelp } from './intentHelpCopy';
 
 const p: CSSProperties = {
@@ -103,7 +108,10 @@ export function ComplianceHelpBody() {
   return <p style={{ ...p, marginBottom: 0 }}>{intentHelp.engineCompliance}</p>;
 }
 
-export function TargetLevelHelpBody() {
+export function TargetLevelHelpBody({ engineCompliance }: { engineCompliance: EngineCompliance }) {
+  if (engineCompliance === 'apca') {
+    return <p style={{ ...p, marginTop: 0, marginBottom: 0 }}>{intentHelp.apcaLcTarget}</p>;
+  }
   return (
     <>
       <p style={{ ...p, marginTop: 0 }}>{intentHelp.engineTarget}</p>

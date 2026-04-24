@@ -15,6 +15,7 @@ import {
 import type { ComplianceTarget } from '@pigmint/core';
 import type { EngineMode } from '../store/intentStore';
 import type { ColorScale } from '../types/palette';
+import type { EngineCompliance } from '../store/intentStore';
 
 const MODE_SCHEMES: Record<EngineMode, 'light' | 'dark'> = {
   light: 'light',
@@ -58,6 +59,7 @@ export function runResolve(
   scales: ColorScale[],
   engineModes: EngineMode[],
   engineTarget: 'AA' | 'AAA',
+  engineCompliance: EngineCompliance,
   intents: Record<string, CoreIntentOverride>,
   resolver?: ResolverConfig,
 ): ResolutionState {
@@ -83,7 +85,7 @@ export function runResolve(
   }));
   const config: ProjectConfig = {
     engine: {
-      compliance: 'wcag21',
+      compliance: engineCompliance,
       target: engineTarget,
       modes: engineModes,
       ...(resolver ? { resolver } : {}),
@@ -140,10 +142,18 @@ export function buildPigmintTokensJson(
   scales: ColorScale[],
   engineModes: EngineMode[],
   engineTarget: ComplianceTarget,
+  engineCompliance: EngineCompliance,
   overrides: Record<string, CoreIntentOverride>,
   resolver: ResolverConfig = { mode: 'continuous' },
 ): PigmintTokensBuild | PigmintTokensBuildFailure {
-  const state = runResolve(scales, engineModes, engineTarget, overrides, resolver);
+  const state = runResolve(
+    scales,
+    engineModes,
+    engineTarget,
+    engineCompliance,
+    overrides,
+    resolver,
+  );
   if (!state.ok) return { ok: false, error: state.error };
   try {
     const container = emitDtcg({

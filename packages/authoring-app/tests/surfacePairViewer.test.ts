@@ -45,14 +45,14 @@ describe('buildTokenRamp', () => {
 
 describe('runResolve', () => {
   it('returns a friendly failure when no scales are provided', () => {
-    const state = runResolve([], ['light'], 'AA', {});
+    const state = runResolve([], ['light'], 'AA', 'wcag21', {});
     expect(state.ok).toBe(false);
     if (!state.ok) expect(state.error).toMatch(/Add at least one ramp/);
   });
 
   it('resolves every vocabulary token across every requested mode', () => {
     const scales = [makeScale('neutral', '#888888'), makeScale('blue', '#3366cc')];
-    const state = runResolve(scales, ['light', 'dark'], 'AA', {});
+    const state = runResolve(scales, ['light', 'dark'], 'AA', 'wcag21', {});
     expect(state.ok).toBe(true);
     if (!state.ok) return;
     const modes = new Set(state.tokens.map((t) => t.mode));
@@ -65,8 +65,8 @@ describe('runResolve', () => {
 
   it('applies intent overrides so the resolved receipt reflects them', () => {
     const scales = [makeScale('neutral', '#888888'), makeScale('blue', '#3366cc')];
-    const base = runResolve(scales, ['light'], 'AA', {});
-    const overridden = runResolve(scales, ['light'], 'AA', {
+    const base = runResolve(scales, ['light'], 'AA', 'wcag21', {});
+    const overridden = runResolve(scales, ['light'], 'AA', 'wcag21', {
       'color.action.primary.background': { preference: 'highest-contrast' },
     });
     expect(base.ok && overridden.ok).toBe(true);

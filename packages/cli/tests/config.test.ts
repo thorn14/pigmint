@@ -12,18 +12,12 @@ describe('validateProjectConfig', () => {
     expect(() => validateProjectConfig(minimalValid, '/tmp/p.yaml')).not.toThrow();
   });
 
-  it('rejects apca compliance with a clear error', () => {
+  it('accepts apca compliance', () => {
     const raw = {
       ...minimalValid,
       engine: { ...minimalValid.engine, compliance: 'apca' },
     };
-    expect(() => validateProjectConfig(raw, '/tmp/p.yaml')).toThrow(ConfigError);
-    try {
-      validateProjectConfig(raw, '/tmp/p.yaml');
-    } catch (err) {
-      expect((err as Error).message).toMatch(/engine\.compliance/);
-      expect((err as Error).message).toMatch(/OQ-12/);
-    }
+    expect(() => validateProjectConfig(raw, '/tmp/p.yaml')).not.toThrow();
   });
 
   it('rejects unknown compliance values', () => {
