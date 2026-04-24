@@ -79,7 +79,7 @@ describe('resolveToken — lowest-passing + independent + WCAG AA text', () => {
     ).not.toThrow();
   });
 
-  it('rejects unimplemented preferences', () => {
+  it('rejects matched-to-set at per-token resolve (use driver for matched-across-ramps groups)', () => {
     const blue = makeRamp('#3366cc', 'blue');
     const unsupported: FormalIntent = { ...aaTextIntent, preference: 'matched-to-set' };
     expect(() =>
@@ -92,6 +92,23 @@ describe('resolveToken — lowest-passing + independent + WCAG AA text', () => {
         surfaceRef: '{s}',
       }),
     ).toThrow(ResolveError);
+  });
+
+  it('picks a step with WCAG ratio closest to constraints.anchor (anchored + independent)', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    const { token } = resolveToken({
+      tokenPath: 'x',
+      mode: 'light',
+      intent: {
+        ...aaTextIntent,
+        preference: 'anchored',
+        constraints: { anchor: 6.0 },
+      },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    expect(token.contrast?.wcag21).toBeGreaterThanOrEqual(4.5);
   });
 
   it('buildResolvedValue produces an oklch() string and hex', () => {

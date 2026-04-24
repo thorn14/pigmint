@@ -35,20 +35,6 @@ const optBlock: CSSProperties = {
   borderBottom: '1px solid var(--p-border)',
 };
 
-const status = (t: 'implemented' | 'planned'): CSSProperties => ({
-  display: 'inline-block',
-  marginLeft: 8,
-  fontSize: 10,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  padding: '2px 6px',
-  borderRadius: 4,
-  border: '1px solid var(--p-border)',
-  color: t === 'implemented' ? 'var(--p-text-secondary)' : 'var(--p-text-tertiary)',
-  background: t === 'implemented' ? 'var(--p-bg-subtle)' : 'transparent',
-});
-
 export function TokenColumnHelpBody() {
   return (
     <>
@@ -67,18 +53,10 @@ export function PreferenceColumnHelpBody() {
     <>
       <p style={{ ...p, marginTop: 0 }}>{intentHelp.colPreference}</p>
       <h4 style={h4}>Options in the menu</h4>
-      {(
-        [
-          ['lowest-passing', 'implemented'],
-          ['highest-contrast', 'implemented'],
-          ['matched-to-set', 'planned'],
-          ['anchored', 'planned'],
-        ] as const
-      ).map(([key, st]) => (
+      {(['lowest-passing', 'highest-contrast', 'matched-to-set', 'anchored'] as const).map((key) => (
         <div key={key} style={optBlock}>
           <div style={{ marginBottom: 6 }}>
             <code style={code}>{key}</code>
-            <span style={status(st)}>{st === 'implemented' ? 'Supported' : 'Not in engine yet'}</span>
           </div>
           <p style={{ ...p, marginBottom: 0 }}>{intentHelp.preference[key]}</p>
         </div>
@@ -92,17 +70,10 @@ export function ConsistencyColumnHelpBody() {
     <>
       <p style={{ ...p, marginTop: 0 }}>{intentHelp.colConsistency}</p>
       <h4 style={h4}>Options in the menu</h4>
-      {(
-        [
-          ['independent', 'implemented'],
-          ['matched-across-ramps', 'planned'],
-          ['anchored-to-reference', 'planned'],
-        ] as const
-      ).map(([key, st]) => (
+      {(['independent', 'matched-across-ramps', 'anchored-to-reference'] as const).map((key) => (
         <div key={key} style={optBlock}>
           <div style={{ marginBottom: 6 }}>
             <code style={code}>{key}</code>
-            <span style={status(st)}>{st === 'implemented' ? 'Supported' : 'Not in engine yet'}</span>
           </div>
           <p style={{ ...p, marginBottom: 0 }}>{intentHelp.consistency[key]}</p>
         </div>
@@ -120,7 +91,6 @@ export function SurfaceColumnHelpBody() {
         <div key={key} style={optBlock}>
           <div style={{ marginBottom: 6 }}>
             <code style={code}>{key}</code>
-            <span style={status('implemented')}>Supported</span>
           </div>
           <p style={{ ...p, marginBottom: 0 }}>{intentHelp.surface[key]}</p>
         </div>

@@ -40,7 +40,7 @@ export class ResolveError extends Error {
   }
 }
 
-function wcagThreshold(t: Threshold, elevate?: ThresholdElevation): number {
+export function wcagThreshold(t: Threshold, elevate?: ThresholdElevation): number {
   if (t.kind !== 'wcag') {
     throw new Error(`APCA threshold not yet supported (got kind=${t.kind})`);
   }
@@ -110,41 +110,69 @@ function pickStepHighestContrast(
   return best;
 }
 
-export function resolveToken(input: ResolveInput): ResolveResult {
-  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp } = input;
-
-  if (intent.consistency !== 'independent') {
-    throw new ResolveError(
-      `consistency=${intent.consistency} not yet implemented (slice supports independent only)`,
-      tokenPath,
-    );
+/** Among passing steps, pick the one with WCAG ratio closest to `anchor`. Ties: lower index. */
+export function pickStepAnchored(
+  pickRamp: GeneratedRamp,
+  surfaceHex: string,
+  threshold: Threshold,
+  anchor: number,
+  elevate?: ThresholdElevation,
+): { index: number; ratio: number } | null {
+  const required = wcagThreshold(threshold, elevate);
+  let best: { index: number; ratio: number; dist: number } | null = null;
+  for (let i = 0; i < pickRamp.steps.length; i++) {
+    const step = pickRamp.steps[i];
+    if (!step) continue;
+    const { ratio } = getWcagContrast(step.hex, surfaceHex);
+    if (ratio < required) continue;
+    const dist = Math.abs(ratio - anchor);
+    if (
+      best === null ||
+      dist < best.dist - 1e-9 ||
+      (Math.abs(dist - best.dist) <= 1e-9 && i < best.index)
+    ) {
+      best = { index: i, ratio, dist };
+    }
   }
+  if (!best) return null;
+  return { index: best.index, ratio: best.ratio };
+}
 
-  const pickRamp = denseRamp ?? ramp;
+export function indexAtNormalizedT(len: number, t: number): number {
+  if (len <= 0) return 0;
+  if (len === 1) return 0;
+  const tt = Math.min(1, Math.max(0, t));
+  return Math.max(0, Math.min(len - 1, Math.round(tt * (len - 1))));
+}
 
-  let picked: { index: number; ratio: number } | null;
-  if (intent.preference === 'lowest-passing') {
-    picked = pickStepLowestPassing(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
-  } else if (intent.preference === 'highest-contrast') {
-    picked = pickStepHighestContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
-  } else {
-    throw new ResolveError(
-      `preference=${intent.preference} not yet implemented (slice supports lowest-passing and highest-contrast)`,
-      tokenPath,
-    );
-  }
-  if (picked === null) {
-    throw new ResolveError(
-      `no ramp step in "${ramp.scaleName}" meets threshold against surface ${surfaceHex}`,
-      tokenPath,
-    );
-  }
+/** Step and ratio at normalized t; null if below required ratio. */
+export function pickStepAtNormalizedT(
+  pickRamp: GeneratedRamp,
+  surfaceHex: string,
+  t: number,
+  required: number,
+): { index: number; ratio: number; step: GeneratedStep } | null {
+  const i = indexAtNormalizedT(pickRamp.steps.length, t);
+  const step = pickRamp.steps[i];
+  if (!step) return null;
+  const { ratio } = getWcagContrast(step.hex, surfaceHex);
+  if (ratio < required) return null;
+  return { index: i, ratio, step };
+}
 
-  const step = pickRamp.steps[picked.index];
-  if (!step) {
-    throw new ResolveError(`ramp step index ${picked.index} missing`, tokenPath);
-  }
-
+export function makeResolveResultFromPicked(
+  tokenPath: string,
+  mode: string,
+  intent: FormalIntent,
+  ramp: GeneratedRamp,
+  denseRamp: GeneratedRamp | undefined,
+  surfaceRef: string,
+  surfaceHex: string,
+  pickRamp: GeneratedRamp,
+  picked: { index: number; ratio: number },
+  step: GeneratedStep,
+  thresholdElevation?: ThresholdElevation,
+): ResolveResult {
   const pickStepCount = pickRamp.steps.length;
   const position = pickStepCount === 1 ? 0 : picked.index / (pickStepCount - 1);
   const nearestPrimitive = denseRamp
@@ -185,6 +213,68 @@ export function resolveToken(input: ResolveInput): ResolveResult {
   };
 
   return { token, step };
+}
+
+export function resolveToken(input: ResolveInput): ResolveResult {
+  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp } = input;
+
+  if (intent.consistency !== 'independent') {
+    throw new ResolveError(
+      `consistency=${intent.consistency} is not independent; use driver group resolution (token ${tokenPath})`,
+      tokenPath,
+    );
+  }
+
+  const pickRamp = denseRamp ?? ramp;
+
+  let picked: { index: number; ratio: number } | null;
+  if (intent.preference === 'lowest-passing') {
+    picked = pickStepLowestPassing(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+  } else if (intent.preference === 'highest-contrast') {
+    picked = pickStepHighestContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+  } else if (intent.preference === 'anchored') {
+    const anchor = intent.constraints?.anchor;
+    if (typeof anchor !== 'number' || !Number.isFinite(anchor)) {
+      throw new ResolveError('anchored requires constraints.anchor (finite number)', tokenPath);
+    }
+    picked = pickStepAnchored(
+      pickRamp,
+      surfaceHex,
+      intent.threshold,
+      anchor,
+      thresholdElevation,
+    );
+  } else {
+    throw new ResolveError(
+      `preference=${intent.preference} must be resolved via group driver (matched-to-set) or is unsupported here`,
+      tokenPath,
+    );
+  }
+  if (picked === null) {
+    throw new ResolveError(
+      `no ramp step in "${ramp.scaleName}" meets threshold against surface ${surfaceHex}`,
+      tokenPath,
+    );
+  }
+
+  const step = pickRamp.steps[picked.index];
+  if (!step) {
+    throw new ResolveError(`ramp step index ${picked.index} missing`, tokenPath);
+  }
+
+  return makeResolveResultFromPicked(
+    tokenPath,
+    mode,
+    intent,
+    ramp,
+    denseRamp,
+    surfaceRef,
+    surfaceHex,
+    pickRamp,
+    picked,
+    step,
+    thresholdElevation,
+  );
 }
 
 export function buildResolvedValue(step: GeneratedStep): ResolvedValue {

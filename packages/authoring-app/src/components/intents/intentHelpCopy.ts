@@ -14,7 +14,7 @@ export const intentHelp = {
   colPreference:
     'Tells the resolver which ramp step to keep when more than one step would satisfy the same contrast target against the reference surface for this token.',
   colConsistency:
-    'Controls whether this token is resolved in isolation on its ramp, or kept aligned with other ramps. The public engine today only runs the independent path.',
+    'Controls whether this token is resolved in isolation on its ramp, kept aligned with other ramps (synchronized position + contrast variance), or matched to a reference ramp’s contrast.',
   colSurface:
     'Which surface token in the current mode to measure contrast against when this token is not a surface (foreground, border, action, etc.).',
 
@@ -58,18 +58,18 @@ export const intentHelp = {
     'highest-contrast':
       'Among steps that pass, pick the step with the highest contrast. Use when you want maximum separation from the background (strong states, error text, etc.).',
     'matched-to-set':
-      'Intended to align with a set of other tokens (e.g. matched chroma across roles). Not implemented in the core resolver in this engine slice; selecting it will error at resolution time until the feature lands.',
+      'With consistency `matched-across-ramps`, the resolver scans a shared normalized position on each member ramp, keeps everyone passing the contrast bar, and minimizes the variance of WCAG ratios (same design family). Requires at least one peer token in the same intent group. Pairing with `independent` is invalid per spec.',
     anchored:
-      'Intended to lock to a named position or anchor. Not implemented in the core resolver in this engine slice; selecting it will error until the feature lands.',
+      'With consistency `independent`, picks the pass/fail ramp step whose WCAG ratio is closest to `constraints.anchor` (a number, e.g. 4.5 or 6). For `anchored-to-reference`, the target ratio comes from the `referenceRamp` instead—set in pigmint.yaml.',
   } as const satisfies Record<Preference, string>,
 
   consistency: {
     independent:
-      'The resolver picks a step for this token using only that token’s intent and its ramp. This is the only supported mode in the public resolver today.',
+      'The resolver picks a step for this token using only that token’s intent and its ramp. This is the default in the shipped vocabulary; cross-ramp policies use the same per-path rows but every token in a group must share the same merged formal intent in pigmint.yaml.',
     'matched-across-ramps':
-      'Future: keep related tokens on harmonized steps across scales. Not implemented in the core slice; will error if selected.',
+      'Shared scan along each ramp: same t∈[0,1] on the densified (or stepped) pick grid for every member of the same formal-intent group, with tie-breaks by preference. Use with `lowest-passing`, `highest-contrast`, or `matched-to-set` (all members must use the exact same merged intent).',
     'anchored-to-reference':
-      'Future: tie the choice to a reference ramp position. Not implemented in the core slice; will error if selected.',
+      'The token on `constraints.referenceRamp` (e.g. `blue`) resolves first (highest: highest, otherwise lowest) to a target ratio; all other group members pick the pass/fail step on their own ramp with contrast closest to that value. Set `engine.intents[...]constraints.referenceRamp` in pigmint.yaml—the UI table only overrides a subset of fields today.',
   } as const satisfies Record<Consistency, string>,
 
   surface: {

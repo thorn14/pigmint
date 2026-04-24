@@ -2,11 +2,12 @@ import type { VocabularyEntry, Vocabulary } from '../types/spec.js';
 
 export const VOCABULARY_V1_VERSION = 'vocabulary@0.1';
 
-// Default slice shipped with pigmint. Scope constrained to what the resolver
-// currently supports: `consistency: 'independent'`, `preference` ∈
-// {'lowest-passing','highest-contrast'}, base state only, surfaces limited to
-// the four canonical roles (main/elevated/subtle/inverse). Spec/09 defines a
-// larger vocabulary — additional categories land as resolver features ship.
+// Default slice shipped with pigmint. The resolver supports `independent` plus
+// `matched-across-ramps` and `anchored-to-reference` (grouped per merged intent
+// in driver); preferences include `anchored` (independent) and
+// `matched-to-set` (with matched-across-ramps). Vocabulary here stays
+// `independent`+low/HC until a release opts into cross-ramp policies. Spec/09
+// defines a larger surface — new roles land with resolver support.
 export const VOCABULARY_V1_SLICE: VocabularyEntry[] = [
   // ── Surface ────────────────────────────────────────────────────────────
   {

@@ -1,5 +1,12 @@
 import { resolveToken, type ThresholdElevation } from './resolve.js';
+import { assertValidFormalIntent } from './intent-validate.js';
 import { materializeContinuousRamps } from './materialize-continuous.js';
+import {
+  resolveAnchoredToReference,
+  resolveMatchedAcrossRamps,
+  type NonSurfaceContext,
+} from './group-resolve.js';
+import { DriverError } from './errors.js';
 import { resolveSurface, type SurfaceRole } from './surfaces.js';
 import { generateRamp } from '../math/ramp.js';
 import type { ColorScale, GeneratedRamp } from '../types/palette.js';
@@ -45,12 +52,7 @@ export interface ResolveAllOutput {
   surfaceByModeAndPath: Record<string, Record<string, string>>;
 }
 
-export class DriverError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DriverError';
-  }
-}
+export { DriverError } from './errors.js';
 
 const SURFACE_ROLES = new Set<SurfaceRole>(['main', 'elevated', 'subtle', 'inverse']);
 
@@ -86,7 +88,10 @@ function mergeIntent(
     preference: override.preference ?? base.preference,
     consistency: override.consistency ?? base.consistency,
     surfaceContext: override.surfaceContext ?? base.surfaceContext,
-    constraints: override.constraints ?? base.constraints,
+    constraints:
+      override.constraints !== undefined
+        ? { ...base.constraints, ...override.constraints }
+        : base.constraints,
   };
 }
 
@@ -99,6 +104,16 @@ function applyIntentOverrides(
     const override = overrides[entry.path];
     if (!override || !entry.defaultIntent) return entry;
     return { ...entry, defaultIntent: mergeIntent(entry.defaultIntent, override) };
+  });
+}
+
+function intentGroupKey(intent: FormalIntent): string {
+  return JSON.stringify({
+    th: intent.threshold,
+    pr: intent.preference,
+    co: intent.consistency,
+    sc: intent.surfaceContext,
+    cs: intent.constraints ?? null,
   });
 }
 
@@ -137,6 +152,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
       if (modeMap) modeMap[entry.path] = token.hex;
     }
 
+    const items: { path: string; context: NonSurfaceContext; intent: FormalIntent }[] = [];
     for (const entry of nonSurfaces) {
       if (entry.usage === 'decorative') continue;
       if (!entry.defaultIntent || !entry.primarySurface) {
@@ -144,24 +160,87 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
           `non-decorative token ${entry.path} needs defaultIntent + primarySurface`,
         );
       }
+      const intent = entry.defaultIntent;
+      assertValidFormalIntent(entry.path, intent);
       const rampName = requireTokenRamp(tokenRamp, entry.path);
       const ramp = requireRamp(ramps, rampName);
+      const pickRamp = denseRamps ? denseRamps.get(rampName) ?? ramp : ramp;
       const modeSurfaces = surfaceByModeAndPath[binding.mode];
       if (!modeSurfaces) {
         throw new DriverError(`mode ${binding.mode} has no surface map`);
       }
       const surfaceRef = resolveSurfaceReference(entry, modeSurfaces);
-      const { token } = resolveToken({
-        tokenPath: entry.path,
-        mode: binding.mode,
-        intent: entry.defaultIntent,
+      const ctx: NonSurfaceContext = {
+        entry,
         ramp,
+        pickRamp,
+        denseRamp: denseRamps ? denseRamps.get(rampName) : undefined,
         surfaceHex: surfaceRef.hex,
         surfaceRef: `{${surfaceRef.path}}`,
+      };
+      items.push({ path: entry.path, context: ctx, intent });
+    }
+
+    const gBinding = {
+      mode: binding.mode,
+      thresholdElevation: binding.thresholdElevation,
+    };
+    const resolvedByPath: Map<string, ResolvedToken> = new Map();
+
+    const indep = items.filter((x) => x.intent.consistency === 'independent');
+    for (const it of indep) {
+      const { token } = resolveToken({
+        tokenPath: it.path,
+        mode: binding.mode,
+        intent: it.intent,
+        ramp: it.context.ramp,
+        surfaceHex: it.context.surfaceHex,
+        surfaceRef: it.context.surfaceRef,
         thresholdElevation: binding.thresholdElevation,
-        ...(denseRamps ? { denseRamp: denseRamps.get(rampName) } : {}),
+        ...(it.context.denseRamp ? { denseRamp: it.context.denseRamp } : {}),
       });
-      tokens.push(token);
+      resolvedByPath.set(it.path, token);
+    }
+
+    const groupMap = (pred: (i: (typeof items)[0]) => boolean) => {
+      const m = new Map<string, (typeof items)[0][]>();
+      for (const it of items) {
+        if (!pred(it)) continue;
+        const k = intentGroupKey(it.intent);
+        m.set(k, [...(m.get(k) ?? []), it]);
+      }
+      return m;
+    };
+    for (const [, arr] of groupMap((i) => i.intent.consistency === 'matched-across-ramps')) {
+      const toks = resolveMatchedAcrossRamps(
+        arr[0]!.intent,
+        arr.map((x) => x.context),
+        gBinding,
+      );
+      for (const t of toks) {
+        resolvedByPath.set(t.path, t);
+      }
+    }
+    for (const [, arr] of groupMap((i) => i.intent.consistency === 'anchored-to-reference')) {
+      const toks = resolveAnchoredToReference(
+        arr[0]!.intent,
+        arr.map((x) => x.context),
+        gBinding,
+        tokenRamp,
+      );
+      for (const t of toks) {
+        resolvedByPath.set(t.path, t);
+      }
+    }
+
+    for (const it of items) {
+      if (!resolvedByPath.has(it.path)) {
+        const i = it.intent;
+        throw new DriverError(
+          `unresolved non-surface token ${it.path} (consistency ${i.consistency}): internal`,
+        );
+      }
+      tokens.push(resolvedByPath.get(it.path)!);
     }
   }
 

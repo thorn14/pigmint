@@ -25,7 +25,10 @@ export interface Threshold {
 export type GamutStrategy = 'chroma-reduce' | 'chroma-preserve' | 'reject';
 
 export interface IntentConstraints {
+  /** WCAG 2.1 ratio target when `preference: "anchored"` and `consistency: "independent"`. */
   anchor?: number | string;
+  /** When `consistency: "anchored-to-reference"`, the ramp (scale name) whose first resolved member defines the target contrast. */
+  referenceRamp?: string;
   minChroma?: number;
   avoidPositions?: number[];
   gamutStrategy?: GamutStrategy;

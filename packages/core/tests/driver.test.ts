@@ -304,4 +304,77 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     expect(hcMuted.compliance?.thresholds?.text).toBe(7);
     expect((hcMuted.contrast?.wcag21 ?? 0) > (baseMuted.contrast?.wcag21 ?? 0)).toBe(true);
   });
+
+  it('matched-across-ramps + matched-to-set: synchronizes t and groups tokens on different ramps', () => {
+    const scales = RAMP_SPECS.map(([hex, name]) => makeScale(hex, name));
+    const ramps = scales.map((s) => generateRamp(s));
+    const out = resolveAll({
+      config: {
+        ...config,
+        intents: {
+          'color.border.subtle': {
+            preference: 'matched-to-set',
+            consistency: 'matched-across-ramps',
+          },
+          'color.action.primary.background': {
+            preference: 'matched-to-set',
+            consistency: 'matched-across-ramps',
+          },
+        },
+      },
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: defaultModes,
+      tokenRamp: defaultTokenRamp,
+      scales,
+    });
+
+    const t1 = out.tokens.find(
+      (t) => t.path === 'color.border.subtle' && t.mode === 'light',
+    )!;
+    const t2 = out.tokens.find(
+      (t) => t.path === 'color.action.primary.background' && t.mode === 'light',
+    )!;
+
+    expect(t1.intent.consistency).toBe('matched-across-ramps');
+    expect(t1.source.position).toBeCloseTo(t2.source.position, 5);
+  });
+
+  it('anchored-to-reference: non-reference ramps match reference ramp WCAG (blue → neutral)', () => {
+    const scales = RAMP_SPECS.map(([hex, name]) => makeScale(hex, name));
+    const ramps = scales.map((s) => generateRamp(s));
+    const out = resolveAll({
+      config: {
+        ...config,
+        intents: {
+          'color.action.primary.background': {
+            consistency: 'anchored-to-reference',
+            preference: 'highest-contrast',
+            constraints: { referenceRamp: 'blue' },
+          },
+          'color.border.subtle': {
+            consistency: 'anchored-to-reference',
+            preference: 'highest-contrast',
+            constraints: { referenceRamp: 'blue' },
+          },
+        },
+      },
+      vocabulary: VOCABULARY_V1_SLICE,
+      ramps,
+      modes: defaultModes,
+      tokenRamp: defaultTokenRamp,
+      scales,
+    });
+
+    const ref = out.tokens.find(
+      (t) => t.path === 'color.action.primary.background' && t.mode === 'light',
+    )!;
+    const follows = out.tokens.find(
+      (t) => t.path === 'color.border.subtle' && t.mode === 'light',
+    )!;
+
+    const refR = ref.contrast?.wcag21 ?? 0;
+    const followR = follows.contrast?.wcag21 ?? 0;
+    expect(followR).toBeCloseTo(refR, 0);
+  });
 });
