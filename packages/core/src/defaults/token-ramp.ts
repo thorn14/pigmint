@@ -23,6 +23,10 @@ export function buildDefaultTokenRamp(
       map[path] = firstNamed(rampNames, 'slate', 'secondary', 'violet', 'mauve') ?? neutral;
       continue;
     }
+    if (path.startsWith('color.action.tertiary.')) {
+      map[path] = neutral;
+      continue;
+    }
     if (path.startsWith('color.feedback.success.')) {
       map[path] = firstNamed(rampNames, 'success', 'emerald', 'green') ?? accent;
       continue;

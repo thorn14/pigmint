@@ -47,7 +47,10 @@ export function wcagThreshold(t: Threshold, elevate?: ThresholdElevation): numbe
       `internal: wcagThreshold with kind=${(t as Threshold).kind} (use passThreshold)`,
     );
   }
-  const base = t.usage === 'text' ? (t.level === 'AAA' ? 7 : 4.5) : 3;
+  // Spec/05 thresholds: AA-text 4.5, AAA-text 7, AA-nonText 3, AAA-nonText 4.5 (pigmint convention).
+  const base = t.usage === 'text'
+    ? (t.level === 'AAA' ? 7 : 4.5)
+    : (t.level === 'AAA' ? 4.5 : 3);
   if (elevate === 'hc') {
     if (base === 3) return 4.5;
     if (base === 4.5) return 7;
@@ -132,7 +135,7 @@ function toOklchCss(hex: string): string {
   return formatCss({ mode: 'oklch', l: o.l ?? 0, c: o.c ?? 0, h: o.h ?? 0 }) ?? 'oklch(0 0 0)';
 }
 
-function pickStepLowestPassing(
+export function pickStepLowestPassing(
   ramp: GeneratedRamp,
   surfaceHex: string,
   threshold: Threshold,

@@ -360,7 +360,14 @@ describe('end-to-end: intent overrides in pigmint.yaml change resolution', () =>
       ...base,
       output: { dtcg: './override.json' },
       intents: {
-        'color.action.primary.background': { preference: 'highest-contrast' as const },
+        // Override flips both fields so the token leaves its matched-across-ramps
+        // cohort. Changing only `preference` shifts membership to a sibling
+        // cohort (e.g. border.prominent) whose variance scan can converge on the
+        // same equal-contrast step the default cohort picks.
+        'color.action.primary.background': {
+          preference: 'highest-contrast' as const,
+          consistency: 'independent' as const,
+        },
       },
     };
 
@@ -383,6 +390,7 @@ describe('end-to-end: intent overrides in pigmint.yaml change resolution', () =>
     const overridePig = overridePrimary.$extensions['com.pigmint'];
     expect(basePig.intent.preference).toBe('lowest-passing');
     expect(overridePig.intent.preference).toBe('highest-contrast');
+    expect(overridePig.intent.consistency).toBe('independent');
 
     const baseFg = baseDoc.color.foreground.main;
     const overrideFg = overrideDoc.color.foreground.main;

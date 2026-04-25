@@ -6,6 +6,7 @@ import {
   passThreshold,
   pickStepAnchored,
   pickStepAtNormalizedT,
+  pickStepLowestPassing,
   resolveToken,
   type ThresholdElevation,
 } from './resolve.js';
@@ -37,6 +38,14 @@ function variance(numbers: number[]): number {
 
 const SCAN_SAMPLES = 201;
 const EPS = 1e-8;
+const MATCHED_TO_SET_MAX_ITER = 8;
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const s = values.slice().sort((a, b) => a - b);
+  const mid = s.length >>> 1;
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
 
 /**
  * Synchronized t ∈ [0,1] on each pick ramp, minimize contrast variance, tie-break by preference.
@@ -49,11 +58,15 @@ export function resolveMatchedAcrossRamps(
   if (members.length === 0) return [];
   if (members.length === 1) {
     const m0 = members[0]!;
+    const single =
+      intent.preference === 'matched-to-set'
+        ? { ...intent, preference: 'lowest-passing' as const, consistency: 'independent' as const }
+        : { ...intent, consistency: 'independent' as const };
     return [
       resolveToken({
         tokenPath: m0.entry.path,
         mode: binding.mode,
-        intent: { ...intent, consistency: 'independent' },
+        intent: single,
         ramp: m0.ramp,
         surfaceHex: m0.surfaceHex,
         surfaceRef: m0.surfaceRef,
@@ -66,6 +79,10 @@ export function resolveMatchedAcrossRamps(
   const pref = intent.preference;
   if (pref === 'anchored' || intent.consistency !== 'matched-across-ramps') {
     throw new DriverError('resolveMatchedAcrossRamps: invalid intent (internal)');
+  }
+
+  if (pref === 'matched-to-set') {
+    return resolveMatchedToSet(intent, members, binding);
   }
 
   const th = intent.threshold;
@@ -94,7 +111,7 @@ export function resolveMatchedAcrossRamps(
     let secondary: number;
     if (pref === 'highest-contrast') {
       secondary = -Math.min(...ratios);
-    } else if (pref === 'lowest-passing' || pref === 'matched-to-set') {
+    } else if (pref === 'lowest-passing') {
       secondary = Math.max(...ratios);
     } else {
       throw new DriverError('resolveMatchedAcrossRamps: unexpected preference');
@@ -139,6 +156,82 @@ export function resolveMatchedAcrossRamps(
         { index: g.index, ratio: g.ratio },
         g.step,
         binding.thresholdElevation,
+      ).token,
+    );
+  }
+  return out;
+}
+
+/**
+ * Spec/05 matched-to-set: each member picks the step whose contrast is closest
+ * to the median of the set's contrasts. Solved as a fixed-point iteration —
+ * seed each member with `lowest-passing`, take the median, re-pick everyone
+ * closest to that median, repeat until indices stabilize. Each member stays
+ * on its own ramp at its own position, so disparate-luminosity ramps no
+ * longer collapse to extremes the way a sync'd-t variance scan would.
+ */
+export function resolveMatchedToSet(
+  intent: FormalIntent,
+  members: NonSurfaceContext[],
+  binding: GroupBinding,
+): ResolvedToken[] {
+  if (members.length === 0) return [];
+  if (intent.preference !== 'matched-to-set' || intent.consistency !== 'matched-across-ramps') {
+    throw new DriverError('resolveMatchedToSet: invalid intent (internal)');
+  }
+
+  const th = intent.threshold;
+  const elevate = binding.thresholdElevation;
+
+  const seeds = members.map((m) =>
+    pickStepLowestPassing(m.pickRamp, m.surfaceHex, th, elevate),
+  );
+  const failedSeeds = members
+    .map((m, i) => (seeds[i] === null ? m.entry.path : null))
+    .filter((p): p is string => p !== null);
+  if (failedSeeds.length > 0) {
+    throw new DriverError(
+      `matched-to-set: members [${failedSeeds.join(', ')}] have no passing step in mode ${binding.mode}`,
+    );
+  }
+
+  let picks = seeds as { index: number; ratio: number }[];
+  let lastTarget = Number.NaN;
+  for (let iter = 0; iter < MATCHED_TO_SET_MAX_ITER; iter++) {
+    const target = median(picks.map((p) => p.ratio));
+    const next: { index: number; ratio: number }[] = [];
+    for (const m of members) {
+      const got = pickStepAnchored(m.pickRamp, m.surfaceHex, th, target, elevate);
+      if (!got) {
+        throw new DriverError('matched-to-set: anchored pick unexpectedly failed');
+      }
+      next.push(got);
+    }
+    const stable = next.every((p, i) => p.index === picks[i]!.index);
+    picks = next;
+    if (stable) break;
+    if (Math.abs(target - lastTarget) <= EPS) break;
+    lastTarget = target;
+  }
+
+  const out: ResolvedToken[] = [];
+  for (let i = 0; i < members.length; i++) {
+    const m = members[i]!;
+    const p = picks[i]!;
+    const step = m.pickRamp.steps[p.index]!;
+    out.push(
+      makeResolveResultFromPicked(
+        m.entry.path,
+        binding.mode,
+        intent,
+        m.ramp,
+        m.denseRamp,
+        m.surfaceRef,
+        m.surfaceHex,
+        m.pickRamp,
+        p,
+        step,
+        elevate,
       ).token,
     );
   }
