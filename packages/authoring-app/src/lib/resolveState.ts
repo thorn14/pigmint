@@ -1,21 +1,18 @@
 import {
-  buildDefaultTokenRamp,
   emitDtcg,
   generateRamp,
   resolveAll,
-  VOCABULARY_V1_SLICE,
   type GeneratedRamp,
-  type IntentOverride as CoreIntentOverride,
   type ModeBinding,
   type ProjectConfig,
   type ResolvedToken,
   type ResolverConfig,
   type VocabularyEntry,
+  type SurfaceStepDecl,
 } from '@pigmint/core';
 import type { ComplianceTarget } from '@pigmint/core';
-import type { EngineMode } from '../store/intentStore';
+import type { EngineMode, EngineCompliance } from '../store/intentStore';
 import type { ColorScale } from '../types/palette';
-import type { EngineCompliance } from '../store/intentStore';
 
 const MODE_SCHEMES: Record<EngineMode, 'light' | 'dark'> = {
   light: 'light',
@@ -31,12 +28,6 @@ const MODE_BASELINES: Record<EngineMode, string> = {
   'dark-high-contrast': '#000000',
 };
 
-export function buildTokenRamp(
-  vocabulary: VocabularyEntry[],
-  rampNames: string[],
-): Record<string, string> {
-  return buildDefaultTokenRamp(vocabulary, rampNames);
-}
 
 export interface ResolutionSuccess {
   ok: true;
@@ -55,16 +46,26 @@ export interface ResolutionFailure {
 
 export type ResolutionState = ResolutionSuccess | ResolutionFailure;
 
+export interface ResolveVocabContext {
+  vocabulary: VocabularyEntry[];
+  tokenRamp: Record<string, string>;
+  surfacePaths?: Set<string>;
+  surfaceSteps?: Map<string, SurfaceStepDecl>;
+}
+
 export function runResolve(
   scales: ColorScale[],
   engineModes: EngineMode[],
   engineTarget: 'AA' | 'AAA',
   engineCompliance: EngineCompliance,
-  intents: Record<string, CoreIntentOverride>,
+  vocabCtx: ResolveVocabContext | null,
   resolver?: ResolverConfig,
 ): ResolutionState {
+  if (!vocabCtx) {
+    return { ok: false, error: 'Load a tokens.yaml in the Tokens tab to get started.' };
+  }
   if (scales.length === 0) {
-    return { ok: false, error: 'Add at least one ramp in Edit mode to see resolved surface pairs.' };
+    return { ok: false, error: 'Add at least one ramp in the Primitives tab to see resolved tokens.' };
   }
   let ramps: GeneratedRamp[];
   try {
@@ -72,10 +73,9 @@ export function runResolve(
   } catch (err) {
     return { ok: false, error: `Ramp generation failed: ${(err as Error).message}` };
   }
-  const vocabulary = VOCABULARY_V1_SLICE;
-  const tokenRamp = buildTokenRamp(vocabulary, ramps.map((r) => r.scaleName));
+  const { vocabulary, tokenRamp, surfacePaths, surfaceSteps } = vocabCtx;
   if (Object.keys(tokenRamp).length === 0) {
-    return { ok: false, error: 'Could not derive a token → ramp mapping; ramps are empty.' };
+    return { ok: false, error: 'Vocabulary has no tokens; add surfaces and foreground/nonText tokens.' };
   }
   const modes: ModeBinding[] = engineModes.map((mode) => ({
     mode,
@@ -92,7 +92,6 @@ export function runResolve(
     },
     ramps: scales.map((s) => ({ name: s.name, source: s.sourceHex })),
     output: { dtcg: './tokens.json' },
-    intents,
   };
 
   try {
@@ -103,6 +102,7 @@ export function runResolve(
       modes,
       tokenRamp,
       scales,
+      ...(surfacePaths ? { surfacePaths, surfaceSteps } : {}),
     });
     return { ok: true, tokens, ramps, dtcgRamps, vocabulary };
   } catch (err) {
@@ -143,7 +143,7 @@ export function buildPigmintTokensJson(
   engineModes: EngineMode[],
   engineTarget: ComplianceTarget,
   engineCompliance: EngineCompliance,
-  overrides: Record<string, CoreIntentOverride>,
+  vocabCtx: ResolveVocabContext | null,
   resolver: ResolverConfig = { mode: 'continuous' },
 ): PigmintTokensBuild | PigmintTokensBuildFailure {
   const state = runResolve(
@@ -151,7 +151,7 @@ export function buildPigmintTokensJson(
     engineModes,
     engineTarget,
     engineCompliance,
-    overrides,
+    vocabCtx,
     resolver,
   );
   if (!state.ok) return { ok: false, error: state.error };

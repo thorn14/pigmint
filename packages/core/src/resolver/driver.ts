@@ -7,7 +7,7 @@ import {
   type NonSurfaceContext,
 } from './group-resolve.js';
 import { DriverError } from './errors.js';
-import { resolveSurface, type SurfaceRole } from './surfaces.js';
+import { resolveSurface, resolveSurfaceByIndex, type SurfaceRole } from './surfaces.js';
 import { generateRamp } from '../math/ramp.js';
 import type { ColorScale, GeneratedRamp } from '../types/palette.js';
 import type {
@@ -37,6 +37,8 @@ export interface ModeBinding {
   thresholdElevation?: ThresholdElevation;
 }
 
+export type SurfaceStepDecl = { light?: number; dark?: number; default?: number };
+
 export interface ResolveAllInput {
   config: ProjectConfig;
   vocabulary: VocabularyEntry[];
@@ -44,6 +46,10 @@ export interface ResolveAllInput {
   modes: ModeBinding[];
   tokenRamp: Record<string, string>;
   scales?: ColorScale[];
+  /** Portable vocabulary: set of token paths that are surfaces (overrides path-prefix detection). */
+  surfacePaths?: Set<string>;
+  /** Portable vocabulary: per-surface explicit step declarations by mode scheme. */
+  surfaceSteps?: Map<string, SurfaceStepDecl>;
 }
 
 export interface ResolveAllOutput {
@@ -148,27 +154,49 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
   const surfaceByModeAndPath: Record<string, Record<string, string>> = {};
   for (const m of modes) surfaceByModeAndPath[m.mode] = {};
 
-  const surfaces = vocabulary.filter((v) => surfaceRoleFromPath(v.path) !== null);
-  const nonSurfaces = vocabulary.filter((v) => surfaceRoleFromPath(v.path) === null);
+  const isSurface = (path: string): boolean =>
+    input.surfacePaths ? input.surfacePaths.has(path) : surfaceRoleFromPath(path) !== null;
+
+  const surfaces = vocabulary.filter((v) => isSurface(v.path));
+  const nonSurfaces = vocabulary.filter((v) => !isSurface(v.path));
 
   for (const binding of modes) {
     for (const entry of surfaces) {
-      const role = surfaceRoleFromPath(entry.path);
-      if (!role) continue;
       const rampName = requireTokenRamp(tokenRamp, entry.path);
       const ramp = requireRamp(ramps, rampName);
-      if (!entry.defaultIntent) {
-        throw new DriverError(`surface ${entry.path} missing defaultIntent`);
+
+      const stepDecl = input.surfaceSteps?.get(entry.path);
+      let token: ResolvedToken;
+
+      if (stepDecl) {
+        const stepIndex =
+          binding.scheme === 'light'
+            ? (stepDecl.light ?? stepDecl.default ?? 0)
+            : (stepDecl.dark ?? stepDecl.default ?? ramp.steps.length - 1);
+        ({ token } = resolveSurfaceByIndex({
+          tokenPath: entry.path,
+          mode: binding.mode,
+          stepIndex,
+          ramp,
+          baselineHex: binding.baselineHex,
+        }));
+      } else {
+        const role = surfaceRoleFromPath(entry.path);
+        if (!role) continue;
+        if (!entry.defaultIntent) {
+          throw new DriverError(`surface ${entry.path} missing defaultIntent`);
+        }
+        ({ token } = resolveSurface({
+          tokenPath: entry.path,
+          mode: binding.mode,
+          scheme: binding.scheme,
+          role,
+          ramp,
+          baselineHex: binding.baselineHex,
+          intent: entry.defaultIntent,
+        }));
       }
-      const { token } = resolveSurface({
-        tokenPath: entry.path,
-        mode: binding.mode,
-        scheme: binding.scheme,
-        role,
-        ramp,
-        baselineHex: binding.baselineHex,
-        intent: entry.defaultIntent,
-      });
+
       tokens.push(token);
       const modeMap = surfaceByModeAndPath[binding.mode];
       if (modeMap) modeMap[entry.path] = token.hex;

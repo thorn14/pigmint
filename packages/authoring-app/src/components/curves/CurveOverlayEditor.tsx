@@ -1,11 +1,12 @@
 import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
-import type { IntentOverride as CoreIntentOverride, ResolvedToken } from '@pigmint/core';
+import type { ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { runResolve } from '../../lib/resolveState';
+import { useVocabStore } from '../../store/vocabStore';
 import { IntentMarkerPopover, type IntentMarkerDetail } from './IntentMarkerPopover';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
@@ -72,7 +73,17 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const engineResolver = useIntentStore((s) => s.engineResolver);
-  const overrides = useIntentStore((s) => s.overrides);
+  const vocabCtxForMarkers = useVocabStore((s) => s.entries
+    ? {
+        vocabulary: s.entries,
+        tokenRamp: s.raw ? Object.fromEntries(
+          Object.entries({ ...s.raw.surfaces, ...s.raw.foreground, ...s.raw.nonText, ...(s.raw.decorative ?? {}) })
+            .map(([n, e]) => [n, (e as { ramp: string }).ramp])
+        ) : {},
+        surfacePaths: s.surfacePaths ?? undefined,
+        surfaceSteps: s.surfaceSteps ?? undefined,
+      }
+    : null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -102,7 +113,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
       engineModes,
       engineTarget,
       engineCompliance,
-      overrides as Record<string, CoreIntentOverride>,
+      vocabCtxForMarkers,
       engineResolver.mode === 'continuous'
         ? engineResolver
         : {
@@ -116,7 +127,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     return state.tokens.filter(
       (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
     );
-  }, [viewMode, scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides, scale.name, activeMarkerMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabCtxForMarkers, scale.name, activeMarkerMode]);
 
 
   useEffect(() => {

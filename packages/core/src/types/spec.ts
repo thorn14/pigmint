@@ -160,7 +160,10 @@ export interface EngineConfig {
 
 export interface RampConfig {
   name: string;
-  source: string;
+  /** Hex literal — CLI derives default curves. Mutually exclusive with `fromFile`. */
+  source?: string;
+  /** Path to a primitives.json — load pre-computed steps. Mutually exclusive with `source`. */
+  fromFile?: string;
   curve?: string;
 }
 
@@ -176,7 +179,10 @@ export interface AdapterConfig {
 }
 
 export interface OutputConfig {
-  dtcg: string;
+  /** Semantic tokens DTCG file. Optional when `primitives` is set. */
+  dtcg?: string;
+  /** Primitives-only DTCG file (ramp steps). */
+  primitives?: string;
   receiptsSidecar?: boolean;
 }
 
@@ -197,6 +203,36 @@ export interface ProjectConfig {
   output: OutputConfig;
   audit?: AuditConfig;
   intents?: Record<string, IntentOverride>;
+}
+
+// ─── Portable vocabulary (client-defined, loaded from tokens.yaml) ────
+
+export interface PortableSurfaceToken {
+  ramp: string;
+  step?: number;
+  lightStep?: number;
+  darkStep?: number;
+}
+
+export interface PortableSemanticToken {
+  ramp: string;
+  surfaces: string[];
+  preference: 'lowest-passing' | 'highest-contrast' | 'matched-to-set';
+  consistency?: 'independent' | 'matched-across-ramps' | 'anchored-to-reference';
+  level?: 'AA' | 'AAA';
+  interactions?: Partial<Record<string, { offset: number }>>;
+}
+
+export interface PortableDecorativeToken {
+  ramp: string;
+  step: number;
+}
+
+export interface PortableVocabulary {
+  surfaces: Record<string, PortableSurfaceToken>;
+  foreground: Record<string, PortableSemanticToken>;
+  nonText: Record<string, PortableSemanticToken>;
+  decorative?: Record<string, PortableDecorativeToken>;
 }
 
 // ─── Internal resolver types ─────────────────────────────────────────

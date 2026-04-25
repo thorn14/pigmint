@@ -1,0 +1,54 @@
+surfaces:
+  bgMain:
+    ramp: stone
+    lightStep: 0
+    darkStep: 10
+  bgCard:
+    ramp: stone
+    lightStep: 1
+    darkStep: 9
+  bgInverse:
+    ramp: stone
+    lightStep: 10
+    darkStep: 0
+  bgBrand:
+    ramp: rose
+    step: 5
+
+foreground:
+  fgMain:
+    ramp: stone
+    surfaces: [bgMain]
+    preference: highest-contrast
+    level: AAA
+  fgMuted:
+    ramp: stone
+    surfaces: [bgMain, bgCard]
+    preference: matched-to-set
+    consistency: matched-across-ramps
+  fgAccent:
+    ramp: rose
+    surfaces: [bgMain]
+    preference: lowest-passing
+    interactions:
+      hover: { offset: 1 }
+      active: { offset: 2 }
+  fgInverse:
+    ramp: stone
+    surfaces: [bgInverse]
+    preference: highest-contrast
+
+nonText:
+  borderMain:
+    ramp: stone
+    surfaces: [bgMain]
+    preference: lowest-passing
+  focusRing:
+    ramp: rose
+    surfaces: [bgMain]
+    preference: highest-contrast
+
+decorative:
+  separator:
+    ramp: stone
+    step: 2

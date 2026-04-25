@@ -43,9 +43,11 @@ export {
 } from './resolver/resolve.js';
 export {
   resolveSurface,
+  resolveSurfaceByIndex,
   buildSurfaceResolvedValue,
   type SurfaceRole,
   type ResolveSurfaceInput,
+  type ResolveSurfaceByIndexInput,
   type ResolveSurfaceResult,
 } from './resolver/surfaces.js';
 export {
@@ -54,6 +56,7 @@ export {
   type ResolveAllInput,
   type ResolveAllOutput,
   type ModeBinding,
+  type SurfaceStepDecl,
 } from './resolver/driver.js';
 export {
   VOCABULARY_V1_VERSION,
@@ -72,10 +75,22 @@ export {
 } from './adapter.js';
 export {
   emitDtcg,
+  emitPrimitives,
   type DtcgContainer,
   type DtcgColorValue,
   type EmitInput,
+  type EmitPrimitivesInput,
   type PrimitiveRamp,
   type PrimitiveToken,
   type SemanticToken,
 } from './emitter/dtcg.js';
+export {
+  validatePortableVocabulary,
+  portableToVocabularyEntries,
+  buildSurfacePaths,
+  buildSurfaceStepMap,
+  buildTokenRampFromPortable,
+  buildPortableArtifacts,
+  PortableVocabularyError,
+  type PortableVocabularyArtifacts,
+} from './vocabulary/portable.js';

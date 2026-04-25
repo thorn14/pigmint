@@ -25,11 +25,31 @@ function printUsage(): void {
       'Usage: pigmint <command> [options]',
       '',
       'Commands:',
-      '  build             Generate the DTCG output described in pigmint.yaml',
-      '  audit             Audit the emitted DTCG file for receipt-level violations',
+      '  build   Generate output files described in pigmint.yaml',
+      '  audit   Audit the emitted tokens file for contract violations',
       '',
       'Options:',
       '  -c, --config <path>   Path to pigmint.yaml (default: ./pigmint.yaml)',
+      '',
+      'Output modes (set in pigmint.yaml):',
+      '',
+      '  Primitives only (no vocabulary required):',
+      '    output:',
+      '      primitives: ./primitives.json',
+      '',
+      '  Full build (vocabulary required):',
+      '    defaults:',
+      '      vocabulary: ./tokens.yaml',
+      '    output:',
+      '      primitives: ./primitives.json  # optional — inspect ramp steps',
+      '      dtcg: ./tokens.json',
+      '',
+      'Ramp sources (set in pigmint.yaml):',
+      '    ramps:',
+      '      - name: stone',
+      '        source: "#78716c"           # derive default curves from hex',
+      '      - name: stone',
+      '        fromFile: ./primitives.json  # load pre-computed steps',
       '',
     ].join('\n'),
   );
@@ -60,9 +80,14 @@ async function main(): Promise<number> {
     }
 
     const result = await build({ configPath });
-    process.stdout.write(
-      `emitted DTCG → ${result.outputPath} (${result.rampCount} ramps, ${result.modeCount} mode(s), ${result.tokenCount} token-mode resolutions)\n`,
-    );
+    if (result.primitivesPath) {
+      process.stdout.write(`emitted primitives → ${result.primitivesPath} (${result.rampCount} ramps)\n`);
+    }
+    if (result.outputPath) {
+      process.stdout.write(
+        `emitted tokens → ${result.outputPath} (${result.modeCount} mode(s), ${result.tokenCount} token-mode resolutions)\n`,
+      );
+    }
     for (const adapter of result.adapters) {
       for (const file of adapter.files) {
         process.stdout.write(`emitted ${adapter.name} → ${file}\n`);

@@ -110,6 +110,50 @@ export function resolveSurface(input: ResolveSurfaceInput): ResolveSurfaceResult
   return { token, step };
 }
 
+export interface ResolveSurfaceByIndexInput {
+  tokenPath: string;
+  mode: string;
+  stepIndex: number;
+  ramp: GeneratedRamp;
+  baselineHex: string;
+}
+
+export function resolveSurfaceByIndex(input: ResolveSurfaceByIndexInput): ResolveSurfaceResult {
+  const { tokenPath, mode, stepIndex, ramp, baselineHex } = input;
+  const steps = ramp.steps;
+  if (steps.length === 0) throw new Error(`ramp ${ramp.scaleName} has no steps`);
+  const clamped = Math.max(0, Math.min(stepIndex, steps.length - 1));
+  const step = steps[clamped];
+  if (!step) throw new Error(`step index ${clamped} out of range for ${ramp.scaleName}`);
+
+  const stepCount = steps.length;
+  const position = stepCount <= 1 ? 0 : clamped / (stepCount - 1);
+  const nearestPrimitive = `color.primitive.${ramp.scaleName}.${step.name}`;
+  const baselineRatio = getWcagContrast(step.hex, baselineHex).ratio;
+
+  const placeholderIntent: FormalIntent = {
+    threshold: { kind: 'wcag', level: 'AA', usage: 'nonText' },
+    preference: 'highest-contrast',
+    consistency: 'independent',
+    surfaceContext: 'primary',
+  };
+
+  const token: ResolvedToken = {
+    path: tokenPath,
+    mode,
+    oklch: step.oklch,
+    hex: step.hex,
+    gamut: step.gamut,
+    source: { ramp: ramp.scaleName, position, nearestPrimitive },
+    resolvedAgainst: null,
+    contrast: { againstBaseline: round2(baselineRatio) },
+    compliance: { level: 'exempt' },
+    intent: placeholderIntent,
+  };
+
+  return { token, step };
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }

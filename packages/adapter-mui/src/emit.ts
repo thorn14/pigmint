@@ -38,12 +38,12 @@ function walk(
   }
 }
 
-function collectTokens(color: Record<string, unknown>): TokenView[] {
+function collectTokens(container: Record<string, unknown>): TokenView[] {
   const out: TokenView[] = [];
-  for (const [key, child] of Object.entries(color)) {
-    if (key === 'primitive') continue;
+  for (const [key, child] of Object.entries(container)) {
+    if (key.startsWith('$') || key === 'primitive') continue;
     if (child && typeof child === 'object' && !Array.isArray(child)) {
-      walk(child as Record<string, unknown>, `color.${key}`, out);
+      walk(child as Record<string, unknown>, key, out);
     }
   }
   return out;
@@ -94,7 +94,7 @@ export function buildMuiOutput(
 ): BuildOutput {
   const container = invocation.container;
   const defaultMode = container.$extensions['com.pigmint'].defaultMode;
-  const tokens = collectTokens(container.color as Record<string, unknown>);
+  const tokens = collectTokens(container as unknown as Record<string, unknown>);
   const bindings = bindingsByTokenPath();
   const modesInConfig = invocation.projectConfig.engine.modes;
 

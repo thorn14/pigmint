@@ -125,7 +125,7 @@ function PaletteSelector() {
   );
 }
 
-type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces' | 'audit';
+type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens' | 'audit';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -302,16 +302,13 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
         value={mode}
         onValueChange={onModeChange}
         size="comfortable"
-        options={(
-          [
-            'edit',
-            'preview',
-            'combos',
-            'intents',
-            'surfaces',
-            'audit',
-          ] as const
-        ).map((m) => ({ value: m, label: m }))}
+        options={([
+          { value: 'primitives', label: 'Primitives' },
+          { value: 'preview', label: 'Preview' },
+          { value: 'combos', label: 'Combos' },
+          { value: 'tokens', label: 'Tokens' },
+{ value: 'audit', label: 'Audit' },
+        ] as const).map((m) => ({ value: m.value, label: m.label }))}
       />
 
       {divider}

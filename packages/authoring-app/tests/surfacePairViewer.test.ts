@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { VOCABULARY_V1_SLICE, buildDefaultCurves, hexToOklch } from '@pigmint/core';
-import { buildTokenRamp, runResolve } from '../src/lib/resolveState';
+import {
+  buildDefaultCurves,
+  hexToOklch,
+  buildDefaultTokenRamp,
+  VOCABULARY_V1_SLICE,
+} from '@pigmint/core';
+import { runResolve, type ResolveVocabContext } from '../src/lib/resolveState';
 import type { ColorScale } from '../src/types/palette';
 
 function makeScale(name: string, hex: string): ColorScale {
@@ -20,39 +25,29 @@ function makeScale(name: string, hex: string): ColorScale {
   };
 }
 
-describe('buildTokenRamp', () => {
-  it('routes surfaces, foreground, and borders to neutral; maps semantic groups to named ramps', () => {
-    const map = buildTokenRamp(VOCABULARY_V1_SLICE, ['neutral', 'blue']);
-    expect(map['color.surface.main']).toBe('neutral');
-    expect(map['color.surface.inverse']).toBe('neutral');
-    expect(map['color.foreground.main']).toBe('neutral');
-    expect(map['color.border.main']).toBe('neutral');
-    expect(map['color.border.subtle']).toBe('neutral');
-    expect(map['color.action.primary.background']).toBe('blue');
-    expect(map['color.action.primary.text']).toBe('blue');
-    expect(map['color.focus.ring']).toBe('blue');
-  });
-
-  it('falls back to the single available ramp when there is no accent', () => {
-    const map = buildTokenRamp(VOCABULARY_V1_SLICE, ['neutral']);
-    expect(map['color.action.primary.background']).toBe('neutral');
-  });
-
-  it('returns an empty map when no ramps are available', () => {
-    expect(buildTokenRamp(VOCABULARY_V1_SLICE, [])).toEqual({});
-  });
-});
+function makeVocabCtx(rampNames: string[]): ResolveVocabContext {
+  const tokenRamp = buildDefaultTokenRamp(VOCABULARY_V1_SLICE, rampNames);
+  return { vocabulary: VOCABULARY_V1_SLICE, tokenRamp };
+}
 
 describe('runResolve', () => {
-  it('returns a friendly failure when no scales are provided', () => {
-    const state = runResolve([], ['light'], 'AA', 'wcag21', {});
+  it('returns a friendly failure when no vocabulary is loaded', () => {
+    const state = runResolve([], ['light'], 'AA', 'wcag21', null);
     expect(state.ok).toBe(false);
-    if (!state.ok) expect(state.error).toMatch(/Add at least one ramp/);
+    if (!state.ok) expect(state.error).toMatch(/tokens\.yaml/i);
+  });
+
+  it('returns a friendly failure when no scales are provided', () => {
+    const vocabCtx = makeVocabCtx(['neutral', 'blue']);
+    const state = runResolve([], ['light'], 'AA', 'wcag21', vocabCtx);
+    expect(state.ok).toBe(false);
+    if (!state.ok) expect(state.error).toMatch(/Primitives/i);
   });
 
   it('resolves every vocabulary token across every requested mode', () => {
     const scales = [makeScale('neutral', '#888888'), makeScale('blue', '#3366cc')];
-    const state = runResolve(scales, ['light', 'dark'], 'AA', 'wcag21', {});
+    const vocabCtx = makeVocabCtx(['neutral', 'blue']);
+    const state = runResolve(scales, ['light', 'dark'], 'AA', 'wcag21', vocabCtx);
     expect(state.ok).toBe(true);
     if (!state.ok) return;
     const modes = new Set(state.tokens.map((t) => t.mode));
@@ -61,29 +56,5 @@ describe('runResolve', () => {
     expect(lightPaths).toEqual(
       [...VOCABULARY_V1_SLICE.map((e) => e.path)].sort(),
     );
-  });
-
-  it('applies intent overrides so the resolved receipt reflects them', () => {
-    const scales = [makeScale('neutral', '#888888'), makeScale('blue', '#3366cc')];
-    const base = runResolve(scales, ['light'], 'AA', 'wcag21', {});
-    // Override forces independent + highest-contrast so the token leaves its
-    // matched-across-ramps cohort entirely. Sharing only `preference` would
-    // land it in another grouped cohort whose variance scan can converge on
-    // the same step the default cohort picks.
-    const overridden = runResolve(scales, ['light'], 'AA', 'wcag21', {
-      'color.action.primary.background': {
-        preference: 'highest-contrast',
-        consistency: 'independent',
-      },
-    });
-    expect(base.ok && overridden.ok).toBe(true);
-    if (!base.ok || !overridden.ok) return;
-    const baseBtn = base.tokens.find((t) => t.path === 'color.action.primary.background');
-    const overBtn = overridden.tokens.find((t) => t.path === 'color.action.primary.background');
-    expect(baseBtn!.intent.preference).toBe('lowest-passing');
-    expect(overBtn!.intent.preference).toBe('highest-contrast');
-    expect(overBtn!.intent.consistency).toBe('independent');
-    expect(overBtn!.source.position).toBeGreaterThan(baseBtn!.source.position);
-    expect(overBtn!.contrast?.wcag21 ?? 0).toBeGreaterThan(baseBtn!.contrast?.wcag21 ?? 0);
   });
 });

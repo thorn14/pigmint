@@ -21,6 +21,9 @@ export async function audit(options: AuditOptions): Promise<AuditRunResult> {
   const configPath = resolve(cwd, options.configPath);
   const config = await loadProjectConfig(configPath);
 
+  if (!config.output.dtcg) {
+    throw new Error('audit requires output.dtcg to be set in pigmint.yaml');
+  }
   const dtcgPath = resolve(dirname(configPath), config.output.dtcg);
   const dtcgRaw = await readFile(dtcgPath, 'utf8');
   const container = JSON.parse(dtcgRaw) as DtcgContainer;

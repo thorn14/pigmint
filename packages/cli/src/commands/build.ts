@@ -1,11 +1,16 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import {
-  buildDefaultTokenRamp,
   emitDtcg,
+  emitPrimitives,
   resolveAll,
-  VOCABULARY_V1_SLICE,
   type ModeBinding,
+  type VocabularyEntry,
+  buildPortableArtifacts,
+  validatePortableVocabulary,
+  PortableVocabularyError,
+  type PortableVocabularyArtifacts,
 } from '@pigmint/core';
 import type { AuditReport, Suggestion } from '@pigmint/audit';
 import { loadProjectConfig } from '../config.js';
@@ -24,7 +29,8 @@ export interface AdapterEmission {
 }
 
 export interface BuildResult {
-  outputPath: string;
+  primitivesPath?: string;
+  outputPath?: string;
   rampCount: number;
   modeCount: number;
   tokenCount: number;
@@ -61,23 +67,80 @@ function buildModeBindings(modes: string[]): ModeBinding[] {
   }));
 }
 
-
 export async function build(options: BuildOptions): Promise<BuildResult> {
   const cwd = options.cwd ?? process.cwd();
   const configPath = resolve(cwd, options.configPath);
   const config = await loadProjectConfig(configPath);
 
-  const ramps = generateAllRamps(config);
-  const scales = generateAllScales(config);
+  const ramps = await generateAllRamps(config);
+  const scales = await generateAllScales(config);
   const defaultMode = config.engine.modes[0] ?? 'light';
   const modes = buildModeBindings(config.engine.modes);
-  const vocabulary = VOCABULARY_V1_SLICE;
   const rampNames = ramps.map((r) => r.scaleName);
   if (rampNames.length === 0) {
     throw new Error('project config must declare at least one ramp');
   }
-  const tokenRamp = buildDefaultTokenRamp(vocabulary, rampNames);
 
+  const hasDtcg = Boolean(config.output.dtcg);
+  const hasPrimitives = Boolean(config.output.primitives);
+
+  let vocabulary: VocabularyEntry[] | null = null;
+  let portableArtifacts: PortableVocabularyArtifacts | undefined;
+
+  if (config.defaults?.vocabulary) {
+    const vocabPath = resolve(dirname(configPath), config.defaults.vocabulary);
+    let text: string;
+    try {
+      text = await readFile(vocabPath, 'utf8');
+    } catch (err) {
+      throw new Error(`could not read vocabulary file "${vocabPath}": ${(err as Error).message}`);
+    }
+    let parsed: unknown;
+    try {
+      parsed = parseYaml(text);
+    } catch (err) {
+      throw new PortableVocabularyError(
+        `YAML parse failed: ${(err as Error).message}`,
+        vocabPath,
+      );
+    }
+    const vocab = validatePortableVocabulary(parsed, vocabPath);
+    portableArtifacts = buildPortableArtifacts(vocab, config.engine);
+    vocabulary = portableArtifacts.vocabulary;
+  } else if (hasDtcg) {
+    throw new Error(
+      'defaults.vocabulary is required when output.dtcg is set.\n' +
+      'Add the following to your pigmint.yaml:\n\n' +
+      '  defaults:\n    vocabulary: ./tokens.yaml\n\n' +
+      'Or remove output.dtcg to emit primitives only.',
+    );
+  }
+
+  // Emit primitives file if configured
+  let primitivesPath: string | undefined;
+  if (hasPrimitives) {
+    const primitivesContainer = emitPrimitives({
+      defaultMode,
+      ramps,
+      ...(config.engine.cvd && config.engine.cvd.length > 0 ? { cvd: config.engine.cvd } : {}),
+    });
+    primitivesPath = resolve(dirname(configPath), config.output.primitives!);
+    await mkdir(dirname(primitivesPath), { recursive: true });
+    await writeFile(primitivesPath, JSON.stringify(primitivesContainer, null, 2) + '\n', 'utf8');
+  }
+
+  // Skip token resolution if no vocabulary
+  if (!hasDtcg || !vocabulary) {
+    return {
+      ...(primitivesPath ? { primitivesPath } : {}),
+      rampCount: ramps.length,
+      modeCount: config.engine.modes.length,
+      tokenCount: 0,
+      adapters: [],
+    };
+  }
+
+  const tokenRamp = portableArtifacts!.tokenRamp;
   const { tokens, ramps: dtcgRamps } = resolveAll({
     config,
     vocabulary,
@@ -85,6 +148,9 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     modes,
     tokenRamp,
     scales,
+    ...(portableArtifacts
+      ? { surfacePaths: portableArtifacts.surfacePaths, surfaceSteps: portableArtifacts.surfaceSteps }
+      : {}),
   });
 
   const container = emitDtcg({
@@ -93,12 +159,11 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     ramps: dtcgRamps,
     resolvedTokens: tokens,
     vocabulary,
-    ...(config.engine.cvd && config.engine.cvd.length > 0
-      ? { cvd: config.engine.cvd }
-      : {}),
+    includePrimitives: !hasPrimitives,
+    ...(config.engine.cvd && config.engine.cvd.length > 0 ? { cvd: config.engine.cvd } : {}),
   });
 
-  const outputPath = resolve(dirname(configPath), config.output.dtcg);
+  const outputPath = resolve(dirname(configPath), config.output.dtcg!);
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, JSON.stringify(container, null, 2) + '\n', 'utf8');
 
@@ -127,6 +192,7 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
   const priorAudit = await loadPriorAudit(configPath, config.audit?.report);
 
   return {
+    ...(primitivesPath ? { primitivesPath } : {}),
     outputPath,
     rampCount: ramps.length,
     modeCount: config.engine.modes.length,

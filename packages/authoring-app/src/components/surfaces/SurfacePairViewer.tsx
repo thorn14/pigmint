@@ -3,11 +3,11 @@ import type {
   ComplianceLevel,
   FormalIntent,
   GeneratedRamp,
-  IntentOverride as CoreIntentOverride,
   ResolvedToken,
 } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, type EngineMode } from '../../store/intentStore';
+import { useVocabStore } from '../../store/vocabStore';
 import { continuousStepLabel, runResolve } from '../../lib/resolveState';
 
 const MODE_LABELS: Record<EngineMode, string> = {
@@ -242,7 +242,22 @@ export function SurfacePairViewer() {
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver = useIntentStore((s) => s.engineResolver);
-  const overrides = useIntentStore((s) => s.overrides);
+  const vocabEntries = useVocabStore((s) => s.entries);
+  const vocabTokenRamp = useVocabStore((s) => s.raw
+    ? Object.fromEntries(
+        Object.entries({
+          ...s.raw.surfaces,
+          ...s.raw.foreground,
+          ...s.raw.nonText,
+          ...(s.raw.decorative ?? {}),
+        }).map(([name, entry]) => [name, (entry as { ramp: string }).ramp])
+      )
+    : {});
+  const surfacePaths = useVocabStore((s) => s.surfacePaths);
+  const surfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const vocabCtx = vocabEntries
+    ? { vocabulary: vocabEntries, tokenRamp: vocabTokenRamp, surfacePaths: surfacePaths ?? undefined, surfaceSteps: surfaceSteps ?? undefined }
+    : null;
 
   const state = useMemo(
     () =>
@@ -251,10 +266,11 @@ export function SurfacePairViewer() {
         engineModes,
         engineTarget,
         engineCompliance,
-        overrides as Record<string, CoreIntentOverride>,
+        vocabCtx,
         engineResolver,
       ),
-    [scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries],
   );
 
   const rampsByName = useMemo(() => {

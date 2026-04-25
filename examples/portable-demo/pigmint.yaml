@@ -3,16 +3,16 @@ engine:
   target: AA
   modes:
     - light
+    - dark
 
 defaults:
   vocabulary: ./tokens.yaml
 
 ramps:
-  - name: blue
-    source: "#3366cc"
-  - name: neutral
-    source: "#888888"
+  - name: stone
+    source: "#78716c"
+  - name: rose
+    source: "#e11d48"
 
 output:
-  primitives: ./primitives.json
   dtcg: ./tokens.json

@@ -5,8 +5,8 @@ import { RightPanel } from './components/layout/RightPanel';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { PalettePreview } from './components/preview/PalettePreview';
 import { AccessibleCombos } from './components/accessibility/AccessibleCombos';
-import { IntentEditor } from './components/intents/IntentEditor';
-import { SurfacePairViewer } from './components/surfaces/SurfacePairViewer';
+import { TokensPanel } from './components/tokens/TokensPanel';
+
 import { AuditIntegrator } from './components/audit/AuditIntegrator';
 import { ExportModal } from './components/export/ExportModal';
 import { ImportModal } from './components/export/ImportModal';
@@ -16,13 +16,14 @@ import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useIntentStore } from './store/intentStore';
+import { initVocabStore } from './store/vocabStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces' | 'audit';
+type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens' | 'audit';
 type AppTheme = 'dark' | 'light';
 
-const APP_MODES = new Set<AppMode>(['edit', 'preview', 'combos', 'intents', 'surfaces', 'audit']);
+const APP_MODES = new Set<AppMode>(['primitives', 'preview', 'combos', 'tokens', 'audit']);
 
 function readModeFromSearch(search: string): AppMode | null {
   const raw = new URLSearchParams(search).get('mode');
@@ -85,7 +86,7 @@ export default function App() {
   const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [mode, setMode] = useState<AppMode>(() =>
-    typeof window !== 'undefined' ? readModeFromSearch(window.location.search) ?? 'edit' : 'edit',
+    typeof window !== 'undefined' ? readModeFromSearch(window.location.search) ?? 'primitives' : 'primitives',
   );
   const [theme, setTheme] = useState<AppTheme>(() =>
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
@@ -136,6 +137,11 @@ export default function App() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
+
+  useEffect(() => {
+    const is = useIntentStore.getState();
+    initVocabStore({ compliance: is.engineCompliance, target: is.engineTarget, modes: is.engineModes });
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -235,21 +241,20 @@ export default function App() {
         >
           Pigmint color authoring
         </h1>
-        {mode === 'edit' && scales.length > 0 && <Sidebar />}
+        {mode === 'primitives' && scales.length > 0 && <Sidebar />}
 
-        {mode === 'edit' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
+        {mode === 'primitives' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
         {mode === 'preview' && (
           <PalettePreview
             onEditScale={(scaleId) => {
               usePaletteStore.getState().setActiveScale(scaleId);
-              setMode('edit');
+              setMode('primitives');
             }}
           />
         )}
         {mode === 'combos' && <AccessibleCombos />}
-        {mode === 'intents' && <IntentEditor />}
-        {mode === 'surfaces' && <SurfacePairViewer />}
-        {mode === 'audit' && <AuditIntegrator />}
+        {mode === 'tokens' && <TokensPanel />}
+{mode === 'audit' && <AuditIntegrator />}
       </main>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}

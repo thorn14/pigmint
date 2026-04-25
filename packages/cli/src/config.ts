@@ -118,12 +118,49 @@ export function validateProjectConfig(raw: unknown, path: string): ProjectConfig
   for (const r of ramps) {
     if (!isPlainObject(r)) throw new ConfigError('ramp entry must be a mapping', path);
     requireKey(r, 'name', path);
-    requireKey(r, 'source', path);
+    const hasSource = 'source' in r && r.source !== undefined;
+    const hasFromFile = 'fromFile' in r && r.fromFile !== undefined;
+    if (!hasSource && !hasFromFile) {
+      throw new ConfigError(
+        `ramp "${String(r.name)}" must have either "source" (hex) or "fromFile" (path to primitives.json)`,
+        path,
+      );
+    }
+    if (hasSource && hasFromFile) {
+      throw new ConfigError(
+        `ramp "${String(r.name)}" cannot have both "source" and "fromFile"`,
+        path,
+      );
+    }
   }
 
   const output = raw.output;
   if (!isPlainObject(output)) throw new ConfigError('output must be a mapping', path);
-  requireKey(output, 'dtcg', path);
+  const hasDtcg = 'dtcg' in output && output.dtcg !== undefined;
+  const hasPrimitives = 'primitives' in output && output.primitives !== undefined;
+  if (!hasDtcg && !hasPrimitives) {
+    throw new ConfigError(
+      'output must declare at least one of "dtcg" or "primitives"',
+      path,
+    );
+  }
+  if (hasDtcg && (typeof output.dtcg !== 'string' || (output.dtcg as string).trim() === '')) {
+    throw new ConfigError('output.dtcg must be a non-empty string path', path);
+  }
+  if (hasPrimitives && (typeof output.primitives !== 'string' || (output.primitives as string).trim() === '')) {
+    throw new ConfigError('output.primitives must be a non-empty string path', path);
+  }
+
+  if ('defaults' in raw && raw.defaults !== undefined) {
+    if (!isPlainObject(raw.defaults)) {
+      throw new ConfigError('defaults must be a mapping', path);
+    }
+    if ('vocabulary' in raw.defaults && raw.defaults.vocabulary !== undefined) {
+      if (typeof raw.defaults.vocabulary !== 'string' || raw.defaults.vocabulary.trim() === '') {
+        throw new ConfigError('defaults.vocabulary must be a non-empty string path', path);
+      }
+    }
+  }
 
   if ('intents' in raw && raw.intents !== undefined) {
     if (!isPlainObject(raw.intents)) {

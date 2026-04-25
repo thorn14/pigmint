@@ -48,11 +48,10 @@ function walk(
 
 export function collectSemanticTokens(container: DtcgContainer): AuditToken[] {
   const out: AuditToken[] = [];
-  const color = container.color as Record<string, unknown>;
-  for (const [key, child] of Object.entries(color)) {
-    if (key === 'primitive') continue;
+  for (const [key, child] of Object.entries(container)) {
+    if (key.startsWith('$') || key === 'primitive') continue;
     if (child && typeof child === 'object' && !Array.isArray(child)) {
-      walk(child as Record<string, unknown>, `color.${key}`, out);
+      walk(child as Record<string, unknown>, key, out);
     }
   }
   return out;

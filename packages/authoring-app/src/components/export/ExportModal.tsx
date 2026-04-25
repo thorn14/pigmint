@@ -2,13 +2,13 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Tabs } from '@base-ui/react/tabs';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { IntentOverride as CoreIntentOverride } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
 import { exportWcagContrastMapJSON, exportApcaContrastMapJSON } from '../../lib/exportContrastMap';
 import { buildPigmintTokensJson } from '../../lib/resolveState';
+import { useVocabStore } from '../../store/vocabStore';
 import { AppDialog } from '../base-ui/app-dialog';
 
 interface Props {
@@ -94,7 +94,21 @@ export function ExportModal({ onClose }: Props) {
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver = useIntentStore((s) => s.engineResolver);
-  const overrides = useIntentStore((s) => s.overrides);
+  const vocabEntries = useVocabStore((s) => s.entries);
+  const vocabRaw = useVocabStore((s) => s.raw);
+  const surfacePaths = useVocabStore((s) => s.surfacePaths);
+  const surfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const vocabCtx = vocabEntries && vocabRaw
+    ? {
+        vocabulary: vocabEntries,
+        tokenRamp: Object.fromEntries(
+          Object.entries({ ...vocabRaw.surfaces, ...vocabRaw.foreground, ...vocabRaw.nonText, ...(vocabRaw.decorative ?? {}) })
+            .map(([n, e]) => [n, (e as { ramp: string }).ramp])
+        ),
+        surfacePaths: surfacePaths ?? undefined,
+        surfaceSteps: surfaceSteps ?? undefined,
+      }
+    : null;
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
   const tabIds: Tab[] = ['pigmint-tokens', 'colors', 'contrast-wcag', 'contrast-apca'];
@@ -109,7 +123,7 @@ export function ExportModal({ onClose }: Props) {
     apca?: string;
   }>({ key: null });
 
-  const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${engineCompliance}|${JSON.stringify(engineResolver)}|${JSON.stringify(overrides)}`;
+  const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${engineCompliance}|${JSON.stringify(engineResolver)}|${vocabEntries?.length ?? 0}`;
   if (exportCacheRef.current.key !== cacheKey) {
     exportCacheRef.current = { key: cacheKey };
   }
@@ -127,7 +141,7 @@ export function ExportModal({ onClose }: Props) {
             engineModes,
             engineTarget,
             engineCompliance,
-            overrides as Record<string, CoreIntentOverride>,
+            vocabCtx,
             engineResolver,
           );
           cache.pigmintTokens = result.ok
@@ -147,7 +161,7 @@ export function ExportModal({ onClose }: Props) {
       if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
       return cache.apca;
     },
-    [cacheKey, scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides, ramps],
+    [cacheKey, scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabCtx, ramps],
   );
 
   const json = getJson(activeTab);

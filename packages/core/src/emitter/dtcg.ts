@@ -21,9 +21,8 @@ export interface DtcgContainer {
       engine: { version: string; cvd?: CvdProfile[] };
     };
   };
-  color: {
-    primitive: Record<string, PrimitiveRamp>;
-  } & Record<string, unknown>;
+  primitive: Record<string, PrimitiveRamp>;
+  [key: string]: unknown;
 }
 
 export interface PrimitiveRamp {
@@ -67,6 +66,16 @@ export interface EmitInput {
   ramps: GeneratedRamp[];
   resolvedTokens: ResolvedToken[];
   vocabulary?: VocabularyEntry[];
+  cvd?: CvdProfile[];
+  /** When false, omit the primitive section (use when primitives are emitted separately). Default: true. */
+  includePrimitives?: boolean;
+}
+
+export interface EmitPrimitivesInput {
+  engineVersion?: string;
+  defaultMode: string;
+  generatedAt?: string;
+  ramps: GeneratedRamp[];
   cvd?: CvdProfile[];
 }
 
@@ -143,19 +152,17 @@ function modeEntryFromResolved(
   return entry;
 }
 
-export function emitDtcg(input: EmitInput): DtcgContainer {
-  const {
-    specVersion = '0.1.0',
-    engineVersion = '0.0.0',
-    vocabularyVersion = 'vocabulary@0.1',
-    surfacePairsVersion,
-    defaultMode,
-    generatedAt = new Date().toISOString(),
-    ramps,
-    resolvedTokens,
-  } = input;
-
-  const container: DtcgContainer = {
+function makeContainerBase(
+  defaultMode: string,
+  engineVersion: string,
+  specVersion: string,
+  vocabularyVersion: string,
+  surfacePairsVersion: string | undefined,
+  generatedAt: string,
+  cvd: CvdProfile[] | undefined,
+  primitives: Record<string, PrimitiveRamp>,
+): DtcgContainer {
+  return {
     $schema: 'https://design-tokens.github.io/community-group/format/',
     $description: 'Pigmint-generated tokens.',
     $extensions: {
@@ -167,14 +174,57 @@ export function emitDtcg(input: EmitInput): DtcgContainer {
         defaultMode,
         engine: {
           version: engineVersion,
-          ...(input.cvd && input.cvd.length > 0 ? { cvd: [...input.cvd] } : {}),
+          ...(cvd && cvd.length > 0 ? { cvd: [...cvd] } : {}),
         },
       },
     },
-    color: {
-      primitive: buildPrimitives(ramps),
-    },
+    primitive: primitives,
   };
+}
+
+export function emitPrimitives(input: EmitPrimitivesInput): DtcgContainer {
+  const {
+    engineVersion = '0.0.0',
+    defaultMode,
+    generatedAt = new Date().toISOString(),
+    ramps,
+    cvd,
+  } = input;
+  return makeContainerBase(
+    defaultMode,
+    engineVersion,
+    '0.1.0',
+    'vocabulary@0.1',
+    undefined,
+    generatedAt,
+    cvd,
+    buildPrimitives(ramps),
+  );
+}
+
+export function emitDtcg(input: EmitInput): DtcgContainer {
+  const {
+    specVersion = '0.1.0',
+    engineVersion = '0.0.0',
+    vocabularyVersion = 'vocabulary@0.1',
+    surfacePairsVersion,
+    defaultMode,
+    generatedAt = new Date().toISOString(),
+    ramps,
+    resolvedTokens,
+    includePrimitives = true,
+  } = input;
+
+  const container = makeContainerBase(
+    defaultMode,
+    engineVersion,
+    specVersion,
+    vocabularyVersion,
+    surfacePairsVersion,
+    generatedAt,
+    input.cvd,
+    includePrimitives ? buildPrimitives(ramps) : {},
+  );
 
   const rampByName = new Map(ramps.map((r) => [r.scaleName, r]));
   const vocabByPath = new Map<string, VocabularyEntry>();
@@ -199,7 +249,7 @@ export function emitDtcg(input: EmitInput): DtcgContainer {
       const value = buildResolvedValue(step);
       modes[r.mode] = modeEntryFromResolved(r, value);
       if (r.mode === defaultMode) {
-        defaultAlias = `{color.primitive.${r.source.ramp}.${stepName}}`;
+        defaultAlias = `{primitive.${r.source.ramp}.${stepName}}`;
       }
     }
 
@@ -208,7 +258,7 @@ export function emitDtcg(input: EmitInput): DtcgContainer {
 
     if (defaultAlias === null) {
       const stepName = firstResolution.source.nearestPrimitive?.split('.').pop() ?? '';
-      defaultAlias = `{color.primitive.${firstResolution.source.ramp}.${stepName}}`;
+      defaultAlias = `{primitive.${firstResolution.source.ramp}.${stepName}}`;
     }
 
     const entry = vocabByPath.get(path);
@@ -229,9 +279,10 @@ export function emitDtcg(input: EmitInput): DtcgContainer {
       },
     };
 
+    // Strip leading 'color.' from V1 vocabulary paths; portable vocab paths have no prefix.
     const segments = path.split('.');
     if (segments[0] === 'color') segments.shift();
-    setAtPath(container.color as unknown as Record<string, unknown>, segments, token);
+    setAtPath(container as unknown as Record<string, unknown>, segments, token);
   }
 
   return container;
