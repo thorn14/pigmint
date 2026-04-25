@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useId, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -6,6 +6,7 @@ import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, 
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { LockIcon } from '../icons/LockIcon';
 import { canonicalScaleName } from '../../lib/scaleNaming';
+import { AppField, AppSlider } from '../base-ui';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -19,14 +20,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', marginBottom: 8 }}>
       {children}
     </div>
-  );
-}
-
-function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
-  return (
-    <label htmlFor={htmlFor} style={{ fontSize: 12, color: 'var(--p-text-secondary)', marginBottom: 4, display: 'block' }}>
-      {children}
-    </label>
   );
 }
 
@@ -147,31 +140,32 @@ export function RightPanel({ scale, activeStep }: Props) {
       <div style={sectionStyle}>
         <SectionLabel>Scale</SectionLabel>
 
-        <FieldLabel htmlFor={nameId}>Name</FieldLabel>
-        <input
-          id={nameId}
-          name="scale-name"
-          type="text"
-          value={scale.name}
-          onChange={(e) => updateScaleName(scale.id, e.target.value)}
-          style={{
-            ...inputStyle,
-            ...(nameConflict ? { borderColor: 'var(--p-warning)' } : {}),
-          }}
-          className="focus-visible-ring"
-          autoComplete="off"
-          aria-invalid={nameConflict || undefined}
-          aria-describedby={nameConflict ? `${nameId}-warning` : undefined}
-        />
-        {nameConflict && (
-          <div
-            id={`${nameId}-warning`}
-            role="status"
-            style={{ fontSize: 11, color: 'var(--p-warning)', marginTop: 4, lineHeight: 1.4 }}
-          >
-            Another scale in this palette has the same name. Export will suffix this one (e.g. “{nameKey} 2”) to keep both.
-          </div>
-        )}
+        <AppField label="Name" htmlFor={nameId} invalid={nameConflict}>
+          <input
+            id={nameId}
+            name="scale-name"
+            type="text"
+            value={scale.name}
+            onChange={(e) => updateScaleName(scale.id, e.target.value)}
+            style={{
+              ...inputStyle,
+              ...(nameConflict ? { borderColor: 'var(--p-warning)' } : {}),
+            }}
+            className="focus-visible-ring"
+            autoComplete="off"
+            aria-invalid={nameConflict || undefined}
+            aria-describedby={nameConflict ? `${nameId}-warning` : undefined}
+          />
+          {nameConflict && (
+            <div
+              id={`${nameId}-warning`}
+              role="status"
+              style={{ fontSize: 11, color: 'var(--p-warning)', marginTop: 4, lineHeight: 1.4 }}
+            >
+              Another scale in this palette has the same name. Export will suffix this one (e.g. “{nameKey} 2”) to keep both.
+            </div>
+          )}
+        </AppField>
 
         <button
           type="button"
@@ -196,184 +190,165 @@ export function RightPanel({ scale, activeStep }: Props) {
         </button>
 
         <div style={{ marginTop: 12 }}>
-          <FieldLabel htmlFor={sourceHexId}>Source color</FieldLabel>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <input
-              type="color"
-              value={sourceWithChromaToHex(scale.sourceOklch.l, scale.chromaPeak, scale.sourceOklch.h)}
-              onChange={(e) => updateSourceHex(scale.id, e.target.value)}
-              aria-label="Source color picker"
-              style={{
-                width: 32,
-                height: 32,
-                padding: 0,
-                border: '1px solid var(--p-border)',
-                borderRadius: 4,
-                cursor: 'pointer',
-                background: 'none',
-              }}
-            />
-            <input
-              id={sourceHexId}
-              name="source-hex"
-              type="text"
-              value={hexDraft}
-              onFocus={() => { hexFocused.current = true; }}
-              onChange={(e) => setHexDraft(e.target.value)}
-              onBlur={commitHex}
-              onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
-              style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
-              className="focus-visible-ring"
-            />
-          </div>
-          <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
-            <div>L {scale.sourceOklch.l.toFixed(4)}</div>
-            <div>C {scale.sourceOklch.c.toFixed(4)}</div>
-            <div>H {scale.sourceOklch.h.toFixed(2)}°</div>
-          </div>
+          <AppField label="Source color" htmlFor={sourceHexId}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <input
+                type="color"
+                className="p-color-input focus-visible-ring"
+                value={sourceWithChromaToHex(scale.sourceOklch.l, scale.chromaPeak, scale.sourceOklch.h)}
+                onChange={(e) => updateSourceHex(scale.id, e.target.value)}
+                aria-label="Source color picker"
+                style={{
+                  width: 32,
+                  height: 32,
+                  padding: 0,
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  background: 'none',
+                }}
+              />
+              <input
+                id={sourceHexId}
+                name="source-hex"
+                type="text"
+                value={hexDraft}
+                onFocus={() => { hexFocused.current = true; }}
+                onChange={(e) => setHexDraft(e.target.value)}
+                onBlur={commitHex}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
+                style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
+                className="focus-visible-ring"
+              />
+            </div>
+            <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
+              <div>L {scale.sourceOklch.l.toFixed(4)}</div>
+              <div>C {scale.sourceOklch.c.toFixed(4)}</div>
+              <div>H {scale.sourceOklch.h.toFixed(2)}°</div>
+            </div>
+          </AppField>
         </div>
       </div>
 
       {/* Chroma */}
       <div style={sectionStyle}>
         <SectionLabel>Chroma</SectionLabel>
-        <FieldLabel htmlFor={chromaLowRangeId}>Low-end chroma (light)</FieldLabel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            id={chromaLowRangeId}
-            type="range"
-            min={0}
-            max={0.4}
-            step={0.001}
-            value={chromaLowVal}
-            onPointerDown={() => beginCurveEdit(scale.id)}
-            onChange={(e) => updateChromaLow(scale.id, parseFloat(e.target.value))}
-            onPointerUp={() => commitCurveEdit()}
-            className="p-range focus-visible-ring"
-            style={
-              {
-                flex: 1,
-                accentColor: 'var(--p-accent)',
-                ['--p-range-thumb' as string]: 'var(--p-accent)',
-              } as CSSProperties
-            }
-            aria-label="Low-end chroma"
-          />
-          <input
-            name="low-chroma"
-            type="number"
-            min={0}
-            max={0.4}
-            step={0.001}
-            value={chromaLowDraft}
-            onFocus={() => { chromaLowFocused.current = true; }}
-            onChange={(e) => setChromaLowDraft(e.target.value)}
-            onBlur={commitChromaLow}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitChromaLow(); }}
-            style={{
-              ...inputStyle,
-              width: 64,
-              textAlign: 'right',
-              fontFamily: 'monospace',
-              fontSize: 12,
-              padding: '4px 6px',
-            }}
-            className="focus-visible-ring"
-            aria-label="Low-end chroma numeric value"
-          />
-        </div>
+        <AppField label="Low-end chroma (light)" htmlFor={chromaLowRangeId}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AppSlider
+              id={chromaLowRangeId}
+              value={chromaLowVal}
+              min={0}
+              max={0.4}
+              step={0.001}
+              thumbColor="var(--p-accent)"
+              onValueChange={(v) => updateChromaLow(scale.id, v)}
+              onPointerDown={() => beginCurveEdit(scale.id)}
+              onValueCommitted={() => commitCurveEdit()}
+              aria-label="Low-end chroma"
+            />
+            <input
+              name="low-chroma"
+              type="number"
+              min={0}
+              max={0.4}
+              step={0.001}
+              value={chromaLowDraft}
+              onFocus={() => { chromaLowFocused.current = true; }}
+              onChange={(e) => setChromaLowDraft(e.target.value)}
+              onBlur={commitChromaLow}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitChromaLow(); }}
+              style={{
+                ...inputStyle,
+                width: 64,
+                textAlign: 'right',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                padding: '4px 6px',
+              }}
+              className="focus-visible-ring"
+              aria-label="Low-end chroma numeric value"
+            />
+          </div>
+        </AppField>
 
-        <FieldLabel htmlFor={chromaRangeId}>Mid chroma (0 – 0.4)</FieldLabel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            id={chromaRangeId}
-            type="range"
-            min={0}
-            max={0.4}
-            step={0.001}
-            value={scale.chromaPeak}
-            onPointerDown={() => beginCurveEdit(scale.id)}
-            onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
-            onPointerUp={() => commitCurveEdit()}
-            className="p-range focus-visible-ring"
-            style={
-              {
-                flex: 1,
-                accentColor: 'var(--p-accent)',
-                ['--p-range-thumb' as string]: 'var(--p-accent)',
-              } as CSSProperties
-            }
-            aria-label="Mid chroma"
-          />
-          <input
-            name="mid-chroma"
-            type="number"
-            min={0}
-            max={0.4}
-            step={0.001}
-            value={chromaDraft}
-            onFocus={() => { chromaFocused.current = true; }}
-            onChange={(e) => setChromaDraft(e.target.value)}
-            onBlur={commitChroma}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitChroma(); }}
-            style={{
-              ...inputStyle,
-              width: 64,
-              textAlign: 'right',
-              fontFamily: 'monospace',
-              fontSize: 12,
-              padding: '4px 6px',
-            }}
-            className="focus-visible-ring"
-            aria-label="Mid chroma numeric value"
-          />
-        </div>
+        <AppField label="Mid chroma (0 – 0.4)" htmlFor={chromaRangeId}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AppSlider
+              id={chromaRangeId}
+              value={scale.chromaPeak}
+              min={0}
+              max={0.4}
+              step={0.001}
+              thumbColor="var(--p-accent)"
+              onValueChange={(v) => updateChromaPeak(scale.id, v)}
+              onPointerDown={() => beginCurveEdit(scale.id)}
+              onValueCommitted={() => commitCurveEdit()}
+              aria-label="Mid chroma"
+            />
+            <input
+              name="mid-chroma"
+              type="number"
+              min={0}
+              max={0.4}
+              step={0.001}
+              value={chromaDraft}
+              onFocus={() => { chromaFocused.current = true; }}
+              onChange={(e) => setChromaDraft(e.target.value)}
+              onBlur={commitChroma}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitChroma(); }}
+              style={{
+                ...inputStyle,
+                width: 64,
+                textAlign: 'right',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                padding: '4px 6px',
+              }}
+              className="focus-visible-ring"
+              aria-label="Mid chroma numeric value"
+            />
+          </div>
+        </AppField>
 
-        <FieldLabel htmlFor={chromaHighRangeId}>High-end chroma (dark)</FieldLabel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            id={chromaHighRangeId}
-            type="range"
-            min={0}
-            max={0.4}
-            step={0.001}
-            value={chromaHighVal}
-            onPointerDown={() => beginCurveEdit(scale.id)}
-            onChange={(e) => updateChromaHigh(scale.id, parseFloat(e.target.value))}
-            onPointerUp={() => commitCurveEdit()}
-            className="p-range focus-visible-ring"
-            style={
-              {
-                flex: 1,
-                accentColor: 'var(--p-accent)',
-                ['--p-range-thumb' as string]: 'var(--p-accent)',
-              } as CSSProperties
-            }
-            aria-label="High-end chroma"
-          />
-          <input
-            name="high-chroma"
-            type="number"
-            min={0}
-            max={0.4}
-            step={0.001}
-            value={chromaHighDraft}
-            onFocus={() => { chromaHighFocused.current = true; }}
-            onChange={(e) => setChromaHighDraft(e.target.value)}
-            onBlur={commitChromaHigh}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitChromaHigh(); }}
-            style={{
-              ...inputStyle,
-              width: 64,
-              textAlign: 'right',
-              fontFamily: 'monospace',
-              fontSize: 12,
-              padding: '4px 6px',
-            }}
-            className="focus-visible-ring"
-            aria-label="High-end chroma numeric value"
-          />
-        </div>
+        <AppField label="High-end chroma (dark)" htmlFor={chromaHighRangeId}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AppSlider
+              id={chromaHighRangeId}
+              value={chromaHighVal}
+              min={0}
+              max={0.4}
+              step={0.001}
+              thumbColor="var(--p-accent)"
+              onValueChange={(v) => updateChromaHigh(scale.id, v)}
+              onPointerDown={() => beginCurveEdit(scale.id)}
+              onValueCommitted={() => commitCurveEdit()}
+              aria-label="High-end chroma"
+            />
+            <input
+              name="high-chroma"
+              type="number"
+              min={0}
+              max={0.4}
+              step={0.001}
+              value={chromaHighDraft}
+              onFocus={() => { chromaHighFocused.current = true; }}
+              onChange={(e) => setChromaHighDraft(e.target.value)}
+              onBlur={commitChromaHigh}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitChromaHigh(); }}
+              style={{
+                ...inputStyle,
+                width: 64,
+                textAlign: 'right',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                padding: '4px 6px',
+              }}
+              className="focus-visible-ring"
+              aria-label="High-end chroma numeric value"
+            />
+          </div>
+        </AppField>
 
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <button
@@ -449,37 +424,32 @@ export function RightPanel({ scale, activeStep }: Props) {
           ]
         ).map(({ key, label, color }) => {
           const value = scale.curves[key].smoothing ?? 0;
+          const smoothId = `${idBase}-smooth-${key}`;
           return (
-            <label key={key} style={{ display: 'block', marginBottom: 10 }}>
+            <div key={key} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <label htmlFor={smoothId} style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0 }} />
                   {label}
-                </span>
+                </label>
                 <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
                   {(value * 100).toFixed(0)}%
                 </span>
               </div>
-              <input
-                type="range"
+              <AppSlider
+                id={smoothId}
+                value={value}
                 min={0}
                 max={1}
                 step={0.01}
-                value={value}
+                thumbColor={color}
+                onValueChange={(v) => updateCurveSmoothing(scale.id, key, v)}
                 onPointerDown={() => beginCurveEdit(scale.id)}
-                onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
-                onPointerUp={() => commitCurveEdit()}
-                className="p-range focus-visible-ring"
-                style={
-                  {
-                    width: '100%',
-                    accentColor: color,
-                    ['--p-range-thumb' as string]: color,
-                  } as CSSProperties
-                }
+                onValueCommitted={() => commitCurveEdit()}
+                style={{ width: '100%' }}
                 aria-label={`${label} smoothing`}
               />
-            </label>
+            </div>
           );
         })}
       </div>
@@ -502,15 +472,22 @@ export function RightPanel({ scale, activeStep }: Props) {
             const dist = Math.round(Math.abs(((stepHue - primary + 180) % 360) - 180));
             const autoBase = Math.round(autoHueShiftBase(stepHue));
             const effectiveDeg = Math.round(autoBase + adjust);
+            const endId = key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId;
             return (
-              <div key={key} style={{ marginBottom: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <label htmlFor={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId} style={{ fontSize: 11, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 4, width: 48, flexShrink: 0 }}>
+              <AppField
+                key={key}
+                style={{ marginBottom: 6 }}
+                label={(
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block', flexShrink: 0 }} />
                     {label}
-                  </label>
+                  </span>
+                )}
+                htmlFor={endId}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
-                    id={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId}
+                    id={endId}
                     name={key}
                     type="number"
                     min={-90}
@@ -535,10 +512,10 @@ export function RightPanel({ scale, activeStep }: Props) {
                     = {effectiveDeg}°
                   </span>
                 </div>
-                <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', marginTop: 2, paddingLeft: 58 }}>
+                <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', marginTop: 2 }}>
                   h {Math.round(stepHue)}° → {pName} ({primary}°) · {dist}° away · auto {autoBase}°
                 </div>
-              </div>
+              </AppField>
             );
           });
         })()}

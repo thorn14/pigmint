@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
 import { usePaletteStore } from '../../store/paletteStore';
+import { AppDialog } from '../base-ui/app-dialog';
 import { useIntentStore } from '../../store/intentStore';
 import { serializePigmintYaml } from '../../lib/pigmintYaml';
 import {
@@ -49,14 +51,6 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
     [scales, intents, engineTarget, engineCompliance, engineModes, engineCvd, engineResolver],
   );
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   function handleCopy() {
     navigator.clipboard.writeText(yaml).then(() => {
       setCopied(true);
@@ -91,24 +85,8 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: 16,
-        overscrollBehavior: 'contain',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <AppDialog onOpenChange={(open) => { if (!open) onClose(); }}>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="export-pigmint-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -118,6 +96,7 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '80vh',
+          minHeight: 0,
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
       >
@@ -130,11 +109,10 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 id="export-pigmint-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
+          <Dialog.Title id="export-pigmint-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
             Export pigmint.yaml
-          </h2>
-          <button
-            onClick={onClose}
+          </Dialog.Title>
+          <Dialog.Close
             aria-label="Close export modal"
             className="focus-visible-ring"
             style={{
@@ -153,7 +131,7 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
             }}
           >
             ×
-          </button>
+          </Dialog.Close>
         </div>
 
         <div
@@ -264,6 +242,6 @@ export function ExportPigmintYamlModal({ onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </AppDialog>
   );
 }

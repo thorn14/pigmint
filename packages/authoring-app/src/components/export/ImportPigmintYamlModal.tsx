@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
 import { usePaletteStore } from '../../store/paletteStore';
+import { AppCheckbox, AppDialog } from '../base-ui';
 import { useIntentStore } from '../../store/intentStore';
 import { parsePigmintYaml, type ParsedPigmintYaml } from '../../lib/pigmintYaml';
 
@@ -55,35 +57,11 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
     onClose();
   }
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   const intentCount = parsed ? Object.keys(parsed.intents).length : 0;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: 16,
-        overscrollBehavior: 'contain',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <AppDialog onOpenChange={(open) => { if (!open) onClose(); }}>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-pigmint-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -93,6 +71,7 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '80vh',
+          minHeight: 0,
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
       >
@@ -105,11 +84,10 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 id="import-pigmint-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
+          <Dialog.Title id="import-pigmint-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
             Import pigmint.yaml
-          </h2>
-          <button
-            onClick={onClose}
+          </Dialog.Title>
+          <Dialog.Close
             aria-label="Close import modal"
             className="focus-visible-ring"
             style={{
@@ -128,7 +106,7 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
             }}
           >
             ×
-          </button>
+          </Dialog.Close>
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -219,12 +197,7 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
 
               {hasExisting && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={replaceMode}
-                    onChange={(e) => setReplaceMode(e.target.checked)}
-                    style={{ accentColor: 'var(--p-accent)' }}
-                  />
+                  <AppCheckbox checked={replaceMode} onCheckedChange={(c) => setReplaceMode(c)} />
                   Replace existing ramps
                 </label>
               )}
@@ -276,6 +249,6 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </AppDialog>
   );
 }

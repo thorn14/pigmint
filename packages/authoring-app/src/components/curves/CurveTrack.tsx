@@ -1,4 +1,5 @@
 import { CurvePreview } from './CurvePreview';
+import { AppSlider } from '../base-ui';
 
 interface Props {
   label: string;
@@ -21,17 +22,17 @@ export function CurveTrack({ label, values, min, max, step = 0.001, previewColor
         {values.map((val, i) => (
           <div key={i} className="flex flex-col items-center gap-0.5 flex-1">
             <span className="text-[9px] text-neutral-500 tabular-nums">{val.toFixed(2)}</span>
-            <input
-              type="range"
+            <AppSlider
+              orientation="vertical"
+              value={val}
               min={min}
               max={max}
               step={step}
-              value={val}
-              onChange={(e) => onChange(i, parseFloat(e.target.value))}
-              className="w-full cursor-pointer"
-              style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '80px', width: '100%', accentColor: 'var(--p-accent)' }}
-              title={`Step ${i + 1}: ${val.toFixed(3)}`}
+              thumbColor="var(--p-accent)"
+              onValueChange={(v) => onChange(i, v)}
+              style={{ height: 80 }}
               aria-label={`${label} step ${i + 1}`}
+              getAriaValueText={(_f, v) => v.toFixed(3)}
             />
           </div>
         ))}

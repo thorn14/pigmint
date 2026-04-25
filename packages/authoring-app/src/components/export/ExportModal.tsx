@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
+import { Tabs } from '@base-ui/react/tabs';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { IntentOverride as CoreIntentOverride } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -7,6 +9,7 @@ import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
 import { exportWcagContrastMapJSON, exportApcaContrastMapJSON } from '../../lib/exportContrastMap';
 import { buildPigmintTokensJson } from '../../lib/resolveState';
+import { AppDialog } from '../base-ui/app-dialog';
 
 interface Props {
   onClose: () => void;
@@ -94,30 +97,9 @@ export function ExportModal({ onClose }: Props) {
   const overrides = useIntentStore((s) => s.overrides);
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
-  const tabs: Tab[] = ['pigmint-tokens', 'colors', 'contrast-wcag', 'contrast-apca'];
+  const tabIds: Tab[] = ['pigmint-tokens', 'colors', 'contrast-wcag', 'contrast-apca'];
   const [activeTab, setActiveTab] = useState<Tab>('pigmint-tokens');
   const [copied, setCopied] = useState(false);
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  const handleTabKeyDown = useCallback((event: React.KeyboardEvent) => {
-    const currentIndex = tabs.indexOf(activeTab);
-    let nextIndex = currentIndex;
-    if (event.key === 'ArrowRight') {
-      nextIndex = (currentIndex + 1) % tabs.length;
-    } else if (event.key === 'ArrowLeft') {
-      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    } else if (event.key === 'Home') {
-      nextIndex = 0;
-    } else if (event.key === 'End') {
-      nextIndex = tabs.length - 1;
-    } else {
-      return;
-    }
-    event.preventDefault();
-    setActiveTab(tabs[nextIndex]);
-    setCopied(false);
-    tabRefs.current[nextIndex]?.focus();
-  }, [activeTab]);
 
   const exportCacheRef = useRef<{
     key: string | null;
@@ -132,35 +114,43 @@ export function ExportModal({ onClose }: Props) {
     exportCacheRef.current = { key: cacheKey };
   }
 
-  const json = useMemo(() => {
-    const cache = exportCacheRef.current;
-    if (activeTab === 'pigmint-tokens') {
-      if (cache.pigmintTokens === undefined) {
-        const result = buildPigmintTokensJson(
-          scales,
-          engineModes,
-          engineTarget,
-          engineCompliance,
-          overrides as Record<string, CoreIntentOverride>,
-          engineResolver,
-        );
-        cache.pigmintTokens = result.ok
-          ? result.json
-          : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
+  const getJson = useCallback(
+    (t: Tab): string => {
+      if (exportCacheRef.current.key !== cacheKey) {
+        exportCacheRef.current = { key: cacheKey };
       }
-      return cache.pigmintTokens;
-    }
-    if (activeTab === 'colors') {
-      if (cache.colors === undefined) cache.colors = exportToJSON(ramps);
-      return cache.colors;
-    }
-    if (activeTab === 'contrast-wcag') {
-      if (cache.wcag === undefined) cache.wcag = exportWcagContrastMapJSON(ramps);
-      return cache.wcag;
-    }
-    if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
-    return cache.apca;
-  }, [ramps, scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides, activeTab]);
+      const cache = exportCacheRef.current;
+      if (t === 'pigmint-tokens') {
+        if (cache.pigmintTokens === undefined) {
+          const result = buildPigmintTokensJson(
+            scales,
+            engineModes,
+            engineTarget,
+            engineCompliance,
+            overrides as Record<string, CoreIntentOverride>,
+            engineResolver,
+          );
+          cache.pigmintTokens = result.ok
+            ? result.json
+            : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
+        }
+        return cache.pigmintTokens;
+      }
+      if (t === 'colors') {
+        if (cache.colors === undefined) cache.colors = exportToJSON(ramps);
+        return cache.colors;
+      }
+      if (t === 'contrast-wcag') {
+        if (cache.wcag === undefined) cache.wcag = exportWcagContrastMapJSON(ramps);
+        return cache.wcag;
+      }
+      if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
+      return cache.apca;
+    },
+    [cacheKey, scales, engineModes, engineTarget, engineCompliance, engineResolver, overrides, ramps],
+  );
+
+  const json = getJson(activeTab);
   const downloadName =
     activeTab === 'pigmint-tokens' ? 'tokens.json'
     : activeTab === 'colors' ? 'colors.json'
@@ -174,33 +164,13 @@ export function ExportModal({ onClose }: Props) {
     });
   }
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: 16,
-        overscrollBehavior: 'contain',
+    <AppDialog
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="export-modal-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -209,11 +179,12 @@ export function ExportModal({ onClose }: Props) {
           maxWidth: 680,
           display: 'flex',
           flexDirection: 'column',
+          flex: '1 1 auto',
           maxHeight: '80vh',
+          minHeight: 0,
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -223,12 +194,10 @@ export function ExportModal({ onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 id="export-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
+          <Dialog.Title id="export-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
             Export
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Close export modal"
+          </Dialog.Title>
+          <Dialog.Close
             className="focus-visible-ring"
             style={{
               width: 28,
@@ -244,58 +213,53 @@ export function ExportModal({ onClose }: Props) {
               color: 'var(--p-text-secondary)',
               lineHeight: 1,
             }}
+            aria-label="Close export modal"
           >
             ×
-          </button>
+          </Dialog.Close>
         </div>
 
-        {/* Tabs */}
-        <div
-          role="tablist"
-          aria-label="Export format"
-          onKeyDown={handleTabKeyDown}
-          style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--p-border)',
-            padding: '0 8px',
+        <Tabs.Root
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v as Tab);
+            setCopied(false);
           }}
+          style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}
         >
-          {tabs.map((tab, i) => {
-            const label =
-              tab === 'pigmint-tokens' ? 'Tokens (resolved)'
-              : tab === 'colors' ? 'Colors (primitives)'
-              : tab === 'contrast-wcag' ? 'Contrast — WCAG'
-              : 'Contrast — APCA';
-            return (
-              <button
-                key={tab}
-                ref={(node) => { tabRefs.current[i] = node; }}
-                role="tab"
-                id={`export-tab-${tab}`}
-                aria-selected={activeTab === tab}
-                aria-controls={`export-tabpanel-${tab}`}
-                tabIndex={activeTab === tab ? 0 : -1}
-                style={tabStyle(activeTab === tab)}
-                onClick={() => { setActiveTab(tab); setCopied(false); }}
-                className="focus-visible-ring"
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+          <Tabs.List
+            aria-label="Export format"
+            style={{
+              display: 'flex',
+              borderBottom: '1px solid var(--p-border)',
+              padding: '0 8px',
+            }}
+          >
+            {tabIds.map((tab) => {
+              const label =
+                tab === 'pigmint-tokens' ? 'Tokens (resolved)'
+                : tab === 'colors' ? 'Colors (primitives)'
+                : tab === 'contrast-wcag' ? 'Contrast — WCAG'
+                : 'Contrast — APCA';
+              return (
+                <Tabs.Tab
+                  key={tab}
+                  value={tab}
+                  className="focus-visible-ring"
+                  style={tabStyle(activeTab === tab)}
+                >
+                  {label}
+                </Tabs.Tab>
+              );
+            })}
+          </Tabs.List>
+          {tabIds.map((tab) => (
+            <Tabs.Panel key={tab} value={tab} style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+              {activeTab === tab ? <VirtualizedPre text={getJson(tab)} /> : null}
+            </Tabs.Panel>
+          ))}
+        </Tabs.Root>
 
-        {/* Virtualized JSON content */}
-        <div
-          role="tabpanel"
-          id={`export-tabpanel-${activeTab}`}
-          aria-labelledby={`export-tab-${activeTab}`}
-          style={{ display: 'flex', flex: 1, minHeight: 0 }}
-        >
-          <VirtualizedPre text={json} />
-        </div>
-
-        {/* Footer */}
         <div
           style={{
             display: 'flex',
@@ -306,6 +270,7 @@ export function ExportModal({ onClose }: Props) {
           }}
         >
           <button
+            type="button"
             onClick={handleCopy}
             className="focus-visible-ring"
             style={{
@@ -318,12 +283,13 @@ export function ExportModal({ onClose }: Props) {
               color: 'var(--p-text)',
             }}
           >
-            {copied ? 'Copied!' : 'Copy JSON'}
+            {copied ? 'Copied…' : 'Copy JSON'}
           </button>
           <span aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-            {copied ? 'Copied to clipboard' : ''}
+            {copied ? 'Copied to clipboard…' : ''}
           </span>
           <button
+            type="button"
             onClick={() => downloadJSON(json, downloadName)}
             className="focus-visible-ring"
             style={{
@@ -342,6 +308,7 @@ export function ExportModal({ onClose }: Props) {
           {(activeTab === 'pigmint-tokens' || activeTab === 'colors') && (
             <>
               <button
+                type="button"
                 onClick={() => downloadJSON(exportWcagContrastMapJSON(ramps), 'contrast-map-wcag.json')}
                 className="focus-visible-ring"
                 style={{
@@ -357,6 +324,7 @@ export function ExportModal({ onClose }: Props) {
                 + WCAG Map
               </button>
               <button
+                type="button"
                 onClick={() => downloadJSON(exportApcaContrastMapJSON(ramps), 'contrast-map-apca.json')}
                 className="focus-visible-ring"
                 style={{
@@ -374,6 +342,7 @@ export function ExportModal({ onClose }: Props) {
             </>
           )}
           <button
+            type="button"
             onClick={onClose}
             className="focus-visible-ring"
             style={{
@@ -390,6 +359,6 @@ export function ExportModal({ onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </AppDialog>
   );
 }

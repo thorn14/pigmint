@@ -1,7 +1,9 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
 import type { ColorScale } from '../../types/palette';
 import { resolveStepNames } from '../../constants/stepPresets';
 import { usePaletteStore } from '../../store/paletteStore';
+import { AppCheckbox, AppDialog } from '../base-ui';
 
 interface Props {
   scale: ColorScale;
@@ -54,14 +56,6 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
 
   const [applyToAllLightness, setApplyToAllLightness] = useState(true);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   function handleApply() {
     if (mode === 'names') {
       const parsed = parseNameList(value);
@@ -101,24 +95,8 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
     : `${scale.stepCount} values required (0–1 or 0–100), comma or space separated. Applies to all scales by default.`;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 60,
-        padding: 16,
-        overscrollBehavior: 'contain',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <AppDialog onOpenChange={(open) => { if (!open) onClose(); }}>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="step-list-modal-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -130,7 +108,6 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
           boxShadow: '0 10px 32px rgba(0,0,0,0.25)',
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -140,11 +117,10 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 id="step-list-modal-title" style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--p-text)' }}>
+          <Dialog.Title id="step-list-modal-title" style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--p-text)' }}>
             {title}
-          </h2>
-          <button
-            onClick={onClose}
+          </Dialog.Title>
+          <Dialog.Close
             aria-label={`Close ${title.toLowerCase()}`}
             className="focus-visible-ring"
             style={{
@@ -163,7 +139,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
             }}
           >
             ×
-          </button>
+          </Dialog.Close>
         </div>
 
         {/* Body */}
@@ -196,13 +172,8 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
           <p style={{ margin: 0, fontSize: 12, color: 'var(--p-danger)' }}>{error}</p>
         )}
         {mode === 'lightness' && (
-          <label style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
-            <input
-              type="checkbox"
-              checked={applyToAllLightness}
-              onChange={(e) => setApplyToAllLightness(e.target.checked)}
-              style={{ marginRight: 6 }}
-            />
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-tertiary)', cursor: 'pointer' }}>
+            <AppCheckbox checked={applyToAllLightness} onCheckedChange={(c) => setApplyToAllLightness(c)} />
             Apply to all scales
           </label>
         )}
@@ -254,6 +225,6 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
           </button>
         </div>
       </div>
-    </div>
+    </AppDialog>
   );
 }

@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@base-ui/react": "^1.4.1",
     "@pigmint/audit": "workspace:*",
     "@pigmint/core": "workspace:*",
     "@tailwindcss/vite": "^4.2.1",

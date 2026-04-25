@@ -1,6 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
 import { usePaletteStore } from '../../store/paletteStore';
 import { parseW3CTokens, type ImportedScale } from '../../lib/importTokens';
+import { AppCheckbox, AppDialog } from '../base-ui';
 
 interface Props {
   onClose: () => void;
@@ -50,33 +52,9 @@ export function ImportModal({ onClose }: Props) {
     onClose();
   }
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: 16,
-        overscrollBehavior: 'contain',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <AppDialog onOpenChange={(open) => { if (!open) onClose(); }}>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-modal-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -86,10 +64,10 @@ export function ImportModal({ onClose }: Props) {
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '80vh',
+          minHeight: 0,
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -99,11 +77,10 @@ export function ImportModal({ onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 id="import-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
+          <Dialog.Title id="import-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
             Import Color Tokens
-          </h2>
-          <button
-            onClick={onClose}
+          </Dialog.Title>
+          <Dialog.Close
             aria-label="Close import modal"
             className="focus-visible-ring"
             style={{
@@ -122,7 +99,7 @@ export function ImportModal({ onClose }: Props) {
             }}
           >
             ×
-          </button>
+          </Dialog.Close>
         </div>
 
         {/* Content */}
@@ -215,12 +192,7 @@ export function ImportModal({ onClose }: Props) {
 
               {hasExisting && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={replaceMode}
-                    onChange={(e) => setReplaceMode(e.target.checked)}
-                    style={{ accentColor: 'var(--p-accent)' }}
-                  />
+                  <AppCheckbox checked={replaceMode} onCheckedChange={(c) => setReplaceMode(c)} />
                   Replace existing scales
                 </label>
               )}
@@ -273,6 +245,6 @@ export function ImportModal({ onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </AppDialog>
   );
 }

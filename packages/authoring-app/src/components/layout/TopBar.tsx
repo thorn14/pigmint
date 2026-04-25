@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { Menu } from '@base-ui/react/menu';
 import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
+import { AppStringSelect, AppToolbarSegmented } from '../base-ui';
 
 function PaletteSelector() {
   const savedPalettes = usePaletteStore((s) => s.savedPalettes);
@@ -31,9 +33,10 @@ function PaletteSelector() {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, minWidth: 0 }}>
       <input
         aria-label="Palette name"
+        name="palette-name"
         value={nameValue}
         onChange={(e) => setNameValue(e.target.value)}
         onBlur={commitRename}
@@ -43,6 +46,9 @@ function PaletteSelector() {
         }}
         className="focus-visible-ring"
         style={{
+          width: 110,
+          minWidth: 0,
+          flexShrink: 1,
           padding: '3px 6px',
           fontSize: 12,
           fontWeight: 500,
@@ -51,31 +57,21 @@ function PaletteSelector() {
           borderRadius: 5,
           color: 'var(--p-text)',
           outline: 'none',
-          width: 110,
+          boxSizing: 'border-box',
         }}
       />
       {savedPalettes.length > 1 && (
-        <select
+        <AppStringSelect
           aria-label="Switch palette"
+          id="switch-palette"
+          name="switch-palette"
           value={activePaletteId ?? ''}
-          onChange={(e) => switchPalette(e.target.value)}
+          onValueChange={switchPalette}
+          size="compact"
           className="focus-visible-ring"
-          style={{
-            padding: '3px 4px',
-            fontSize: 11,
-            background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 5,
-            color: 'var(--p-text-secondary)',
-            cursor: 'pointer',
-            outline: 'none',
-            maxWidth: 90,
-          }}
-        >
-          {savedPalettes.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+          style={{ width: 120, flexShrink: 0 }}
+          options={savedPalettes.map((p) => ({ value: p.id, label: p.name }))}
+        />
       )}
       <button
         onClick={handleCreatePalette}
@@ -120,7 +116,7 @@ function PaletteSelector() {
             flexShrink: 0,
           }}
         >
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
             <path d="M2 3h8M5 3V2h2v1M4.5 3v6.5h3V3" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
@@ -162,18 +158,6 @@ const labelStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const compactSelectStyle: React.CSSProperties = {
-  padding: '3px 6px',
-  fontSize: 12,
-  background: 'var(--p-bg)',
-  border: '1px solid var(--p-border)',
-  borderRadius: 5,
-  color: 'var(--p-text)',
-  cursor: 'pointer',
-  outline: 'none',
-  minWidth: 110,
-};
-
 const linkBtnStyle: React.CSSProperties = {
   padding: 0,
   fontSize: 12,
@@ -186,92 +170,27 @@ const linkBtnStyle: React.CSSProperties = {
 };
 
 
+const saveMenuItemStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  fontSize: 12,
+  cursor: 'pointer',
+  outline: 'none',
+};
+
 export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
+  const saveSplitRef = useRef<HTMLDivElement>(null);
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const setEngineCompliance = useIntentStore((s) => s.setEngineCompliance);
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const contrastButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  const modeButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  const gamutButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  const menuButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
     saveStatus === 'saved' ? 'Saved' :
     saveStatus === 'error' ? 'Save failed' :
     'Save';
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (menuOpen) {
-      menuButtonRefs.current[0]?.focus();
-    }
-  }, [menuOpen]);
-
-  function handleRadioGroupKeyDown<T>(
-    event: React.KeyboardEvent,
-    values: readonly T[],
-    current: T,
-    onChange: (value: T) => void,
-    refs: React.MutableRefObject<Array<HTMLButtonElement | null>>,
-  ) {
-    const currentIndex = values.indexOf(current);
-    if (currentIndex === -1) return;
-
-    let nextIndex = currentIndex;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (currentIndex + 1) % values.length;
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (currentIndex - 1 + values.length) % values.length;
-    } else if (event.key === 'Home') {
-      nextIndex = 0;
-    } else if (event.key === 'End') {
-      nextIndex = values.length - 1;
-    } else {
-      return;
-    }
-
-    event.preventDefault();
-    onChange(values[nextIndex]);
-    refs.current[nextIndex]?.focus();
-  }
-
-  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    const items = menuButtonRefs.current.filter((item): item is HTMLButtonElement => Boolean(item));
-    const activeIndex = items.findIndex((item) => item === document.activeElement);
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      setMenuOpen(false);
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      items[(activeIndex + 1 + items.length) % items.length]?.focus();
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      const previousIndex = activeIndex === -1 ? items.length : activeIndex;
-      items[(previousIndex - 1 + items.length) % items.length]?.focus();
-    }
-  }
 
   return (
     <header
@@ -315,22 +234,22 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <label htmlFor="steps-preset" style={labelStyle}>Steps</label>
-          <select
+          <AppStringSelect
             id="steps-preset"
             name="steps-preset"
             value={scale.naming.preset}
-            onChange={(e) => {
-              const v = e.target.value as StepNamingPreset;
-              updateStepNamingAll({ preset: v });
-              if (v === 'custom') onEditSteps();
+            onValueChange={(v) => {
+              const preset = v as StepNamingPreset;
+              updateStepNamingAll({ preset });
+              if (preset === 'custom') onEditSteps();
             }}
-            style={compactSelectStyle}
             className="focus-visible-ring"
-          >
-            <option value="tailwind">Tailwind</option>
-            <option value="numeric">Numeric</option>
-            <option value="custom">Custom…</option>
-          </select>
+            options={[
+              { value: 'tailwind', label: 'Tailwind' },
+              { value: 'numeric', label: 'Numeric' },
+              { value: 'custom', label: 'Custom…' },
+            ]}
+          />
           {scale.naming.preset === 'custom' && (
             <button onClick={onEditSteps} style={linkBtnStyle} className="focus-visible-ring">edit</button>
           )}
@@ -343,176 +262,72 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <label htmlFor="lightness-preset" style={labelStyle}>Lightness</label>
-          <select
+          <AppStringSelect
             id="lightness-preset"
             name="lightness-preset"
             value={scale.lightnessPreset}
-            onChange={(e) => {
-              const v = e.target.value as LightnessPreset;
-              if (v === 'custom') {
+            onValueChange={(v) => {
+              const preset = v as LightnessPreset;
+              if (preset === 'custom') {
                 applyLightnessPreset(scale.id, 'custom');
                 onEditLightness();
               } else {
-                applyLightnessPreset(scale.id, v);
+                applyLightnessPreset(scale.id, preset);
               }
             }}
-            style={compactSelectStyle}
             className="focus-visible-ring"
-          >
-            {LIGHTNESS_PRESET_OPTIONS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
+            options={LIGHTNESS_PRESET_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
+          />
           {scale.lightnessPreset === 'custom' && (
             <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
           )}
         </div>
       )}
 
-      {/* WCAG / APCA toggle */}
-      <div
-        role="radiogroup"
+      <AppToolbarSegmented
         aria-label="Contrast mode"
-        onKeyDown={(event) => handleRadioGroupKeyDown(
-          event,
-          ['wcag', 'apca'] as const,
-          contrastMode,
-          (m) => setEngineCompliance(m === 'apca' ? 'apca' : 'wcag21'),
-          contrastButtonsRef,
-        )}
-        style={{
-          display: 'flex',
-          border: '1px solid var(--p-border)',
-          borderRadius: 6,
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}
-      >
-        {(['wcag', 'apca'] as const).map((m, i) => (
-          <button
-            key={m}
-            role="radio"
-            aria-checked={contrastMode === m}
-            onClick={() => setEngineCompliance(m === 'apca' ? 'apca' : 'wcag21')}
-            ref={(node) => { contrastButtonsRef.current[i] = node; }}
-            tabIndex={contrastMode === m ? 0 : -1}
-            className="focus-visible-ring"
-            style={{
-              padding: '4px 10px',
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              background: contrastMode === m ? 'var(--p-bg-inset)' : 'var(--p-bg)',
-              color: contrastMode === m ? 'var(--p-text)' : 'var(--p-text-secondary)',
-              border: 'none',
-              borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
+        value={contrastMode}
+        onValueChange={(m) => setEngineCompliance(m === 'apca' ? 'apca' : 'wcag21')}
+        options={[
+          { value: 'wcag' as const, label: 'wcag' },
+          { value: 'apca' as const, label: 'apca' },
+        ]}
+      />
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Edit / Preview / Visualize / Combos toggle */}
-      <div
-        role="radiogroup"
+      <AppToolbarSegmented
         aria-label="App mode"
-        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'combos', 'intents', 'surfaces', 'audit'] as const, mode, onModeChange, modeButtonsRef)}
-        style={{
-          display: 'flex',
-          border: '1px solid var(--p-border)',
-          borderRadius: 6,
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}
-      >
-        {(['edit', 'preview', 'combos', 'intents', 'surfaces', 'audit'] as const).map((m, i) => (
-          <button
-            key={m}
-            role="radio"
-            aria-checked={mode === m}
-            onClick={() => onModeChange(m)}
-            ref={(node) => { modeButtonsRef.current[i] = node; }}
-            tabIndex={mode === m ? 0 : -1}
-            className="focus-visible-ring"
-            style={{
-              padding: '4px 14px',
-              fontSize: 12,
-              fontWeight: 500,
-              background: mode === m ? 'var(--p-bg-inset)' : 'var(--p-bg)',
-              color: mode === m ? 'var(--p-text)' : 'var(--p-text-secondary)',
-              border: 'none',
-              borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-            }}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
+        value={mode}
+        onValueChange={onModeChange}
+        size="comfortable"
+        options={(
+          [
+            'edit',
+            'preview',
+            'combos',
+            'intents',
+            'surfaces',
+            'audit',
+          ] as const
+        ).map((m) => ({ value: m, label: m }))}
+      />
 
       {divider}
 
-      <div
-        role="radiogroup"
+      <AppToolbarSegmented
         aria-label="Gamut preview"
-        onKeyDown={(event) =>
-          handleRadioGroupKeyDown(
-            event,
-            [false, true] as const,
-            srgbPreview,
-            (nextValue) => {
-              if (nextValue !== srgbPreview) onToggleSrgbPreview();
-            },
-            gamutButtonsRef,
-          )}
-        style={{
-          display: 'flex',
-          border: '1px solid var(--p-border)',
-          borderRadius: 6,
-          overflow: 'hidden',
-          flexShrink: 0,
+        value={srgbPreview ? 'srgb' : 'p3'}
+        onValueChange={(v) => {
+          const wantSrgb = v === 'srgb';
+          if (wantSrgb !== srgbPreview) onToggleSrgbPreview();
         }}
-      >
-        {([false, true] as const).map((isSrgb, i) => {
-          const active = srgbPreview === isSrgb;
-          return (
-            <button
-              key={isSrgb ? 'srgb' : 'p3'}
-              role="radio"
-              aria-checked={active}
-              aria-label={isSrgb ? 'sRGB preview mode' : 'Display P3 preview mode'}
-              ref={(node) => { gamutButtonsRef.current[i] = node; }}
-              tabIndex={active ? 0 : -1}
-              onClick={() => { if (!active) onToggleSrgbPreview(); }}
-              className="focus-visible-ring"
-              style={{
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                background: active ? 'var(--p-bg-inset)' : 'var(--p-bg)',
-                color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
-                border: 'none',
-                borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
-                cursor: 'pointer',
-              }}
-              title={isSrgb
-                ? 'Preview how colors appear on sRGB displays'
-                : 'Show wide-gamut Display P3 colors on supported displays'}
-            >
-              {isSrgb ? 'sRGB' : 'P3'}
-            </button>
-          );
-        })}
-      </div>
+        options={[
+          { value: 'srgb' as const, label: 'sRGB', 'aria-label': 'sRGB preview mode', title: 'Preview how colors appear on sRGB displays' },
+          { value: 'p3' as const, label: 'P3', 'aria-label': 'Display P3 preview mode', title: 'Show wide-gamut Display P3 colors on supported displays' },
+        ]}
+      />
 
       <button
         onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
@@ -534,190 +349,165 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
         }}
       >
         {theme === 'light' ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M20 15.36A9 9 0 0 1 8.64 4 9 9 0 1 0 20 15.36Z" />
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.75" />
             <path d="M12 3v2.25M12 18.75V21M3 12h2.25M18.75 12H21M5.64 5.64l1.6 1.6M16.76 16.76l1.6 1.6M18.36 5.64l-1.6 1.6M7.24 16.76l-1.6 1.6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
           </svg>
         )}
       </button>
 
-      {/* Right: Save + theme + Export */}
+      {/* Right: Save split + Base UI menu */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <div
-          ref={menuRef}
-          style={{
-            display: 'inline-flex',
-            position: 'relative',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            overflow: 'visible',
-            background: 'var(--p-bg)',
-            fontSize: 12,
-          }}
-        >
-          <button
-            onClick={onSave}
-            disabled={saveStatus === 'saving'}
-            className="focus-visible-ring"
+        <Menu.Root modal={false}>
+          <div
+            ref={saveSplitRef}
             style={{
-              padding: '4px 14px',
-              fontWeight: 500,
+              display: 'inline-flex',
+              position: 'relative',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              overflow: 'visible',
               background: 'var(--p-bg)',
-              border: 'none',
-              color:
-                saveStatus === 'error'
-                  ? 'var(--p-danger)'
-                  : saveStatus === 'saved'
-                    ? 'var(--p-success)'
-                    : 'var(--p-text)',
-              cursor: saveStatus === 'saving' ? 'default' : 'pointer',
+              fontSize: 12,
             }}
           >
-            {saveLabel}
-          </button>
-          <button
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-label="More save/export options"
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            className="focus-visible-ring"
-            style={{
-              padding: '4px 10px',
-              borderLeft: '1px solid var(--p-border)',
-              background: 'var(--p-bg)',
-              borderTop: 'none',
-              borderRight: 'none',
-              borderBottom: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-              <path d="M2 3h6L5 7z" fill="var(--p-text)" />
-            </svg>
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              aria-label="Save and export options"
-              onKeyDown={handleMenuKeyDown}
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saveStatus === 'saving'}
+              className="focus-visible-ring"
               style={{
-                position: 'absolute',
-                top: '110%',
-                right: 0,
+                padding: '4px 14px',
+                fontWeight: 500,
                 background: 'var(--p-bg)',
-                border: '1px solid var(--p-border)',
-                borderRadius: 6,
-                padding: '4px 0',
-                boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
-                zIndex: 5,
-                minWidth: 140,
+                border: 'none',
+                color:
+                  saveStatus === 'error'
+                    ? 'var(--p-danger)'
+                    : saveStatus === 'saved'
+                      ? 'var(--p-success)'
+                      : 'var(--p-text)',
+                cursor: saveStatus === 'saving' ? 'default' : 'pointer',
               }}
             >
-              <button
-                ref={(node) => { menuButtonRefs.current[0] = node; }}
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onSave();
-                }}
-                disabled={saveStatus === 'saving'}
-                className="focus-visible-ring"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: saveStatus === 'saving' ? 'default' : 'pointer',
-                }}
-              >
-                Save
-              </button>
-              <button
-                ref={(node) => { menuButtonRefs.current[1] = node; }}
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onImport();
-                }}
-                className="focus-visible-ring"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Import
-              </button>
-              <button
-                ref={(node) => { menuButtonRefs.current[2] = node; }}
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onExport();
-                }}
-                className="focus-visible-ring"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Export
-              </button>
-              <div style={{ height: 1, background: 'var(--p-border)', margin: '4px 0' }} />
-              <button
-                ref={(node) => { menuButtonRefs.current[3] = node; }}
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onImportPigmint();
-                }}
-                className="focus-visible-ring"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Import pigmint.yaml
-              </button>
-              <button
-                ref={(node) => { menuButtonRefs.current[4] = node; }}
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onExportPigmint();
-                }}
-                className="focus-visible-ring"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Export pigmint.yaml
-              </button>
+              {saveLabel}
+            </button>
+            <span
+              aria-live="polite"
+              aria-atomic="true"
+              style={{
+                position: 'absolute',
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: 'hidden',
+                clip: 'rect(0 0 0 0)',
+                clipPath: 'inset(50%)',
+                whiteSpace: 'nowrap',
+                border: 0,
+              }}
+            >
+              {saveStatus === 'saving'
+                ? 'Saving…'
+                : saveStatus === 'saved'
+                  ? 'Saved'
+                  : saveStatus === 'error'
+                    ? 'Save failed'
+                    : ''}
+            </span>
+            <Menu.Trigger
+              type="button"
+              aria-label="More save and export options"
+              className="focus-visible-ring"
+              style={{
+                padding: '4px 10px',
+                borderLeft: '1px solid var(--p-border)',
+                background: 'var(--p-bg)',
+                borderTop: 'none',
+                borderRight: 'none',
+                borderBottom: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M2 3h6L5 7z" fill="var(--p-text)" />
+              </svg>
+            </Menu.Trigger>
           </div>
-        )}
+          <Menu.Portal>
+            <Menu.Positioner
+              side="bottom"
+              align="end"
+              sideOffset={4}
+              anchor={saveSplitRef}
+              className="app-menu-positioner"
+              style={{ zIndex: 60_000 }}
+            >
+              <Menu.Popup
+                className="focus-visible-ring app-menu-popup"
+                aria-label="Save and export options"
+                style={{
+                  minWidth: 180,
+                  background: 'var(--p-bg)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  padding: '4px 0',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
+                  color: 'var(--p-text)',
+                }}
+              >
+                <Menu.Item
+                  className="app-menu-item focus-visible-ring"
+                  style={saveMenuItemStyle}
+                  disabled={saveStatus === 'saving'}
+                  label="Save"
+                  onClick={onSave}
+                >
+                  Save
+                </Menu.Item>
+                <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import" onClick={onImport}>
+                  Import
+                </Menu.Item>
+                <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export" onClick={onExport}>
+                  Export
+                </Menu.Item>
+                <Menu.Separator
+                  style={{
+                    margin: '4px 0',
+                    height: 1,
+                    background: 'var(--p-border)',
+                    border: 'none',
+                  }}
+                />
+                <Menu.Item
+                  className="app-menu-item focus-visible-ring"
+                  style={saveMenuItemStyle}
+                  label="Import pigmint yaml"
+                  onClick={onImportPigmint}
+                >
+                  Import pigmint.yaml
+                </Menu.Item>
+                <Menu.Item
+                  className="app-menu-item focus-visible-ring"
+                  style={saveMenuItemStyle}
+                  label="Export pigmint yaml"
+                  onClick={onExportPigmint}
+                >
+                  Export pigmint.yaml
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       </div>
-    </div>
   </header>
 );
 }

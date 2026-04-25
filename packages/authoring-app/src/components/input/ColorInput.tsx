@@ -1,5 +1,6 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { tryParseHex } from '../../lib/colorMath';
+import { AppField } from '../base-ui';
 
 interface Props {
   value: string;
@@ -7,11 +8,28 @@ interface Props {
   label?: string;
 }
 
+const textInputStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  padding: '6px 10px',
+  fontSize: 13,
+  fontFamily: 'monospace',
+  background: 'var(--p-bg-subtle)',
+  border: '1px solid var(--p-border)',
+  borderRadius: 6,
+  color: 'var(--p-text)',
+  boxSizing: 'border-box',
+};
+
 export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
   const idBase = useId();
   const textId = `${idBase}-hex`;
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
@@ -34,14 +52,27 @@ export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      {label && <label htmlFor={textId} className="text-xs text-neutral-400">{label}</label>}
-      <div className="flex items-center gap-2">
+    <AppField
+      label={label}
+      htmlFor={textId}
+      invalid={error}
+      error={error ? 'Invalid hex' : undefined}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
           type="color"
+          className="p-color-input focus-visible-ring"
           value={value.startsWith('#') ? value : `#${value}`}
           onChange={handleColorPicker}
-          className="w-9 h-9 rounded cursor-pointer border-0 bg-transparent p-0"
+          style={{
+            width: 36,
+            height: 36,
+            padding: 0,
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            cursor: 'pointer',
+            background: 'none',
+          }}
           title="Pick color"
           aria-label={`${label} picker`}
         />
@@ -51,13 +82,15 @@ export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
           type="text"
           value={draft}
           onChange={handleChange}
-          placeholder="#808080"
-          className={`flex-1 bg-neutral-800 border rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus-visible:ring-2 transition-colors
-            ${error ? 'border-red-500 focus-visible:ring-red-500' : 'border-neutral-700 focus-visible:ring-neutral-500'}`}
+          placeholder="#808080…"
           spellCheck={false}
+          className="focus-visible-ring"
+          style={{
+            ...textInputStyle,
+            borderColor: error ? 'var(--p-danger)' : 'var(--p-border)',
+          }}
         />
-        {error && <span className="text-xs text-red-400">Invalid hex</span>}
       </div>
-    </div>
+    </AppField>
   );
 }

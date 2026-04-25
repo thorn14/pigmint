@@ -769,6 +769,38 @@ function IntentMarkers({
 }) {
   const [markerDetail, setMarkerDetail] = useState<IntentMarkerDetail | null>(null);
   const [hoverGkey, setHoverGkey] = useState<string | null>(null);
+  const hitCircleRefs = useRef(new Map<string, SVGCircleElement>());
+  const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHoverOpenTimer = () => {
+    if (hoverOpenTimerRef.current != null) {
+      clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+  };
+
+  const clearHoverCloseTimer = () => {
+    if (hoverCloseTimerRef.current != null) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  };
+
+  const clearAllMarkerHoverTimers = () => {
+    clearHoverOpenTimer();
+    clearHoverCloseTimer();
+  };
+
+  useEffect(() => () => clearAllMarkerHoverTimers(), []);
+
+  const schedulePopoverClose = (gkey: string) => {
+    clearHoverCloseTimer();
+    hoverCloseTimerRef.current = setTimeout(() => {
+      hoverCloseTimerRef.current = null;
+      setMarkerDetail((prev) => (prev?.key === gkey ? null : prev));
+    }, 240);
+  };
 
   if (tokens.length === 0) {
     return (
@@ -790,16 +822,13 @@ function IntentMarkers({
     );
   }
 
-  const LABEL_WIDTH = 160;
-  const ROW_HEIGHT = 14;
   const placed = tokens
     .map((t) => {
       const px = (((t.source.position * (n - 1) + 0.5) / n) * width);
       const py = pad + (1 - t.oklch.l) * (height - pad * 2);
-      const shortPath = t.path.replace(/^color\./, '');
       const stepLabel = continuousStepLabel(t.source.position, ramp);
       const gkey = groupKeyForToken(t.hex, stepLabel, t.source.position);
-      return { t, px, py, shortPath, stepLabel, gkey };
+      return { t, px, py, stepLabel, gkey };
     })
     .sort((a, b) => a.px - b.px);
 
@@ -843,40 +872,25 @@ function IntentMarkers({
     });
   }
 
-  const placedWithCenter = placed.map((p) => {
-    const c = groupCenters.get(p.gkey)!;
-    return { ...p, cx: c.cx, cy: c.cy };
-  });
-
-  const rowEndPx: number[] = [];
-  const rows = new Map<string, number>();
-  for (const item of placedWithCenter) {
-    const start = item.cx + 10;
-    let row = 0;
-    while (row < rowEndPx.length && rowEndPx[row]! > start) row++;
-    rowEndPx[row] = start + LABEL_WIDTH;
-    rows.set(item.t.path, row);
-  }
-
   const lineStroke = 'rgba(255,255,255,0.7)';
   const markerRadius = 7;
-  const openGroupPopover = (gk: string, el: SVGCircleElement) => {
-    setMarkerDetail((prev) => {
-      if (prev?.key === gk) {
-        return null;
-      }
-      const g = groupCenters.get(gk);
-      if (!g) {
-        return null;
-      }
-      return {
-        key: gk,
-        rect: el.getBoundingClientRect(),
-        hex: g.hex,
-        oklch: g.oklch,
-        stepLabel: g.stepLabel,
-        tokens: g.tokens,
-      };
+
+  const pointerTargetIsInsideIntentPopover = (target: EventTarget | null): boolean => {
+    if (!(target instanceof Element)) return false;
+    return target.closest('[data-intent-marker-popover]') != null;
+  };
+
+  const openPopoverForGroup = (gkey: string) => {
+    const el = hitCircleRefs.current.get(gkey);
+    const g = groupCenters.get(gkey);
+    if (!el || !g) return;
+    setMarkerDetail({
+      key: gkey,
+      rect: el.getBoundingClientRect(),
+      hex: g.hex,
+      oklch: g.oklch,
+      stepLabel: g.stepLabel,
+      tokens: g.tokens,
     });
   };
 
@@ -889,8 +903,29 @@ function IntentMarkers({
             <g
               key={gkey}
               pointerEvents="all"
-              onPointerEnter={() => setHoverGkey(gkey)}
-              onPointerLeave={() => setHoverGkey(null)}
+              onPointerEnter={() => {
+                setHoverGkey(gkey);
+                clearHoverCloseTimer();
+                clearHoverOpenTimer();
+                hoverOpenTimerRef.current = setTimeout(() => {
+                  hoverOpenTimerRef.current = null;
+                  openPopoverForGroup(gkey);
+                }, 140);
+              }}
+              onPointerLeave={(e) => {
+                setHoverGkey(null);
+                clearHoverOpenTimer();
+                // Opening the portaled popover can sit under the cursor and fire a bogus leave
+                // (relatedTarget often null). Defer one frame and skip close if we're over the popover.
+                if (pointerTargetIsInsideIntentPopover(e.relatedTarget)) return;
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    const at = document.elementFromPoint(e.clientX, e.clientY);
+                    if (pointerTargetIsInsideIntentPopover(at)) return;
+                    schedulePopoverClose(gkey);
+                  });
+                });
+              }}
               style={{ cursor: 'pointer' }}
             >
               <line
@@ -944,10 +979,40 @@ function IntentMarkers({
                   r={markerRadius + 5}
                   fill="transparent"
                   stroke="none"
+                  ref={(node) => {
+                    if (node) hitCircleRefs.current.set(gkey, node);
+                    else hitCircleRefs.current.delete(gkey);
+                  }}
                   onPointerDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    openGroupPopover(gkey, e.currentTarget);
+                    clearAllMarkerHoverTimers();
+                    try {
+                      (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
+                    } catch {
+                      /* unsupported or already captured */
+                    }
+                    openPopoverForGroup(gkey);
+                  }}
+                  onPointerUp={(e) => {
+                    try {
+                      const el = e.currentTarget as SVGCircleElement;
+                      if (el.hasPointerCapture?.(e.pointerId)) {
+                        el.releasePointerCapture(e.pointerId);
+                      }
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  onPointerCancel={(e) => {
+                    try {
+                      const el = e.currentTarget as SVGCircleElement;
+                      if (el.hasPointerCapture?.(e.pointerId)) {
+                        el.releasePointerCapture(e.pointerId);
+                      }
+                    } catch {
+                      /* ignore */
+                    }
                   }}
                 />
               </g>
@@ -955,49 +1020,18 @@ function IntentMarkers({
           );
         })}
 
-        {placedWithCenter.map(({ t, cx, cy, shortPath, stepLabel }) => {
-          const row = rows.get(t.path) ?? 0;
-          const labelY = cy + row * ROW_HEIGHT;
-          return (
-            <g key={t.path} pointerEvents="none">
-              {row > 0 && (
-                <line
-                  x1={cx}
-                  y1={cy}
-                  x2={cx + 8}
-                  y2={labelY}
-                  stroke="rgba(255,255,255,0.45)"
-                  strokeWidth={1}
-                />
-              )}
-              <text
-                x={cx + 10}
-                y={labelY}
-                dy={4}
-                fontSize={10}
-                fontWeight={600}
-                fill="rgba(255,255,255,0.95)"
-                style={{
-                  fontFamily: 'monospace',
-                  paintOrder: 'stroke',
-                  stroke: 'rgba(0,0,0,0.7)',
-                  strokeWidth: 3,
-                }}
-              >
-                {shortPath}
-                {stepLabel ? (
-                  <tspan fill="rgba(255,255,255,0.7)" style={{ fontWeight: 400 }}>
-                    {` · ${stepLabel}`}
-                  </tspan>
-                ) : null}
-              </text>
-            </g>
-          );
-        })}
       </g>
       <IntentMarkerPopover
         detail={markerDetail}
-        onClose={() => setMarkerDetail(null)}
+        onClose={() => {
+          clearAllMarkerHoverTimers();
+          setMarkerDetail(null);
+        }}
+        onPopoverPointerEnter={clearHoverCloseTimer}
+        onPopoverPointerLeave={() => {
+          const k = markerDetail?.key;
+          if (k) schedulePopoverClose(k);
+        }}
         rampName={ramp.scaleName}
       />
     </Fragment>

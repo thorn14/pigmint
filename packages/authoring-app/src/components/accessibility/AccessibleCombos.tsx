@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { AppStringSelect } from '../base-ui';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
@@ -192,60 +193,60 @@ function FilterBar({
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <label htmlFor="combos-polarity" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Background:</label>
-        <select
+        <AppStringSelect
           id="combos-polarity"
+          name="combos-polarity"
           value={polarity}
-          onChange={(e) => setPolarity(e.target.value as Polarity)}
+          onValueChange={(v) => setPolarity(v as Polarity)}
           style={selectStyle}
           className="focus-visible-ring"
-        >
-          <option value="all">All</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ]}
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <label htmlFor="combos-level" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Level:</label>
         {useWcag ? (
-          <select
+          <AppStringSelect
             id="combos-level"
+            name="combos-level-wcag"
             value={wcagLevel}
-            onChange={(e) => setWcagLevel(e.target.value as WcagLevel)}
+            onValueChange={(v) => setWcagLevel(v as WcagLevel)}
             style={selectStyle}
             className="focus-visible-ring"
-          >
-            {WCAG_LEVELS.map(({ key, label }) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
+            options={WCAG_LEVELS.map(({ key, label }) => ({ value: key, label }))}
+          />
         ) : (
-          <select
+          <AppStringSelect
             id="combos-level"
+            name="combos-level-apca"
             value={apcaLevel}
-            onChange={(e) => setApcaLevel(e.target.value as ApcaLevel)}
+            onValueChange={(v) => setApcaLevel(v as ApcaLevel)}
             style={selectStyle}
             className="focus-visible-ring"
-          >
-            {APCA_LEVELS.map(({ key, label }) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
+            options={APCA_LEVELS.map(({ key, label }) => ({ value: key, label }))}
+          />
         )}
       </div>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <label htmlFor="combos-sort" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Sort:</label>
-        <select
+        <AppStringSelect
           id="combos-sort"
+          name="combos-sort"
           value={sortAsc ? 'asc' : 'desc'}
-          onChange={(e) => setSortAsc(e.target.value === 'asc')}
+          onValueChange={(v) => setSortAsc(v === 'asc')}
           style={selectStyle}
           className="focus-visible-ring"
-        >
-          <option value="desc">High → Low</option>
-          <option value="asc">Low → High</option>
-        </select>
+          options={[
+            { value: 'desc', label: 'High → Low' },
+            { value: 'asc', label: 'Low → High' },
+          ]}
+        />
       </div>
     </div>
   );

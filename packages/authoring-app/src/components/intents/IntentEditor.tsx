@@ -8,6 +8,7 @@ import {
   type SurfaceContext,
   type VocabularyEntry,
 } from '@pigmint/core';
+import { AppCheckbox, AppStringSelect } from '../base-ui';
 import { HelpPopover } from '../ui/HelpPopover';
 import { intentHelp } from './intentHelpCopy';
 import {
@@ -75,8 +76,6 @@ const DEFAULT_INTENT: FormalIntent = {
   surfaceContext: 'primary',
 };
 
-const GRID_COLUMNS = 'minmax(200px, 1.6fr) repeat(3, minmax(140px, 1fr)) 80px';
-
 const headerCell: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
@@ -95,17 +94,23 @@ const selectStyle: React.CSSProperties = {
   borderRadius: 4,
 };
 
-function rowStyle(isOverridden: boolean): React.CSSProperties {
-  return {
-    display: 'grid',
-    gridTemplateColumns: GRID_COLUMNS,
-    gap: 12,
-    alignItems: 'center',
-    padding: '12px 16px',
-    borderBottom: '1px solid var(--p-border)',
-    background: isOverridden ? 'var(--p-bg-inset)' : 'transparent',
-  };
-}
+const stickyHeaderCell: React.CSSProperties = {
+  background: 'var(--p-bg-inset)',
+  borderBottom: '1px solid var(--p-border)',
+  position: 'sticky',
+  top: 0,
+  zIndex: 2,
+  textAlign: 'left',
+  fontWeight: 'normal',
+  verticalAlign: 'middle',
+  padding: '10px 16px',
+};
+
+const bodyCell: React.CSSProperties = {
+  padding: '12px 16px',
+  verticalAlign: 'middle',
+  borderBottom: '1px solid var(--p-border)',
+};
 
 const headerLabelRow: React.CSSProperties = {
   display: 'flex',
@@ -129,8 +134,8 @@ function IntentRow({ entry }: { entry: VocabularyEntry }) {
   const isOverridden = override !== undefined && Object.keys(override).length > 0;
 
   return (
-    <div style={rowStyle(isOverridden)}>
-      <div style={{ minWidth: 0 }}>
+    <tr style={{ background: isOverridden ? 'var(--p-bg-inset)' : 'transparent' }}>
+      <td style={{ ...bodyCell, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-text)' }}>{entry.path}</div>
         {entry.description && (
           <div
@@ -146,66 +151,65 @@ function IntentRow({ entry }: { entry: VocabularyEntry }) {
             {entry.description}
           </div>
         )}
-      </div>
+      </td>
 
-      <select
-        aria-label={`${entry.path} preference`}
-        value={effective.preference}
-        onChange={(e) => setPreference(entry.path, e.target.value as Preference)}
-        style={selectStyle}
-      >
-        {PREFERENCE_OPTIONS.map((p) => (
-          <option key={p} value={p}>
-            {p}
-          </option>
-        ))}
-      </select>
+      <td style={{ ...bodyCell, minWidth: 0 }}>
+        <AppStringSelect
+          aria-label={`${entry.path} preference`}
+          name={`intent-preference-${entry.path}`}
+          value={effective.preference}
+          onValueChange={(v) => setPreference(entry.path, v as Preference)}
+          className="focus-visible-ring"
+          style={{ ...selectStyle, width: '100%', minWidth: 0 }}
+          options={PREFERENCE_OPTIONS.map((p) => ({ value: p, label: p }))}
+        />
+      </td>
 
-      <select
-        aria-label={`${entry.path} consistency`}
-        value={effective.consistency}
-        onChange={(e) => setConsistency(entry.path, e.target.value as Consistency)}
-        style={selectStyle}
-      >
-        {CONSISTENCY_OPTIONS.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+      <td style={{ ...bodyCell, minWidth: 0 }}>
+        <AppStringSelect
+          aria-label={`${entry.path} consistency`}
+          name={`intent-consistency-${entry.path}`}
+          value={effective.consistency}
+          onValueChange={(v) => setConsistency(entry.path, v as Consistency)}
+          className="focus-visible-ring"
+          style={{ ...selectStyle, width: '100%', minWidth: 0 }}
+          options={CONSISTENCY_OPTIONS.map((c) => ({ value: c, label: c }))}
+        />
+      </td>
 
-      <select
-        aria-label={`${entry.path} surface context`}
-        value={effective.surfaceContext}
-        onChange={(e) => setSurfaceContext(entry.path, e.target.value as SurfaceContext)}
-        style={selectStyle}
-      >
-        {SURFACE_CONTEXT_OPTIONS.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
+      <td style={{ ...bodyCell, minWidth: 0 }}>
+        <AppStringSelect
+          aria-label={`${entry.path} surface context`}
+          name={`intent-surface-${entry.path}`}
+          value={effective.surfaceContext}
+          onValueChange={(v) => setSurfaceContext(entry.path, v as SurfaceContext)}
+          className="focus-visible-ring"
+          style={{ ...selectStyle, width: '100%', minWidth: 0 }}
+          options={SURFACE_CONTEXT_OPTIONS.map((s) => ({ value: s, label: s }))}
+        />
+      </td>
 
-      <button
-        type="button"
-        onClick={() => resetOverride(entry.path)}
-        disabled={!isOverridden}
-        className="focus-visible-ring"
-        style={{
-          padding: '4px 10px',
-          fontSize: 11,
-          background: 'transparent',
-          color: isOverridden ? 'var(--p-text-secondary)' : 'var(--p-text-tertiary)',
-          border: '1px solid var(--p-border)',
-          borderRadius: 4,
-          cursor: isOverridden ? 'pointer' : 'default',
-          opacity: isOverridden ? 1 : 0.5,
-        }}
-      >
-        Reset
-      </button>
-    </div>
+      <td style={{ ...bodyCell, minWidth: 0 }}>
+        <button
+          type="button"
+          onClick={() => resetOverride(entry.path)}
+          disabled={!isOverridden}
+          className="focus-visible-ring"
+          style={{
+            padding: '4px 10px',
+            fontSize: 11,
+            background: 'transparent',
+            color: isOverridden ? 'var(--p-text-secondary)' : 'var(--p-text-tertiary)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 4,
+            cursor: isOverridden ? 'pointer' : 'default',
+            opacity: isOverridden ? 1 : 0.5,
+          }}
+        >
+          Reset
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -277,19 +281,16 @@ function EngineConfigPanel() {
             <ComplianceHelpBody />
           </HelpPopover>
         </div>
-        <select
+        <AppStringSelect
           id="intent-engine-compliance"
+          name="intent-engine-compliance"
           aria-label="Engine contrast standard"
           value={engineCompliance}
-          onChange={(e) => setEngineCompliance(e.target.value as EngineCompliance)}
+          onValueChange={(v) => setEngineCompliance(v as EngineCompliance)}
+          className="focus-visible-ring"
           style={selectStyle}
-        >
-          {COMPLIANCE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          options={COMPLIANCE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+        />
       </div>
 
       <div style={fieldStyle}>
@@ -308,18 +309,15 @@ function EngineConfigPanel() {
             <TargetLevelHelpBody engineCompliance={engineCompliance} />
           </HelpPopover>
         </div>
-        <select
+        <AppStringSelect
           id="intent-engine-target"
+          name="intent-engine-target"
           value={engineTarget}
-          onChange={(e) => setEngineTarget(e.target.value as ComplianceTarget)}
+          onValueChange={(v) => setEngineTarget(v as ComplianceTarget)}
+          className="focus-visible-ring"
           style={selectStyle}
-        >
-          {LEVEL_OPTIONS.map((l) => (
-            <option key={l} value={l}>
-              {TARGET_LABEL[engineCompliance][l]}
-            </option>
-          ))}
-        </select>
+          options={LEVEL_OPTIONS.map((l) => ({ value: l, label: TARGET_LABEL[engineCompliance][l] }))}
+        />
       </div>
 
       <div style={{ ...fieldStyle, minWidth: 240 }}>
@@ -350,12 +348,10 @@ function EngineConfigPanel() {
                   opacity: lastActive ? 0.65 : 1,
                 }}
               >
-                <input
-                  type="checkbox"
+                <AppCheckbox
                   checked={active}
                   disabled={lastActive}
-                  onChange={() => toggleEngineMode(m)}
-                  style={{ accentColor: 'var(--p-accent)' }}
+                  onCheckedChange={() => toggleEngineMode(m)}
                 />
                 {MODE_LABELS[m]}
               </label>
@@ -374,18 +370,16 @@ function EngineConfigPanel() {
           </HelpPopover>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select
+          <AppStringSelect
             id="intent-engine-resolver-mode"
+            name="intent-engine-resolver-mode"
+            aria-label="Resolver sampling mode"
             value={engineResolver.mode}
-            onChange={(e) => setResolverMode(e.target.value as (typeof RESOLVER_MODE_OPTIONS)[number])}
-            style={{ ...selectStyle, minWidth: 140, flex: '0 0 140px' }}
-          >
-            {RESOLVER_MODE_OPTIONS.map((mode) => (
-              <option key={mode} value={mode}>
-                {mode}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => setResolverMode(v as (typeof RESOLVER_MODE_OPTIONS)[number])}
+            className="focus-visible-ring"
+            style={{ ...selectStyle, minWidth: 140, flex: '0 0 140px', width: 140 }}
+            options={RESOLVER_MODE_OPTIONS.map((mode) => ({ value: mode, label: mode }))}
+          />
           <input
             aria-label="Resolver fallback steps"
             type="number"
@@ -410,6 +404,7 @@ function EngineConfigPanel() {
               opacity: engineResolver.mode === 'continuous' ? 1 : 0.6,
               cursor: engineResolver.mode === 'continuous' ? 'text' : 'not-allowed',
             }}
+            className="focus-visible-ring"
           />
           {engineResolver.mode === 'continuous' && (
             <label
@@ -423,13 +418,11 @@ function EngineConfigPanel() {
                 userSelect: 'none',
               }}
             >
-              <input
-                type="checkbox"
+              <AppCheckbox
                 checked={engineResolver.materializeInterpolatedPrimitives !== false}
-                onChange={(e) =>
-                  setMaterializeInterpolatedPrimitives(e.target.checked ? undefined : false)
+                onCheckedChange={(c) =>
+                  setMaterializeInterpolatedPrimitives(c ? undefined : false)
                 }
-                style={{ accentColor: 'var(--p-accent)' }}
               />
               Materialize off-grid as primitives
             </label>
@@ -467,12 +460,7 @@ function EngineConfigPanel() {
                   cursor: 'pointer',
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={active}
-                  onChange={() => toggleEngineCvd(profile)}
-                  style={{ accentColor: 'var(--p-accent)' }}
-                />
+                <AppCheckbox checked={active} onCheckedChange={() => toggleEngineCvd(profile)} />
                 {CVD_LABELS[profile]}
               </label>
             );
@@ -566,51 +554,65 @@ export function IntentEditor() {
 
       <EngineConfigPanel />
 
-      <div
+      <table
         style={{
-          display: 'grid',
-          gridTemplateColumns: GRID_COLUMNS,
-          gap: 12,
-          padding: '10px 16px',
-          borderBottom: '1px solid var(--p-border)',
-          background: 'var(--p-bg-inset)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 2,
+          width: '100%',
+          borderCollapse: 'collapse',
+          tableLayout: 'fixed',
         }}
       >
-        <div style={headerLabelRow}>
-          <span style={headerCell}>Token</span>
-          <HelpPopover title="Token column" triggerLabel="Help: token column">
-            <TokenColumnHelpBody />
-          </HelpPopover>
-        </div>
-        <div style={headerLabelRow}>
-          <span style={headerCell}>Preference</span>
-          <HelpPopover title="Preference" triggerLabel="Help: intent preference">
-            <PreferenceColumnHelpBody />
-          </HelpPopover>
-        </div>
-        <div style={headerLabelRow}>
-          <span style={headerCell}>Consistency</span>
-          <HelpPopover title="Consistency" triggerLabel="Help: cross-ramp consistency">
-            <ConsistencyColumnHelpBody />
-          </HelpPopover>
-        </div>
-        <div style={headerLabelRow}>
-          <span style={headerCell}>Surface</span>
-          <HelpPopover title="Surface context" triggerLabel="Help: which surface to contrast against">
-            <SurfaceColumnHelpBody />
-          </HelpPopover>
-        </div>
-        <div style={headerCell} aria-hidden>
-          {'\u00a0'}
-        </div>
-      </div>
-
-      {VOCABULARY_V1_SLICE.map((entry) => (
-        <IntentRow key={entry.path} entry={entry} />
-      ))}
+        <colgroup>
+          <col style={{ width: '30%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '10%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" style={stickyHeaderCell}>
+              <div style={headerLabelRow}>
+                <span style={headerCell}>Token</span>
+                <HelpPopover title="Token column" triggerLabel="Help: token column">
+                  <TokenColumnHelpBody />
+                </HelpPopover>
+              </div>
+            </th>
+            <th scope="col" style={stickyHeaderCell}>
+              <div style={headerLabelRow}>
+                <span style={headerCell}>Preference</span>
+                <HelpPopover title="Preference" triggerLabel="Help: intent preference">
+                  <PreferenceColumnHelpBody />
+                </HelpPopover>
+              </div>
+            </th>
+            <th scope="col" style={stickyHeaderCell}>
+              <div style={headerLabelRow}>
+                <span style={headerCell}>Consistency</span>
+                <HelpPopover title="Consistency" triggerLabel="Help: cross-ramp consistency">
+                  <ConsistencyColumnHelpBody />
+                </HelpPopover>
+              </div>
+            </th>
+            <th scope="col" style={stickyHeaderCell}>
+              <div style={headerLabelRow}>
+                <span style={headerCell}>Surface</span>
+                <HelpPopover title="Surface context" triggerLabel="Help: which surface to contrast against">
+                  <SurfaceColumnHelpBody />
+                </HelpPopover>
+              </div>
+            </th>
+            <th scope="col" style={{ ...stickyHeaderCell, ...headerCell }}>
+              Reset
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {VOCABULARY_V1_SLICE.map((entry) => (
+            <IntentRow key={entry.path} entry={entry} />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

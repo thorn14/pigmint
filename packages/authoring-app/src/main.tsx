@@ -5,6 +5,11 @@ import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <div
+      className="app-root"
+      style={{ isolation: 'isolate', minHeight: '100vh' }}
+    >
+      <App />
+    </div>
   </StrictMode>,
 )

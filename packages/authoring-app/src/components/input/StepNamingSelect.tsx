@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { StepNamingConfig, StepNamingPreset } from '../../types/palette';
+import { AppField, AppStringSelect } from '../base-ui';
 
 interface Props {
   value: StepNamingConfig;
@@ -15,19 +16,16 @@ const PRESETS: { value: StepNamingPreset; label: string }[] = [
 export function StepNamingSelect({ value, onChange }: Props) {
   const selectId = useId();
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={selectId} className="text-xs text-neutral-400">Step naming</label>
-      <select
+    <AppField label="Step naming" htmlFor={selectId}>
+      <AppStringSelect
         id={selectId}
         name="step-naming"
         value={value.preset}
-        onChange={(e) => onChange({ ...value, preset: e.target.value as StepNamingPreset })}
-        className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 cursor-pointer"
-      >
-        {PRESETS.map((p) => (
-          <option key={p.value} value={p.value}>{p.label}</option>
-        ))}
-      </select>
-    </div>
+        onValueChange={(v) => onChange({ ...value, preset: v as StepNamingPreset })}
+        className="focus-visible-ring"
+        style={{ width: '100%' }}
+        options={PRESETS}
+      />
+    </AppField>
   );
 }

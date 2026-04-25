@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
@@ -15,11 +15,44 @@ import { ImportPigmintYamlModal } from './components/export/ImportPigmintYamlMod
 import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
+import { useIntentStore } from './store/intentStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
 type AppMode = 'edit' | 'preview' | 'combos' | 'intents' | 'surfaces' | 'audit';
 type AppTheme = 'dark' | 'light';
+
+const APP_MODES = new Set<AppMode>(['edit', 'preview', 'combos', 'intents', 'surfaces', 'audit']);
+
+function readModeFromSearch(search: string): AppMode | null {
+  const raw = new URLSearchParams(search).get('mode');
+  if (raw && APP_MODES.has(raw as AppMode)) return raw as AppMode;
+  return null;
+}
+
+function readThemeFromSearch(search: string): AppTheme | null {
+  const raw = new URLSearchParams(search).get('theme');
+  return raw === 'dark' || raw === 'light' ? raw : null;
+}
+
+function authoringFingerprint(): string {
+  const ps = usePaletteStore.getState();
+  const palettePart = {
+    version: 2,
+    activePaletteId: ps.activePaletteId,
+    palettes: ps.savedPalettes,
+  };
+  const is = useIntentStore.getState();
+  const intentPart = {
+    engineTarget: is.engineTarget,
+    engineCompliance: is.engineCompliance,
+    engineModes: is.engineModes,
+    engineCvd: is.engineCvd,
+    engineResolver: is.engineResolver,
+    overrides: is.overrides,
+  };
+  return JSON.stringify({ palettePart, intentPart });
+}
 
 function EditPanel({ scale }: { scale: ColorScale }) {
   const ramp = useGeneratedRamp(scale);
@@ -51,8 +84,13 @@ export default function App() {
   const [showSteps, setShowSteps] = useState(false);
   const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [mode, setMode] = useState<AppMode>('edit');
-  const [theme, setTheme] = useState<AppTheme>('dark');
+  const [mode, setMode] = useState<AppMode>(() =>
+    typeof window !== 'undefined' ? readModeFromSearch(window.location.search) ?? 'edit' : 'edit',
+  );
+  const [theme, setTheme] = useState<AppTheme>(() =>
+    typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
+  );
+  const lastSavedFingerprint = useRef<string | null>(null);
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
@@ -103,7 +141,37 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  function handleSave() {
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    let changed = false;
+    if (url.searchParams.get('mode') !== mode) {
+      url.searchParams.set('mode', mode);
+      changed = true;
+    }
+    if (url.searchParams.get('theme') !== theme) {
+      url.searchParams.set('theme', theme);
+      changed = true;
+    }
+    if (changed) window.history.replaceState({}, '', url);
+  }, [mode, theme]);
+
+  useEffect(() => {
+    lastSavedFingerprint.current = authoringFingerprint();
+  }, []);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (lastSavedFingerprint.current === null) return;
+      if (authoringFingerprint() !== lastSavedFingerprint.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
+  const handleSave = useCallback(() => {
     setSaveStatus('saving');
     try {
       usePaletteStore.getState().flushCurrentPalette();
@@ -114,13 +182,14 @@ export default function App() {
         palettes: state.savedPalettes,
       };
       localStorage.setItem('pigmint:color-tokens', JSON.stringify(payload));
+      lastSavedFingerprint.current = authoringFingerprint();
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch {
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 3000);
     }
-  }
+  }, []);
 
   return (
     <div
@@ -150,6 +219,22 @@ export default function App() {
       />
 
       <main id="main-content" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <h1
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            padding: 0,
+            margin: -1,
+            overflow: 'hidden',
+            clip: 'rect(0 0 0 0)',
+            clipPath: 'inset(50%)',
+            whiteSpace: 'nowrap',
+            border: 0,
+          }}
+        >
+          Pigmint color authoring
+        </h1>
         {mode === 'edit' && scales.length > 0 && <Sidebar />}
 
         {mode === 'edit' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}

@@ -91,7 +91,7 @@ function ScaleItem({
       tabIndex={0}
       aria-pressed={isActive}
       aria-label={`${scale.name}. Press Enter to select. Press Option and Arrow keys to reorder.`}
-      className="focus-visible-ring"
+      className="focus-visible-ring sidebar-scale-item"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -102,10 +102,12 @@ function ScaleItem({
           ? 'var(--p-accent-subtle, rgba(99,102,241,0.12))'
           : isActive
             ? 'var(--p-bg-inset)'
-            : 'transparent',
+            : hovered
+              ? 'var(--p-bg-subtle)'
+              : 'transparent',
         border: `1px solid ${isSelected ? 'var(--p-accent, #6366f1)' : isActive ? 'var(--p-border)' : 'transparent'}`,
         opacity: isDragging ? 0.35 : 1,
-        transition: 'opacity 0.1s',
+        transition: 'opacity 0.1s, transform 0.08s ease-out, background-color 0.1s ease-out',
         userSelect: 'none',
         position: 'relative',
         width: '100%',
@@ -408,6 +410,7 @@ export function Sidebar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           <input
             type="color"
+            className="p-color-input focus-visible-ring"
             value={newHex}
             onChange={(e) => setNewHex(e.target.value)}
             aria-label="New scale color"

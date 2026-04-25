@@ -1,10 +1,20 @@
 import type { CSSProperties } from 'react';
 import type { ColorScale } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
+import { AppField, AppSlider } from '../base-ui';
 
 interface Props {
   scale: ColorScale;
 }
+
+const panelStyle: CSSProperties = {
+  display: 'flex',
+  gap: 24,
+  padding: 12,
+  background: 'var(--p-bg-subtle)',
+  borderRadius: 8,
+  border: '1px solid var(--p-border)',
+};
 
 export function HueShiftControls({ scale }: Props) {
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
@@ -14,51 +24,43 @@ export function HueShiftControls({ scale }: Props) {
   const darkEndId = `hue-shift-dark-${scale.id}`;
 
   return (
-    <div className="flex gap-6 p-3 bg-neutral-900 rounded-lg border border-neutral-800">
-      <div className="flex-1 space-y-1">
-        <label htmlFor={lightEndId} className="text-xs text-neutral-400">
-          Light-end hue shift (warm) — {scale.hueShift.lightEndAdjust}%
-        </label>
-        <input
+    <div style={panelStyle}>
+      <AppField
+        style={{ flex: 1, minWidth: 0 }}
+        label={`Light-end hue shift (warm) — ${scale.hueShift.lightEndAdjust}%`}
+        htmlFor={lightEndId}
+      >
+        <AppSlider
           id={lightEndId}
-          type="range"
-          min={0}
-          max={100}
           value={scale.hueShift.lightEndAdjust}
-          onPointerDown={() => beginCurveEdit(scale.id)}
-          onChange={(e) => updateHueShift(scale.id, 'lightEndAdjust', parseInt(e.target.value))}
-          onPointerUp={() => commitCurveEdit()}
-          className="p-range w-full focus-visible-ring"
-          style={
-            {
-              accentColor: 'var(--p-accent)',
-              ['--p-range-thumb' as string]: 'var(--p-accent)',
-            } as CSSProperties
-          }
-        />
-      </div>
-      <div className="flex-1 space-y-1">
-        <label htmlFor={darkEndId} className="text-xs text-neutral-400">
-          Dark-end hue shift (cool) — {scale.hueShift.darkEndAdjust}%
-        </label>
-        <input
-          id={darkEndId}
-          type="range"
           min={0}
           max={100}
-          value={scale.hueShift.darkEndAdjust}
+          step={1}
+          thumbColor="var(--p-accent)"
+          onValueChange={(v) => updateHueShift(scale.id, 'lightEndAdjust', Math.round(v))}
           onPointerDown={() => beginCurveEdit(scale.id)}
-          onChange={(e) => updateHueShift(scale.id, 'darkEndAdjust', parseInt(e.target.value))}
-          onPointerUp={() => commitCurveEdit()}
-          className="p-range w-full focus-visible-ring"
-          style={
-            {
-              accentColor: 'var(--p-accent)',
-              ['--p-range-thumb' as string]: 'var(--p-accent)',
-            } as CSSProperties
-          }
+          onValueCommitted={() => commitCurveEdit()}
+          aria-label="Light-end hue shift percentage"
         />
-      </div>
+      </AppField>
+      <AppField
+        style={{ flex: 1, minWidth: 0 }}
+        label={`Dark-end hue shift (cool) — ${scale.hueShift.darkEndAdjust}%`}
+        htmlFor={darkEndId}
+      >
+        <AppSlider
+          id={darkEndId}
+          value={scale.hueShift.darkEndAdjust}
+          min={0}
+          max={100}
+          step={1}
+          thumbColor="var(--p-accent)"
+          onValueChange={(v) => updateHueShift(scale.id, 'darkEndAdjust', Math.round(v))}
+          onPointerDown={() => beginCurveEdit(scale.id)}
+          onValueCommitted={() => commitCurveEdit()}
+          aria-label="Dark-end hue shift percentage"
+        />
+      </AppField>
     </div>
   );
 }

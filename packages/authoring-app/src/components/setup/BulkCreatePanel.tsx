@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
+import { AppField, AppStringSelect } from '../base-ui';
 import { usePaletteStore } from '../../store/paletteStore';
 import { hexToOklch, oklchToHex } from '../../lib/colorMath';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
@@ -30,13 +31,6 @@ const sectionLabel: React.CSSProperties = {
   marginBottom: 0,
 };
 
-const fieldLabel: React.CSSProperties = {
-  display: 'block',
-  fontSize: 12,
-  color: 'var(--p-text-secondary)',
-  marginBottom: 4,
-};
-
 const inputBase: React.CSSProperties = {
   width: '100%',
   padding: '5px 8px',
@@ -66,6 +60,7 @@ const stepBtn: React.CSSProperties = {
 };
 
 export function BulkCreatePanel() {
+  const baseHexTextId = useId();
   const bulkCreateScales = usePaletteStore((s) => s.bulkCreateScales);
 
   const [baseHex, setBaseHex] = useState('#6366f1');
@@ -155,39 +150,42 @@ export function BulkCreatePanel() {
           {/* Base color */}
           <div>
             <p style={sectionLabel}>Base color</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-              <input
-                type="color"
-                value={baseHex}
-                onChange={(e) => {
-                  setBaseHex(e.target.value);
-                  if (!hexFocused.current) setHexDraft(e.target.value);
-                }}
-                aria-label="Base color picker"
-                style={{
-                  width: 36,
-                  height: 36,
-                  padding: 0,
-                  border: '1px solid var(--p-border)',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  background: 'none',
-                  flexShrink: 0,
-                }}
-              />
-              <input
-                name="base-hex"
-                type="text"
-                value={hexDraft}
-                onFocus={() => { hexFocused.current = true; }}
-                onChange={(e) => setHexDraft(e.target.value)}
-                onBlur={commitHex}
-                onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
-                style={{ ...inputBase, fontFamily: 'monospace', flex: 1 }}
-                className="focus-visible-ring"
-                aria-label="Base color hex value"
-              />
-            </div>
+            <AppField label="Hex" htmlFor={baseHexTextId} style={{ marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="color"
+                  className="p-color-input focus-visible-ring"
+                  value={baseHex}
+                  onChange={(e) => {
+                    setBaseHex(e.target.value);
+                    if (!hexFocused.current) setHexDraft(e.target.value);
+                  }}
+                  aria-label="Base color picker"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    padding: 0,
+                    border: '1px solid var(--p-border)',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    background: 'none',
+                    flexShrink: 0,
+                  }}
+                />
+                <input
+                  id={baseHexTextId}
+                  name="base-hex"
+                  type="text"
+                  value={hexDraft}
+                  onFocus={() => { hexFocused.current = true; }}
+                  onChange={(e) => setHexDraft(e.target.value)}
+                  onBlur={commitHex}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
+                  style={{ ...inputBase, fontFamily: 'monospace', flex: 1 }}
+                  className="focus-visible-ring"
+                />
+              </div>
+            </AppField>
           </div>
 
           {/* Two-column: hue spread + steps */}
@@ -195,8 +193,7 @@ export function BulkCreatePanel() {
             {/* Hue spread */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p style={sectionLabel}>Hue spread</p>
-              <div>
-                <label htmlFor="bulk-scale-count" style={fieldLabel}>Scales</label>
+              <AppField label="Scales" htmlFor="bulk-scale-count">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button style={stepBtn} onClick={() => adjustCount(-1)} className="focus-visible-ring" aria-label="Decrease scale count">−</button>
                   <input
@@ -212,9 +209,8 @@ export function BulkCreatePanel() {
                   />
                   <button style={stepBtn} onClick={() => adjustCount(1)} className="focus-visible-ring" aria-label="Increase scale count">+</button>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="bulk-degrees-between" style={fieldLabel}>Degrees between</label>
+              </AppField>
+              <AppField label="Degrees between" htmlFor="bulk-degrees-between">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
                     id="bulk-degrees-between"
@@ -230,41 +226,40 @@ export function BulkCreatePanel() {
                   />
                   <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>°</span>
                 </div>
-              </div>
+              </AppField>
             </div>
 
             {/* Steps config */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p style={sectionLabel}>Steps</p>
-              <div>
-                <label htmlFor="bulk-step-naming" style={fieldLabel}>Naming</label>
-                <select
+              <AppField label="Naming" htmlFor="bulk-step-naming">
+                <AppStringSelect
                   id="bulk-step-naming"
                   name="bulk-step-naming"
                   value={namingPreset}
-                  onChange={(e) => setNamingPreset(e.target.value as StepNamingPreset)}
+                  onValueChange={(v) => setNamingPreset(v as StepNamingPreset)}
                   style={{ ...inputBase, cursor: 'pointer' }}
                   className="focus-visible-ring"
-                >
-                  <option value="tailwind">Tailwind (50–950)</option>
-                  <option value="numeric">Numeric (1–11)</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="bulk-lightness-preset" style={fieldLabel}>Lightness curve</label>
-                <select
+                  options={[
+                    { value: 'tailwind', label: 'Tailwind (50–950)' },
+                    { value: 'numeric', label: 'Numeric (1–11)' },
+                  ]}
+                />
+              </AppField>
+              <AppField label="Lightness curve" htmlFor="bulk-lightness-preset">
+                <AppStringSelect
                   id="bulk-lightness-preset"
                   name="bulk-lightness-preset"
                   value={lightnessPreset}
-                  onChange={(e) => setLightnessPreset(e.target.value as LightnessPreset)}
+                  onValueChange={(v) => setLightnessPreset(v as LightnessPreset)}
                   style={{ ...inputBase, cursor: 'pointer' }}
                   className="focus-visible-ring"
-                >
-                  {LIGHTNESS_PRESET_OPTIONS.filter((p) => p.value !== 'custom').map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
+                  options={LIGHTNESS_PRESET_OPTIONS.filter((p) => p.value !== 'custom').map((p) => ({
+                    value: p.value,
+                    label: p.label,
+                  }))}
+                />
+              </AppField>
             </div>
           </div>
 

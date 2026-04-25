@@ -9,6 +9,7 @@ html {
 }
 
 body {
+  position: relative;
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -66,6 +67,29 @@ body {
   --p-warning-subtle: #3d2a00;
   --p-danger: #f85149;
   --p-danger-subtle: #da36313d;
+}
+
+/* Native color input: remove UA swatch inset so the fill matches width × height */
+input[type="color"].p-color-input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+input[type="color"].p-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"].p-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: inherit;
+}
+
+input[type="color"].p-color-input::-moz-color-swatch {
+  border: none;
+  border-radius: inherit;
 }
 
 input[type="range"][style*="writing-mode"] {
@@ -183,4 +207,184 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   .motion-safe-swatch {
     transition: none;
   }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .app-dialog-backdrop {
+    position: absolute;
+  }
+}
+
+/* Base UI `Select` item pointer / keyboard focus */
+.app-select-item[data-highlighted] {
+  background: var(--p-bg-subtle);
+  color: var(--p-text);
+}
+
+.app-menu-item[data-highlighted] {
+  background: var(--p-bg-subtle);
+  color: var(--p-text);
+}
+
+/* Hover / active for controls that use inline styles (pseudo-states must live in CSS). */
+button:not(:disabled),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled) {
+  transition: filter 0.1s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled) {
+    transition: none;
+  }
+}
+
+button:not(:disabled):hover,
+input[type="button"]:not(:disabled):hover,
+input[type="submit"]:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+
+button:not(:disabled):active,
+input[type="button"]:not(:disabled):active,
+input[type="submit"]:not(:disabled):active {
+  filter: brightness(0.9);
+}
+
+[data-theme="dark"] button:not(:disabled):hover,
+[data-theme="dark"] input[type="button"]:not(:disabled):hover,
+[data-theme="dark"] input[type="submit"]:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+[data-theme="dark"] button:not(:disabled):active,
+[data-theme="dark"] input[type="button"]:not(:disabled):active,
+[data-theme="dark"] input[type="submit"]:not(:disabled):active {
+  filter: brightness(1.02);
+}
+
+/* Sidebar scale list row (div + role="button"); avoid `filter` here so nested icon buttons are not composited. */
+.sidebar-scale-item:active {
+  transform: scale(0.992);
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-scale-item {
+    transition: opacity 0.1s !important;
+  }
+
+  .sidebar-scale-item:active {
+    transform: none;
+  }
+}
+
+/* Base UI menu items render as divs */
+.app-menu-item:not([aria-disabled="true"]) {
+  transition: filter 0.1s ease-out, background-color 0.1s ease-out;
+}
+
+.app-menu-item:not([aria-disabled="true"]):hover {
+  background-color: var(--p-bg-subtle);
+  color: var(--p-text);
+}
+
+.app-menu-item:not([aria-disabled="true"]):active {
+  filter: brightness(0.94);
+}
+
+[data-theme="dark"] .app-menu-item:not([aria-disabled="true"]):active {
+  filter: brightness(1.06);
+}
+
+/* Base UI select options are divs */
+.app-select-item:not([aria-disabled="true"]) {
+  transition: filter 0.1s ease-out, background-color 0.1s ease-out;
+}
+
+.app-select-item:not([aria-disabled="true"]):hover {
+  background-color: var(--p-bg-subtle);
+}
+
+.app-select-item:not([aria-disabled="true"]):active {
+  filter: brightness(0.94);
+}
+
+[data-theme="dark"] .app-select-item:not([aria-disabled="true"]):active {
+  filter: brightness(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-menu-item:not([aria-disabled="true"]),
+  .app-select-item:not([aria-disabled="true"]) {
+    transition: none;
+  }
+}
+
+/* Base UI `Slider` — horizontal + vertical, aligned with `.p-range` tokens */
+.app-slider-root {
+  position: relative;
+  --p-range-track: var(--p-bg-inset);
+  --p-range-track-stroke: var(--p-border-muted);
+}
+
+.app-slider-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+  padding-block: 6px;
+}
+
+.app-slider-root-vertical .app-slider-control {
+  flex-direction: column;
+  height: 80px;
+  width: 100%;
+  padding-inline: 6px;
+  padding-block: 0;
+  justify-content: center;
+}
+
+.app-slider-track {
+  position: relative;
+  border-radius: 3px;
+  background: var(--p-range-track);
+  border: 1px solid var(--p-range-track-stroke);
+}
+
+.app-slider-root:not(.app-slider-root-vertical) .app-slider-track {
+  height: 6px;
+  width: 100%;
+}
+
+.app-slider-root-vertical .app-slider-track {
+  width: 6px;
+  height: 100%;
+}
+
+.app-slider-indicator {
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--app-slider-thumb) 40%, transparent);
+}
+
+.app-slider-root:not(.app-slider-root-vertical) .app-slider-indicator {
+  height: 100%;
+}
+
+.app-slider-root-vertical .app-slider-indicator {
+  width: 100%;
+}
+
+.app-slider-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--app-slider-thumb);
+  border: 2px solid var(--p-bg);
+  box-shadow: 0 0 0 1px var(--p-border-muted);
+  box-sizing: border-box;
 }
