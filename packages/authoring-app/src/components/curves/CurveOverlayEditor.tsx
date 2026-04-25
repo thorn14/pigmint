@@ -3,8 +3,8 @@ import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import type { IntentOverride as CoreIntentOverride, ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
-import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues, oklchToHex, maxP3Chroma } from '../../lib/colorMath';
-import { buildCurvePath, buildMonotoneCubicInterpolant } from '../../lib/curveInterpolation';
+import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
+import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { runResolve } from '../../lib/resolveState';
 import { IntentMarkerPopover, type IntentMarkerDetail } from './IntentMarkerPopover';
 
@@ -59,8 +59,6 @@ const SHORTCUTS = [
 
 type ViewMode = 'curves' | 'gradient';
 const VIEW_MODES: readonly ViewMode[] = ['curves', 'gradient'];
-const GRADIENT_SAMPLES = 64;
-
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
@@ -90,32 +88,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
 
   const gradientCss = useMemo(() => {
     if (viewMode !== 'gradient') return '';
-    const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
-    const cRaw = smoothCurveValues(scale.curves.chroma.values,    scale.curves.chroma.smoothing    ?? 0);
-    const hRaw = smoothCurveValues(scale.curves.hue.values,       scale.curves.hue.smoothing       ?? 0);
-    const xs = lRaw.map((_, i) => i);
-    const lAt = buildMonotoneCubicInterpolant(xs, lRaw);
-    const cAt = buildMonotoneCubicInterpolant(xs, cRaw);
-    const hAt = buildMonotoneCubicInterpolant(xs, hRaw);
-    const stops: string[] = [];
-    for (let s = 0; s < GRADIENT_SAMPLES; s++) {
-      const t = s / (GRADIENT_SAMPLES - 1);
-      const x = t * (lRaw.length - 1);
-      const l = lAt(x);
-      const c = cAt(x);
-      const baseDeltaH = hAt(x);
-      const shift = computeHueShift(
-        scale.sourceOklch.h,
-        t,
-        scale.hueShift.lightEndAdjust,
-        scale.hueShift.darkEndAdjust,
-      );
-      const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
-      const cClamped = Math.min(c, maxP3Chroma(l, h));
-      const hex = oklchToHex({ l, c: cClamped, h });
-      stops.push(`${hex} ${(t * 100).toFixed(2)}%`);
-    }
-    return `linear-gradient(to right, ${stops.join(', ')})`;
+    return buildScaleLinearGradientCss(scale);
   }, [viewMode, scale]);
 
   const activeMarkerMode = markerMode && engineModes.includes(markerMode as (typeof engineModes)[number])

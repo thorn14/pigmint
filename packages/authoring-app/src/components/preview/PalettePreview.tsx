@@ -1,7 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
+import { buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
+
+type ViewMode = 'curves' | 'gradient';
+const VIEW_MODES: readonly ViewMode[] = ['curves', 'gradient'];
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -163,8 +167,38 @@ function PreviewRow({
   );
 }
 
-function HeaderRow({ scale }: { scale: ColorScale }) {
+function HeaderRow({ scale, viewMode, colCount }: { scale: ColorScale; viewMode: ViewMode; colCount: number }) {
   const ramp = useGeneratedRamp(scale);
+  if (viewMode === 'gradient') {
+    return (
+      <div
+        role="presentation"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+          minWidth: 0,
+        }}
+      >
+        {ramp.steps.slice(0, colCount).map((step) => (
+          <div
+            key={step.name}
+            role="columnheader"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 10,
+              fontFamily: 'monospace',
+              color: 'var(--p-text-secondary)',
+              borderRight: '1px solid var(--p-border)',
+            }}
+          >
+            {step.name}
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <>
       {ramp.steps.map((step) => (
@@ -188,12 +222,53 @@ function HeaderRow({ scale }: { scale: ColorScale }) {
   );
 }
 
+function GradientPreviewRow({
+  scale,
+  onEditScale,
+}: {
+  scale: ColorScale;
+  onEditScale?: (scaleId: string) => void;
+}) {
+  const background = useMemo(() => buildScaleLinearGradientCss(scale), [scale]);
+  return (
+    <div
+      role="cell"
+      style={{
+        minWidth: 0,
+        height: 48,
+        position: 'relative',
+        display: 'flex',
+        background,
+        borderRight: '1px solid var(--p-border)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => onEditScale?.(scale.id)}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          padding: 0,
+          background: 'transparent',
+          cursor: onEditScale ? 'pointer' : 'default',
+        }}
+        className="focus-visible-ring"
+        aria-label={onEditScale ? `${scale.name} ramp — open in editor` : `${scale.name} smooth gradient preview`}
+      />
+    </div>
+  );
+}
+
 interface PalettePreviewProps {
   onEditScale?: (scaleId: string) => void;
 }
 
 export function PalettePreview({ onEditScale }: PalettePreviewProps) {
   const scales = usePaletteStore((s) => s.scales);
+  const [viewMode, setViewMode] = useState<ViewMode>('curves');
   const firstScale = scales[0];
 
   if (!firstScale) {
@@ -214,77 +289,137 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
   }
 
   const colCount = firstScale.stepCount;
-  const gridColumns = `minmax(120px, 120px) repeat(${colCount}, minmax(0, 1fr))`;
+  const gridColumns =
+    viewMode === 'curves'
+      ? `minmax(120px, 120px) repeat(${colCount}, minmax(0, 1fr))`
+      : `minmax(120px, 120px) minmax(0, 1fr)`;
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-      {/* Header */}
-      <div role="table" aria-label="Palette preview">
+    <div
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      style={{ background: 'var(--p-bg)' }}
+    >
+      <div
+        className="flex shrink-0 items-center gap-2 border-b px-2"
+        style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
+      >
         <div
-          role="rowgroup"
+          role="radiogroup"
+          aria-label="Canvas view"
           style={{
-            display: 'grid',
-            gridTemplateColumns: gridColumns,
-            height: 28,
-            borderBottom: '1px solid var(--p-border)',
-            background: 'var(--p-bg-subtle)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 3,
+            display: 'inline-flex',
+            borderRadius: 6,
+            background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+            padding: 2,
+            gap: 2,
           }}
         >
-          <div role="row" style={{ display: 'contents' }}>
-            <div
-              role="columnheader"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                paddingInline: 12,
-                fontSize: 11,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                color: 'var(--p-text-secondary)',
-              }}
-            >
-              Name
-            </div>
-            <HeaderRow scale={firstScale} />
-          </div>
+          {VIEW_MODES.map((m) => {
+            const active = viewMode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setViewMode(m)}
+                style={{
+                  border: 'none',
+                  background: active ? 'var(--p-text)' : 'transparent',
+                  color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  padding: '3px 10px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+                className="focus-visible-ring"
+              >
+                {m}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Rows */}
-        <div role="rowgroup">
-        {scales.map((scale) => (
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {/* Header + body */}
+        <div role="table" aria-label="Palette preview">
           <div
-            key={scale.id}
-            role="row"
+            role="rowgroup"
             style={{
               display: 'grid',
               gridTemplateColumns: gridColumns,
+              minHeight: 28,
               borderBottom: '1px solid var(--p-border)',
+              background: 'var(--p-bg-subtle)',
+              position: 'sticky',
+              top: 0,
+              zIndex: 3,
             }}
           >
-            <div
-              role="rowheader"
-              style={{
-                height: 48,
-                display: 'flex',
-                alignItems: 'center',
-                paddingInline: 12,
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                color: 'var(--p-text)',
-                borderRight: '1px solid var(--p-border)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-              }}
-            >
-              {scale.name}
+            <div role="row" style={{ display: 'contents' }}>
+              <div
+                role="columnheader"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  paddingInline: 12,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: 'monospace',
+                  color: 'var(--p-text-secondary)',
+                }}
+              >
+                Name
+              </div>
+              <HeaderRow
+                scale={firstScale}
+                viewMode={viewMode}
+                colCount={colCount}
+              />
             </div>
-            <PreviewRow scale={scale} colCount={colCount} onEditScale={onEditScale} />
           </div>
-        ))}
+
+          <div role="rowgroup">
+            {scales.map((scale) => (
+              <div
+                key={scale.id}
+                role="row"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: gridColumns,
+                  borderBottom: '1px solid var(--p-border)',
+                }}
+              >
+                <div
+                  role="rowheader"
+                  style={{
+                    height: 48,
+                    display: 'flex',
+                    alignItems: 'center',
+                    paddingInline: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: 'monospace',
+                    color: 'var(--p-text)',
+                    borderRight: '1px solid var(--p-border)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {scale.name}
+                </div>
+                {viewMode === 'curves' ? (
+                  <PreviewRow scale={scale} colCount={colCount} onEditScale={onEditScale} />
+                ) : (
+                  <GradientPreviewRow scale={scale} onEditScale={onEditScale} />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

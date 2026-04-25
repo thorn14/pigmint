@@ -1,3 +1,6 @@
+import type { ColorScale } from '../types/palette';
+import { computeHueShift, maxP3Chroma, oklchToHex, smoothCurveValues } from './colorMath';
+
 // Linear interpolation
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -163,4 +166,39 @@ export function buildMonotoneCubicInterpolant(xs: number[], ys: number[]): (x: n
       (t3 - t2) * h * m[hi]
     );
   };
+}
+
+const SCALE_GRADIENT_SAMPLES = 64;
+
+/**
+ * CSS `background` value: `linear-gradient(to right, …)` through the scale’s
+ * smooth L/C/H curves — same as the “gradient” canvas in the curve editor.
+ */
+export function buildScaleLinearGradientCss(scale: ColorScale): string {
+  const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
+  const cRaw = smoothCurveValues(scale.curves.chroma.values, scale.curves.chroma.smoothing ?? 0);
+  const hRaw = smoothCurveValues(scale.curves.hue.values, scale.curves.hue.smoothing ?? 0);
+  const xs = lRaw.map((_, i) => i);
+  const lAt = buildMonotoneCubicInterpolant(xs, lRaw);
+  const cAt = buildMonotoneCubicInterpolant(xs, cRaw);
+  const hAt = buildMonotoneCubicInterpolant(xs, hRaw);
+  const stops: string[] = [];
+  for (let s = 0; s < SCALE_GRADIENT_SAMPLES; s++) {
+    const t = s / (SCALE_GRADIENT_SAMPLES - 1);
+    const x = t * (lRaw.length - 1);
+    const l = lAt(x);
+    const c = cAt(x);
+    const baseDeltaH = hAt(x);
+    const shift = computeHueShift(
+      scale.sourceOklch.h,
+      t,
+      scale.hueShift.lightEndAdjust,
+      scale.hueShift.darkEndAdjust,
+    );
+    const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
+    const cClamped = Math.min(c, maxP3Chroma(l, h));
+    const hex = oklchToHex({ l, c: cClamped, h });
+    stops.push(`${hex} ${(t * 100).toFixed(2)}%`);
+  }
+  return `linear-gradient(to right, ${stops.join(', ')})`;
 }
