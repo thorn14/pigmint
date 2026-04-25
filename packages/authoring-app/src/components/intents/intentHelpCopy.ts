@@ -71,6 +71,8 @@ export const intentHelp = {
       'The resolver picks a step for this token using only that token’s intent and its ramp. This is the default in the shipped vocabulary; cross-ramp policies use the same per-path rows but every token in a group must share the same merged formal intent in pigmint.yaml.',
     'matched-across-ramps':
       'Shared scan along each ramp: same t∈[0,1] on the densified (or stepped) pick grid for every member of the same formal-intent group, with tie-breaks by preference. Use with `lowest-passing`, `highest-contrast`, or `matched-to-set` (all members must use the exact same merged intent).',
+    'mirror-closest':
+      'Like cross-ramp sync, but only with peers on the same intent group. The first `engine.modes[0]` run picks a reference t; other modes reuse the passing t closest to that reference (same “weight” across light/dark). Not valid with `matched-to-set`.',
     'anchored-to-reference':
       'The token on `constraints.referenceRamp` (e.g. `blue`) resolves first (highest: highest, otherwise lowest) to a target ratio; all other group members pick the pass/fail step on their own ramp with contrast closest to that value. Set `engine.intents[...]constraints.referenceRamp` in pigmint.yaml—the UI table only overrides a subset of fields today.',
   } as const satisfies Record<Consistency, string>,

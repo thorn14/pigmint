@@ -19,6 +19,7 @@ function ColorSwatchTooltip({
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const swatchColor = (!srgbPreview && supportsP3 && step.displayP3) || step.hex;
 
   useEffect(() => {
     if (!visible || !wrapperRef.current) return;
@@ -40,7 +41,7 @@ function ColorSwatchTooltip({
       <button
         type="button"
         style={{
-          backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
+          backgroundColor: swatchColor,
           height: 48,
           cursor: onEditScale ? 'pointer' : 'default',
           borderRight: '1px solid var(--p-border)',
@@ -77,12 +78,36 @@ function ColorSwatchTooltip({
           onMouseEnter={() => setVisible(true)}
           onMouseLeave={() => setVisible(false)}
         >
-          <div style={{ color: 'var(--p-text)', fontWeight: 600, marginBottom: 4 }}>
-            {scale.name} / {step.name}
-          </div>
-          <div style={{ color: 'var(--p-text-secondary)', marginBottom: 6 }}>{step.hex}</div>
-          <div style={{ color: 'var(--p-text-secondary)', fontSize: 11, marginBottom: 8 }}>
-            L {step.oklch.l.toFixed(2)} C {step.oklch.c.toFixed(3)} h {step.oklch.h.toFixed(0)}°
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              alignItems: 'flex-start',
+              marginBottom: 8,
+            }}
+          >
+            <div
+              role="img"
+              aria-label={`${scale.name} ${step.name} swatch`}
+              style={{
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                borderRadius: 6,
+                backgroundColor: swatchColor,
+                border: '1px solid var(--p-border)',
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: 'var(--p-text)', fontWeight: 600, marginBottom: 4 }}>
+                {scale.name} / {step.name}
+              </div>
+              <div style={{ color: 'var(--p-text-secondary)', marginBottom: 4 }}>{step.hex}</div>
+              <div style={{ color: 'var(--p-text-secondary)', fontSize: 11 }}>
+                L {step.oklch.l.toFixed(2)} C {step.oklch.c.toFixed(3)} h {step.oklch.h.toFixed(0)}°
+              </div>
+            </div>
           </div>
           {onEditScale && (
             <button
