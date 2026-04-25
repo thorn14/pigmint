@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useId } from 'react';
+import { useState, useEffect, useRef, useId, type CSSProperties } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -249,7 +249,14 @@ export function RightPanel({ scale, activeStep }: Props) {
             onPointerDown={() => beginCurveEdit(scale.id)}
             onChange={(e) => updateChromaLow(scale.id, parseFloat(e.target.value))}
             onPointerUp={() => commitCurveEdit()}
-            style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            className="p-range focus-visible-ring"
+            style={
+              {
+                flex: 1,
+                accentColor: 'var(--p-accent)',
+                ['--p-range-thumb' as string]: 'var(--p-accent)',
+              } as CSSProperties
+            }
             aria-label="Low-end chroma"
           />
           <input
@@ -288,7 +295,14 @@ export function RightPanel({ scale, activeStep }: Props) {
             onPointerDown={() => beginCurveEdit(scale.id)}
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
             onPointerUp={() => commitCurveEdit()}
-            style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            className="p-range focus-visible-ring"
+            style={
+              {
+                flex: 1,
+                accentColor: 'var(--p-accent)',
+                ['--p-range-thumb' as string]: 'var(--p-accent)',
+              } as CSSProperties
+            }
             aria-label="Mid chroma"
           />
           <input
@@ -327,7 +341,14 @@ export function RightPanel({ scale, activeStep }: Props) {
             onPointerDown={() => beginCurveEdit(scale.id)}
             onChange={(e) => updateChromaHigh(scale.id, parseFloat(e.target.value))}
             onPointerUp={() => commitCurveEdit()}
-            style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            className="p-range focus-visible-ring"
+            style={
+              {
+                flex: 1,
+                accentColor: 'var(--p-accent)',
+                ['--p-range-thumb' as string]: 'var(--p-accent)',
+              } as CSSProperties
+            }
             aria-label="High-end chroma"
           />
           <input
@@ -448,7 +469,14 @@ export function RightPanel({ scale, activeStep }: Props) {
                 onPointerDown={() => beginCurveEdit(scale.id)}
                 onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
                 onPointerUp={() => commitCurveEdit()}
-                style={{ width: '100%', accentColor: color }}
+                className="p-range focus-visible-ring"
+                style={
+                  {
+                    width: '100%',
+                    accentColor: color,
+                    ['--p-range-thumb' as string]: color,
+                  } as CSSProperties
+                }
                 aria-label={`${label} smoothing`}
               />
             </label>

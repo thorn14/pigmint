@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { ColorScale } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 
@@ -27,8 +28,13 @@ export function HueShiftControls({ scale }: Props) {
           onPointerDown={() => beginCurveEdit(scale.id)}
           onChange={(e) => updateHueShift(scale.id, 'lightEndAdjust', parseInt(e.target.value))}
           onPointerUp={() => commitCurveEdit()}
-          className="w-full"
-          style={{ accentColor: 'var(--p-accent)' }}
+          className="p-range w-full focus-visible-ring"
+          style={
+            {
+              accentColor: 'var(--p-accent)',
+              ['--p-range-thumb' as string]: 'var(--p-accent)',
+            } as CSSProperties
+          }
         />
       </div>
       <div className="flex-1 space-y-1">
@@ -44,8 +50,13 @@ export function HueShiftControls({ scale }: Props) {
           onPointerDown={() => beginCurveEdit(scale.id)}
           onChange={(e) => updateHueShift(scale.id, 'darkEndAdjust', parseInt(e.target.value))}
           onPointerUp={() => commitCurveEdit()}
-          className="w-full"
-          style={{ accentColor: 'var(--p-accent)' }}
+          className="p-range w-full focus-visible-ring"
+          style={
+            {
+              accentColor: 'var(--p-accent)',
+              ['--p-range-thumb' as string]: 'var(--p-accent)',
+            } as CSSProperties
+          }
         />
       </div>
     </div>

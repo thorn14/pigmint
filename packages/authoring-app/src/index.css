@@ -73,6 +73,64 @@ input[type="range"][style*="writing-mode"] {
   -webkit-appearance: slider-vertical;
 }
 
+/* Horizontal `range`: explicit track fill so dark theme doesn’t get a default bright track. */
+input[type="range"].p-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.35rem;
+  min-height: 1.35rem;
+  background: transparent;
+  /* Override per input via style={{ ['--p-range-thumb']: '…' }} for accent thumbs */
+  --p-range-track: var(--p-bg-inset);
+  --p-range-track-stroke: var(--p-border-muted);
+  --p-range-thumb: var(--p-text-secondary);
+  --p-range-thumb-stroke: var(--p-bg);
+  cursor: pointer;
+}
+
+input[type="range"].p-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--p-range-track);
+  border: 1px solid var(--p-range-track-stroke);
+}
+
+input[type="range"].p-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--p-range-thumb);
+  border: 2px solid var(--p-range-thumb-stroke);
+  box-shadow: 0 0 0 1px var(--p-border-muted);
+  margin-top: -5px;
+}
+
+input[type="range"].p-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--p-border-muted), 0 0 0 3px var(--p-accent-subtle, var(--p-border));
+}
+
+input[type="range"].p-range::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--p-range-track);
+  border: 1px solid var(--p-range-track-stroke);
+}
+
+input[type="range"].p-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--p-range-thumb-stroke);
+  border-radius: 50%;
+  background: var(--p-range-thumb);
+  box-shadow: 0 0 0 1px var(--p-border-muted);
+}
+
+input[type="range"].p-range:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 1px var(--p-border-muted), 0 0 0 3px var(--p-accent-subtle, var(--p-border));
+}
+
 .skip-link {
   position: absolute;
   left: 12px;
