@@ -406,8 +406,20 @@ export function Sidebar() {
       </div>
 
       {/* Add new scale */}
-      <div style={{ padding: '10px 12px', borderTop: '1px solid var(--p-border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <div style={{
+        padding: '10px 12px',
+        borderTop: '1px solid var(--p-border)',
+        boxSizing: 'border-box',
+        width: '100%',
+        minWidth: 0,
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 8,
+          minWidth: 0,
+        }}>
           <input
             type="color"
             className="p-color-input focus-visible-ring"
@@ -423,6 +435,7 @@ export function Sidebar() {
               cursor: 'pointer',
               background: 'none',
               flexShrink: 0,
+              boxSizing: 'border-box',
             }}
           />
           <input
@@ -434,6 +447,8 @@ export function Sidebar() {
             className="focus-visible-ring"
             style={{
               flex: 1,
+              minWidth: 0,
+              width: 0,
               padding: '4px 6px',
               fontSize: 11,
               fontFamily: 'monospace',
@@ -441,6 +456,7 @@ export function Sidebar() {
               border: '1px solid var(--p-border)',
               borderRadius: 4,
               color: 'var(--p-text)',
+              boxSizing: 'border-box',
             }}
             placeholder="#6366f1"
           />
@@ -450,6 +466,7 @@ export function Sidebar() {
           className="focus-visible-ring"
           style={{
             width: '100%',
+            boxSizing: 'border-box',
             padding: '6px 0',
             fontSize: 12,
             fontWeight: 500,

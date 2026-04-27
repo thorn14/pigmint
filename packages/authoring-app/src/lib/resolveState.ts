@@ -2,6 +2,8 @@ import {
   emitDtcg,
   generateRamp,
   resolveAll,
+  ResolveError,
+  coerceTokenRampToPaletteScales,
   type GeneratedRamp,
   type ModeBinding,
   type ProjectConfig,
@@ -77,6 +79,8 @@ export function runResolve(
   if (Object.keys(tokenRamp).length === 0) {
     return { ok: false, error: 'Vocabulary has no tokens; add surfaces and foreground/nonText tokens.' };
   }
+  const scaleNames = scales.map((s) => s.name);
+  const tokenRampForResolve = coerceTokenRampToPaletteScales(tokenRamp, scaleNames);
   const modes: ModeBinding[] = engineModes.map((mode) => ({
     mode,
     scheme: MODE_SCHEMES[mode],
@@ -100,12 +104,15 @@ export function runResolve(
       vocabulary,
       ramps,
       modes,
-      tokenRamp,
+      tokenRamp: tokenRampForResolve,
       scales,
       ...(surfacePaths ? { surfacePaths, surfaceSteps } : {}),
     });
     return { ok: true, tokens, ramps, dtcgRamps, vocabulary };
   } catch (err) {
+    if (err instanceof ResolveError) {
+      return { ok: false, error: `Resolve failed on "${err.tokenPath}": ${err.message}` };
+    }
     return { ok: false, error: `Resolve failed: ${(err as Error).message}` };
   }
 }

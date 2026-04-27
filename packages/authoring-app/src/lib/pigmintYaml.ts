@@ -2,12 +2,17 @@ import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 import { parse as cssParse, formatHex } from 'culori';
 import {
   hexToOklch,
+  oklchToHex,
+  buildChromaCurve,
+  computeHueShift,
+  TAILWIND_LIGHTNESS,
+  TAILWIND_STEPS,
   type ComplianceTarget,
   type CvdProfile,
   type ResolverConfig,
 } from '@pigmint/core';
 import type { ColorScale } from '../types/palette';
-import type { ImportedScale, ImportedStep } from './importTokens';
+import type { ImportedScale } from './importTokens';
 import {
   ENGINE_MODE_OPTIONS,
   sanitizeCvd,
@@ -132,12 +137,21 @@ export function parsePigmintYaml(text: string): ParsedPigmintYaml {
       throw new Error(`Ramp \`${name}\` has invalid source color: ${source}`);
     }
     const oklch = hexToOklch(hex);
-    const step: ImportedStep = { name: '500', hex, oklch };
+    const stepCount = TAILWIND_STEPS.length;
+    const chromaValues = buildChromaCurve(oklch.c, stepCount);
+    const steps = TAILWIND_STEPS.map((stepName, i) => {
+      const l = TAILWIND_LIGHTNESS[i] ?? 0.5;
+      const c = chromaValues[i] ?? oklch.c;
+      const t = i / (stepCount - 1);
+      const autoShift = computeHueShift(oklch.h, t, 0, 0);
+      const h = (((oklch.h + autoShift) % 360) + 360) % 360;
+      return { name: stepName, hex: oklchToHex({ l, c, h }), oklch: { l, c, h } };
+    });
     scales.push({
       name,
       sourceHex: hex,
       sourceOklch: oklch,
-      steps: [step],
+      steps,
     });
   }
 

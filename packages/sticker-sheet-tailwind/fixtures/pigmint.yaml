@@ -1,3 +1,6 @@
+defaults:
+  vocabulary: ./tokens.yaml
+
 engine:
   compliance: wcag21
   target: AA

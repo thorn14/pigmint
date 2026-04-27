@@ -1,12 +1,424 @@
 {
   "version": 2,
-  "activePaletteId": "0955f83d-65fc-43b1-a869-d6daa1eb0ac7",
+  "activePaletteId": "f8e7d6c5-b4a3-9210-8765-43210fedcba9",
   "palettes": [
     {
       "id": "0955f83d-65fc-43b1-a869-d6daa1eb0ac7",
       "name": "Default",
       "activeScaleId": null,
       "scales": []
+    },
+    {
+      "id": "f8e7d6c5-b4a3-9210-8765-43210fedcba9",
+      "name": "Local design system",
+      "activeScaleId": null,
+      "scales": [
+        {
+          "name": "stone",
+          "sourceHex": "#78716c"
+        },
+        {
+          "name": "violet",
+          "sourceHex": "#7c3aed"
+        },
+        {
+          "name": "red",
+          "sourceHex": "#dc2626"
+        },
+        {
+          "name": "emerald",
+          "sourceHex": "#059669"
+        },
+        {
+          "name": "amber",
+          "sourceHex": "#d97706"
+        },
+        {
+          "name": "sky",
+          "sourceHex": "#0284c7"
+        },
+        {
+          "name": "teal",
+          "sourceHex": "#0d9488"
+        },
+        {
+          "name": "slate",
+          "sourceHex": "#475569"
+        },
+        {
+          "name": "orange",
+          "sourceHex": "#ea580c"
+        },
+        {
+          "name": "blue",
+          "sourceHex": "#2563eb"
+        }
+      ],
+      "vocab": {
+        "surfaces": {
+          "bgBackground": {
+            "ramp": "stone",
+            "step": 0
+          },
+          "bgMain": {
+            "ramp": "stone",
+            "step": 1
+          },
+          "bgRaised": {
+            "ramp": "stone",
+            "step": 1
+          },
+          "bgMuted": {
+            "ramp": "stone",
+            "step": 2
+          },
+          "bgBrand": {
+            "ramp": "violet",
+            "step": 4
+          },
+          "bgBrandMuted": {
+            "ramp": "violet",
+            "step": 1
+          },
+          "bgDanger": {
+            "ramp": "red",
+            "step": 6
+          },
+          "bgDangerMuted": {
+            "ramp": "red",
+            "step": 1
+          },
+          "bgSuccess": {
+            "ramp": "emerald",
+            "step": 6
+          },
+          "bgSuccessMuted": {
+            "ramp": "emerald",
+            "step": 1
+          },
+          "bgWarning": {
+            "ramp": "amber",
+            "step": 7
+          },
+          "bgWarningMuted": {
+            "ramp": "amber",
+            "step": 1
+          },
+          "bgInfo": {
+            "ramp": "sky",
+            "step": 6
+          },
+          "bgInfoMuted": {
+            "ramp": "sky",
+            "step": 1
+          },
+          "bgInfoAlt": {
+            "ramp": "teal",
+            "step": 6
+          },
+          "bgInfoAltMuted": {
+            "ramp": "teal",
+            "step": 1
+          },
+          "bgDisabled": {
+            "ramp": "stone",
+            "step": 1
+          },
+          "bgInverse": {
+            "ramp": "stone",
+            "step": 9
+          },
+          "bgNeutral": {
+            "ramp": "stone",
+            "step": 5
+          },
+          "bgNeutralMuted": {
+            "ramp": "stone",
+            "step": 2
+          }
+        },
+        "foreground": {
+          "fgBrand": {
+            "ramp": "violet",
+            "surfaces": [
+              "bgBrand"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgBrandAlt": {
+            "ramp": "orange",
+            "surfaces": [
+              "bgMain"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgDanger": {
+            "ramp": "red",
+            "surfaces": [
+              "bgDangerMuted"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgSuccess": {
+            "ramp": "emerald",
+            "surfaces": [
+              "bgSuccessMuted"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgInfo": {
+            "ramp": "blue",
+            "surfaces": [
+              "bgBackground"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgInfoAlt": {
+            "ramp": "teal",
+            "surfaces": [
+              "bgInfoAltMuted"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgWarning": {
+            "ramp": "amber",
+            "surfaces": [
+              "bgWarningMuted"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgDisabled": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgDisabled"
+            ],
+            "preference": "lowest-passing"
+          },
+          "fgMain": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgBackground"
+            ],
+            "preference": "highest-contrast"
+          },
+          "fgInverse": {
+            "ramp": "slate",
+            "surfaces": [
+              "bgInverse"
+            ],
+            "preference": "highest-contrast"
+          },
+          "fgDecorative": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgMuted"
+            ],
+            "preference": "lowest-passing"
+          },
+          "fgAlt": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgMain"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 3
+              }
+            }
+          },
+          "fgNavAccent": {
+            "ramp": "violet",
+            "surfaces": [
+              "bgRaised"
+            ],
+            "preference": "lowest-passing"
+          },
+          "fgNavMain": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgRaised"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 2
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "fgNavDecorative": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgMuted"
+            ],
+            "preference": "lowest-passing"
+          }
+        },
+        "nonText": {
+          "borderMain": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgMain"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "borderMuted": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgRaised"
+            ],
+            "preference": "lowest-passing"
+          },
+          "borderBrand": {
+            "ramp": "violet",
+            "surfaces": [
+              "bgBrand"
+            ],
+            "preference": "lowest-passing",
+            "interactions": {
+              "hover": {
+                "offset": 1
+              },
+              "active": {
+                "offset": 2
+              }
+            }
+          },
+          "borderDanger": {
+            "ramp": "red",
+            "surfaces": [
+              "bgDanger"
+            ],
+            "preference": "lowest-passing"
+          },
+          "borderSuccess": {
+            "ramp": "emerald",
+            "surfaces": [
+              "bgSuccess"
+            ],
+            "preference": "lowest-passing"
+          },
+          "borderWarning": {
+            "ramp": "amber",
+            "surfaces": [
+              "bgWarning"
+            ],
+            "preference": "lowest-passing"
+          },
+          "borderInfo": {
+            "ramp": "sky",
+            "surfaces": [
+              "bgInfo"
+            ],
+            "preference": "lowest-passing"
+          },
+          "borderDisabled": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgDisabled"
+            ],
+            "preference": "lowest-passing"
+          },
+          "focusBrand": {
+            "ramp": "violet",
+            "surfaces": [
+              "bgMain"
+            ],
+            "preference": "highest-contrast"
+          },
+          "focusDanger": {
+            "ramp": "red",
+            "surfaces": [
+              "bgMain"
+            ],
+            "preference": "highest-contrast"
+          },
+          "focusNeutral": {
+            "ramp": "stone",
+            "surfaces": [
+              "bgMain"
+            ],
+            "preference": "highest-contrast"
+          },
+          "focusInverse": {
+            "ramp": "slate",
+            "surfaces": [
+              "bgInverse"
+            ],
+            "preference": "highest-contrast"
+          }
+        }
+      }
     }
   ]
 }

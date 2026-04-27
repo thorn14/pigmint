@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
-import type { ColorScale, PaletteState, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
+import type { ColorScale, PaletteState, PortableVocabulary, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
+import { remapPortableVocabularyRamps } from '@pigmint/core';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
 import { canonicalScaleName, disambiguateKey } from '../lib/scaleNaming';
+import { useVocabStore } from './vocabStore';
+import { useIntentStore } from './intentStore';
 import initialConfig from '../color-tokens.json';
 
 // nanoid is a small dep, but we can also just use crypto.randomUUID
@@ -47,6 +50,7 @@ interface PaletteActions {
   createPalette: (name: string) => void;
   deletePalette: (id: string) => void;
   renamePalette: (id: string, name: string) => void;
+  updateActiveVocab: (vocab: PortableVocabulary | null) => void;
   updateSourceHex: (id: string, hex: string) => void;
   updateScaleName: (id: string, name: string) => void;
   updateStepNaming: (id: string, naming: StepNamingConfig) => void;
@@ -142,6 +146,7 @@ type PaletteConfig = {
     name?: string;
     activeScaleId?: string | null;
     scales?: Partial<ColorScale>[];
+    vocab?: PortableVocabulary | null;
   }>;
 };
 
@@ -286,7 +291,7 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
 }
 
 function inflatePalette(
-  raw: { id?: string; name?: string; activeScaleId?: string | null; scales?: Partial<ColorScale>[] },
+  raw: { id?: string; name?: string; activeScaleId?: string | null; scales?: Partial<ColorScale>[]; vocab?: PortableVocabulary | null },
   fallbackName: string,
 ): SavedPalette {
   const scales = Array.isArray(raw.scales)
@@ -300,6 +305,7 @@ function inflatePalette(
     name: typeof raw.name === 'string' && raw.name.length > 0 ? raw.name : fallbackName,
     activeScaleId,
     scales,
+    vocab: raw.vocab ?? null,
   };
 }
 
@@ -322,12 +328,26 @@ export function migrateLegacyStorage(): string | null {
 
 function loadInitialState(): PaletteState {
   let cfg: PaletteConfig = {};
+  let hadStored = false;
   try {
     const stored = localStorage.getItem(STORAGE_KEY) ?? migrateLegacyStorage();
-    if (stored) cfg = JSON.parse(stored) as PaletteConfig;
+    if (stored) { cfg = JSON.parse(stored) as PaletteConfig; hadStored = true; }
   } catch { /* ignore */ }
   if (!cfg.version && !cfg.scales && !cfg.palettes) {
     cfg = (initialConfig ?? {}) as PaletteConfig;
+    hadStored = false;
+  }
+
+  // Merge example palettes from initialConfig that aren't already in stored data
+  if (hadStored) {
+    const builtins = ((initialConfig as PaletteConfig).palettes ?? []).filter(
+      (p) => p.id && Array.isArray(p.scales) && p.scales.length > 0,
+    );
+    const storedIds = new Set((cfg.palettes ?? []).map((p) => p.id));
+    const toMerge = builtins.filter((p) => !storedIds.has(p.id));
+    if (toMerge.length > 0) {
+      cfg = { ...cfg, palettes: [...(cfg.palettes ?? []), ...toMerge] };
+    }
   }
 
   // v2 format: has palettes array
@@ -458,6 +478,11 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       if (state.activePaletteId === id) state.currentPaletteName = name;
     }),
 
+    updateActiveVocab: (vocab) => set((state) => {
+      const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
+      if (palette) palette.vocab = vocab;
+    }),
+
     toggleScaleLock: (id) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (scale) scale.lockedFromOverrides = !scale.lockedFromOverrides;
@@ -484,11 +509,24 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     removeScale: (id) => set((state) => {
       pushHistory(state);
+      const removed = state.scales.find((s) => s.id === id);
       state.scales = state.scales.filter((s) => s.id !== id);
       state.selectedScaleIds = state.selectedScaleIds.filter((sid) => sid !== id);
       if (state.activeScaleId === id) {
         state.activeScaleId = state.scales[0]?.id ?? null;
       }
+      const fallback = state.scales[0];
+      const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
+      if (palette?.vocab && removed && fallback) {
+        palette.vocab = remapPortableVocabularyRamps(palette.vocab, [removed.name], fallback.name);
+      }
+      queueMicrotask(() => {
+        const ps = usePaletteStore.getState();
+        const pal = ps.savedPalettes.find((p) => p.id === ps.activePaletteId);
+        const is = useIntentStore.getState();
+        const ec = { compliance: is.engineCompliance, target: is.engineTarget, modes: is.engineModes };
+        useVocabStore.getState().loadFromVocab(pal?.vocab ?? null, ec);
+      });
     }),
 
     reorderScales: (fromIndex, toIndex) => set((state) => {
@@ -998,11 +1036,28 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       if (state.selectedScaleIds.length === 0) return;
       pushHistory(state);
       const ids = new Set(state.selectedScaleIds);
+      const removed = state.scales.filter((s) => ids.has(s.id));
       state.scales = state.scales.filter((s) => !ids.has(s.id));
       state.selectedScaleIds = [];
       if (state.activeScaleId && ids.has(state.activeScaleId)) {
         state.activeScaleId = state.scales[0]?.id ?? null;
       }
+      const fallback = state.scales[0];
+      const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
+      if (palette?.vocab && removed.length > 0 && fallback) {
+        palette.vocab = remapPortableVocabularyRamps(
+          palette.vocab,
+          removed.map((s) => s.name),
+          fallback.name,
+        );
+      }
+      queueMicrotask(() => {
+        const ps = usePaletteStore.getState();
+        const pal = ps.savedPalettes.find((p) => p.id === ps.activePaletteId);
+        const is = useIntentStore.getState();
+        const ec = { compliance: is.engineCompliance, target: is.engineTarget, modes: is.engineModes };
+        useVocabStore.getState().loadFromVocab(pal?.vocab ?? null, ec);
+      });
     }),
   }))
 );

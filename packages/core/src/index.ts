@@ -90,6 +90,8 @@ export {
   buildSurfacePaths,
   buildSurfaceStepMap,
   buildTokenRampFromPortable,
+  remapPortableVocabularyRamps,
+  coerceTokenRampToPaletteScales,
   buildPortableArtifacts,
   PortableVocabularyError,
   type PortableVocabularyArtifacts,

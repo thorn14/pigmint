@@ -303,6 +303,68 @@ export function buildSurfacePaths(vocab: PortableVocabulary): Set<string> {
   return new Set(Object.keys(vocab.surfaces));
 }
 
+function rampMatchKey(name: string): string {
+  return name.trim().toLowerCase() || 'color';
+}
+
+/**
+ * When palette ramps are removed, portable tokens may still reference the old
+ * `ramp` name. Rewrites every token whose `ramp` is in `deletedRampNames` to
+ * `fallbackRampName` (typically the first remaining scale).
+ * Matching is case-insensitive so vocab `gray` still matches a removed scale `Gray`.
+ */
+export function remapPortableVocabularyRamps(
+  vocab: PortableVocabulary,
+  deletedRampNames: readonly string[],
+  fallbackRampName: string,
+): PortableVocabulary {
+  if (deletedRampNames.length === 0) return vocab;
+  const deletedKeys = new Set(deletedRampNames.map((n) => rampMatchKey(n)));
+  const fix = <T extends { ramp: string }>(t: T): T =>
+    deletedKeys.has(rampMatchKey(t.ramp)) ? { ...t, ramp: fallbackRampName } : t;
+
+  const surfaces = Object.fromEntries(
+    Object.entries(vocab.surfaces).map(([k, t]) => [k, fix(t)]),
+  );
+  const foreground = Object.fromEntries(
+    Object.entries(vocab.foreground).map(([k, t]) => [k, fix(t)]),
+  );
+  const nonText = Object.fromEntries(
+    Object.entries(vocab.nonText).map(([k, t]) => [k, fix(t)]),
+  );
+  const out: PortableVocabulary = { ...vocab, surfaces, foreground, nonText };
+  if (vocab.decorative !== undefined) {
+    out.decorative = Object.fromEntries(
+      Object.entries(vocab.decorative).map(([k, t]) => [k, fix(t)]),
+    );
+  }
+  return out;
+}
+
+/**
+ * Point every tokenRamp entry at a real `scales[].name` (case-insensitive match).
+ * Unknown names (e.g. stale ramp after palette edit) map to `scaleNames[0]`.
+ */
+export function coerceTokenRampToPaletteScales(
+  tokenRamp: Record<string, string>,
+  scaleNames: readonly string[],
+): Record<string, string> {
+  if (scaleNames.length === 0) return { ...tokenRamp };
+  const keyToCanonical = new Map<string, string>();
+  for (const n of scaleNames) {
+    keyToCanonical.set(rampMatchKey(n), n);
+  }
+  const fallback = scaleNames[0]!;
+  const out: Record<string, string> = { ...tokenRamp };
+  for (const path of Object.keys(out)) {
+    const r = out[path] ?? '';
+    const k = rampMatchKey(r);
+    const hit = keyToCanonical.get(k);
+    out[path] = hit ?? fallback;
+  }
+  return out;
+}
+
 export function buildTokenRampFromPortable(vocab: PortableVocabulary): Record<string, string> {
   const map: Record<string, string> = {};
   for (const [name, entry] of Object.entries(vocab.surfaces)) {

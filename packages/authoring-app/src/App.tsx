@@ -16,7 +16,7 @@ import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useIntentStore } from './store/intentStore';
-import { initVocabStore } from './store/vocabStore';
+import { initVocabStore, useVocabStore } from './store/vocabStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
@@ -92,6 +92,7 @@ export default function App() {
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
   );
   const lastSavedFingerprint = useRef<string | null>(null);
+  const activePaletteId = usePaletteStore((s) => s.activePaletteId);
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
@@ -142,6 +143,14 @@ export default function App() {
     const is = useIntentStore.getState();
     initVocabStore({ compliance: is.engineCompliance, target: is.engineTarget, modes: is.engineModes });
   }, []);
+
+  useEffect(() => {
+    const is = useIntentStore.getState();
+    const ec = { compliance: is.engineCompliance, target: is.engineTarget, modes: is.engineModes };
+    const ps = usePaletteStore.getState();
+    const activePalette = ps.savedPalettes.find((p) => p.id === activePaletteId);
+    useVocabStore.getState().loadFromVocab(activePalette?.vocab ?? null, ec);
+  }, [activePaletteId]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

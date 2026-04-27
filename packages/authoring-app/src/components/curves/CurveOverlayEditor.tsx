@@ -73,17 +73,24 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const engineResolver = useIntentStore((s) => s.engineResolver);
-  const vocabCtxForMarkers = useVocabStore((s) => s.entries
-    ? {
-        vocabulary: s.entries,
-        tokenRamp: s.raw ? Object.fromEntries(
-          Object.entries({ ...s.raw.surfaces, ...s.raw.foreground, ...s.raw.nonText, ...(s.raw.decorative ?? {}) })
-            .map(([n, e]) => [n, (e as { ramp: string }).ramp])
-        ) : {},
-        surfacePaths: s.surfacePaths ?? undefined,
-        surfaceSteps: s.surfaceSteps ?? undefined,
-      }
-    : null);
+  const vocabEntries     = useVocabStore((s) => s.entries);
+  const vocabRaw         = useVocabStore((s) => s.raw);
+  const vocabSurfacePaths = useVocabStore((s) => s.surfacePaths);
+  const vocabSurfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const vocabCtxForMarkers = useMemo(() => {
+    if (!vocabEntries) return null;
+    return {
+      vocabulary: vocabEntries,
+      tokenRamp: vocabRaw
+        ? Object.fromEntries(
+            Object.entries({ ...vocabRaw.surfaces, ...vocabRaw.foreground, ...vocabRaw.nonText, ...(vocabRaw.decorative ?? {}) })
+              .map(([n, e]) => [n, (e as { ramp: string }).ramp])
+          )
+        : {},
+      surfacePaths: vocabSurfacePaths ?? undefined,
+      surfaceSteps: vocabSurfaceSteps ?? undefined,
+    };
+  }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps]);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -106,8 +113,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     ? markerMode
     : engineModes[0];
 
-  const intentMarkers = useMemo(() => {
-    if (viewMode !== 'gradient') return [];
+  type IntentMarkerData =
+    | { status: 'skipped' }
+    | { status: 'ok'; tokens: ResolvedToken[] }
+    | { status: 'error'; error: string };
+
+  const intentMarkerData = useMemo((): IntentMarkerData => {
+    if (viewMode !== 'gradient') return { status: 'skipped' };
     const state = runResolve(
       scales,
       engineModes,
@@ -123,10 +135,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               : {}),
           },
     );
-    if (!state.ok) return [];
-    return state.tokens.filter(
-      (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
-    );
+    if (!state.ok) return { status: 'error', error: state.error };
+    return {
+      status: 'ok',
+      tokens: state.tokens.filter(
+        (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
+      ),
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabCtxForMarkers, scale.name, activeMarkerMode]);
 
@@ -578,7 +593,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           {/* Intent-resolved markers (gradient view) */}
           {viewMode === 'gradient' && (
             <IntentMarkers
-              tokens={intentMarkers}
+              tokens={intentMarkerData.status === 'ok' ? intentMarkerData.tokens : []}
+              resolveError={intentMarkerData.status === 'error' ? intentMarkerData.error : undefined}
               ramp={ramp}
               n={n}
               width={size.width}
@@ -766,6 +782,7 @@ function groupKeyForToken(
 
 function IntentMarkers({
   tokens,
+  resolveError,
   ramp,
   n,
   width,
@@ -773,6 +790,7 @@ function IntentMarkers({
   pad,
 }: {
   tokens: ResolvedToken[];
+  resolveError?: string;
   ramp: GeneratedRamp;
   n: number;
   width: number;
@@ -815,20 +833,45 @@ function IntentMarkers({
   };
 
   if (tokens.length === 0) {
+    const foW = 300;
+    const foH = resolveError ? 132 : 96;
+    const label = resolveError
+      ? resolveError
+      : 'No vocabulary tokens resolved to this ramp.';
+    const isError = Boolean(resolveError);
     return (
-      <foreignObject x={width / 2 - 140} y={height / 2 - 20} width={280} height={40}>
+      <foreignObject
+        x={width / 2 - foW / 2}
+        y={height / 2 - foH / 2}
+        width={foW}
+        height={foH}
+        overflow="visible"
+      >
         <div
           style={{
-            color: 'rgba(255,255,255,0.9)',
-            background: 'rgba(0,0,0,0.55)',
-            fontSize: 12,
-            padding: '8px 12px',
-            borderRadius: 6,
+            boxSizing: 'border-box',
+            width: '100%',
+            minHeight: '100%',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'rgba(255,255,255,0.95)',
+            background: isError ? 'rgba(88,28,28,0.88)' : 'rgba(0,0,0,0.58)',
+            fontSize: isError ? 11 : 12,
+            padding: '12px 14px',
+            borderRadius: 8,
             textAlign: 'center',
-            backdropFilter: 'blur(4px)',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            lineHeight: 1.4,
+            wordBreak: 'break-word',
+            border: isError ? '1px solid rgba(252,165,165,0.45)' : '1px solid rgba(255,255,255,0.14)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            overflow: 'auto',
           }}
         >
-          No vocabulary tokens resolved to this ramp.
+          {label}
         </div>
       </foreignObject>
     );

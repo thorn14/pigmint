@@ -11,8 +11,9 @@ import {
   type PortableDecorativeToken,
 } from '@pigmint/core';
 import type { VocabularyEntry, EngineConfig, SurfaceStepDecl } from '@pigmint/core';
+import { usePaletteStore } from './paletteStore';
 
-const STORAGE_KEY = 'pigmint:vocab:v1';
+const LEGACY_STORAGE_KEY = 'pigmint:vocab:v1';
 
 export interface VocabState {
   raw: PortableVocabulary | null;
@@ -24,7 +25,7 @@ export interface VocabState {
 
 interface VocabActions {
   loadFromText(yamlText: string, engineConfig: EngineConfig): void;
-  loadFromVocab(vocab: PortableVocabulary, engineConfig: EngineConfig): void;
+  loadFromVocab(vocab: PortableVocabulary | null, engineConfig: EngineConfig): void;
 
   addSurface(name: string, token: PortableSurfaceToken, engineConfig: EngineConfig): void;
   updateSurface(name: string, updates: Partial<PortableSurfaceToken>, engineConfig: EngineConfig): void;
@@ -47,21 +48,8 @@ function deriveArtifacts(vocab: PortableVocabulary, engineConfig: EngineConfig):
   };
 }
 
-function saveRaw(raw: PortableVocabulary | null) {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    if (raw) localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch { /* ignore */ }
-}
-
-function loadRaw(): PortableVocabulary | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    return JSON.parse(stored) as PortableVocabulary;
-  } catch { return null; }
+function syncToPalette(vocab: PortableVocabulary | null) {
+  usePaletteStore.getState().updateActiveVocab(vocab);
 }
 
 const EMPTY_VOCAB: PortableVocabulary = { surfaces: {}, foreground: {}, nonText: {} };
@@ -74,7 +62,7 @@ function applyMutation(
   const base = prev ?? EMPTY_VOCAB;
   try {
     const next = mutate(base);
-    saveRaw(next);
+    syncToPalette(next);
     return { raw: next, error: null, ...deriveArtifacts(next, engineConfig) };
   } catch (e) {
     return { error: (e as Error).message };
@@ -82,11 +70,8 @@ function applyMutation(
 }
 
 export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
-  // Restore from localStorage at init (engine config not available yet — defer)
-  const restoredRaw = loadRaw();
-
   return {
-    raw: restoredRaw,
+    raw: null,
     entries: null,
     surfacePaths: null,
     surfaceSteps: null,
@@ -96,15 +81,19 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
       try {
         const parsed = parseYaml(yamlText);
         const vocab = validatePortableVocabulary(parsed, '(pasted)');
-        saveRaw(vocab);
+        syncToPalette(vocab);
         set({ raw: vocab, error: null, ...deriveArtifacts(vocab, engineConfig) });
       } catch (e) {
         set({ error: (e as Error).message });
       }
     },
 
+    // Called when loading FROM the palette store (palette switch, init). Does NOT sync back.
     loadFromVocab(vocab, engineConfig) {
-      saveRaw(vocab);
+      if (!vocab) {
+        set({ raw: null, entries: null, surfacePaths: null, surfaceSteps: null, error: null });
+        return;
+      }
       set({ raw: vocab, error: null, ...deriveArtifacts(vocab, engineConfig) });
     },
 
@@ -167,17 +156,34 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
     },
 
     clear() {
-      saveRaw(null);
+      syncToPalette(null);
       set({ raw: null, entries: null, surfacePaths: null, surfaceSteps: null, error: null });
     },
   };
 });
 
 export function initVocabStore(engineConfig: EngineConfig) {
-  const store = useVocabStore.getState();
-  if (store.raw && !store.entries) {
+  // Migrate legacy global vocab key into active palette on first run
+  const ps = usePaletteStore.getState();
+  const activePalette = ps.savedPalettes.find((p) => p.id === ps.activePaletteId);
+
+  let vocab: PortableVocabulary | null = activePalette?.vocab ?? null;
+
+  if (!vocab && typeof localStorage !== 'undefined') {
     try {
-      store.loadFromVocab(store.raw, engineConfig);
-    } catch { /* invalid stored vocab — clear */ }
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy) {
+        vocab = JSON.parse(legacy) as PortableVocabulary;
+        // Migrate into active palette
+        ps.updateActiveVocab(vocab);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (vocab) {
+    try {
+      useVocabStore.getState().loadFromVocab(vocab, engineConfig);
+    } catch { /* invalid vocab — leave empty */ }
   }
 }

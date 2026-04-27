@@ -14,7 +14,9 @@ export type {
   ContrastResult,
 } from '@pigmint/core';
 
-import type { ColorScale } from '@pigmint/core';
+import type { ColorScale, PortableVocabulary } from '@pigmint/core';
+
+export type { PortableVocabulary };
 
 export interface ContrastMapColorRef {
   ramp: string;
@@ -37,6 +39,7 @@ export interface SavedPalette {
   name: string;
   activeScaleId: string | null;
   scales: ColorScale[];
+  vocab?: PortableVocabulary | null;
 }
 
 export interface PaletteState {

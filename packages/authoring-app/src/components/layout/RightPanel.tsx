@@ -221,10 +221,19 @@ export function RightPanel({ scale, activeStep }: Props) {
                 className="focus-visible-ring"
               />
             </div>
-            <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
-              <div>L {scale.sourceOklch.l.toFixed(4)}</div>
-              <div>C {scale.sourceOklch.c.toFixed(4)}</div>
-              <div>H {scale.sourceOklch.h.toFixed(2)}°</div>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'baseline',
+              gap: '6px 14px',
+              fontSize: 12,
+              fontFamily: 'monospace',
+              color: 'var(--p-text-secondary)',
+              lineHeight: 1.5,
+            }}>
+              <span style={{ whiteSpace: 'nowrap' }}>L {scale.sourceOklch.l.toFixed(4)}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>C {scale.sourceOklch.c.toFixed(4)}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>H {scale.sourceOklch.h.toFixed(2)}°</span>
             </div>
           </AppField>
         </div>
@@ -602,10 +611,20 @@ export function RightPanel({ scale, activeStep }: Props) {
           <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-tertiary)', marginBottom: 3 }}>
             OKLCH
           </div>
-          <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8, marginBottom: 8 }}>
-            <div>L {activeStep.oklch.l.toFixed(4)}</div>
-            <div>C {activeStep.oklch.c.toFixed(4)}</div>
-            <div>H {activeStep.oklch.h.toFixed(2)}°</div>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+            gap: '6px 14px',
+            fontSize: 12,
+            fontFamily: 'monospace',
+            color: 'var(--p-text-secondary)',
+            lineHeight: 1.5,
+            marginBottom: 8,
+          }}>
+            <span style={{ whiteSpace: 'nowrap' }}>L {activeStep.oklch.l.toFixed(4)}</span>
+            <span style={{ whiteSpace: 'nowrap' }}>C {activeStep.oklch.c.toFixed(4)}</span>
+            <span style={{ whiteSpace: 'nowrap' }}>H {activeStep.oklch.h.toFixed(2)}°</span>
           </div>
 
           {/* Contrast */}
