@@ -2,7 +2,7 @@ import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from 'rea
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import type { ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
-import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
+import { useIntentStore, useEffectiveMode, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { runResolve } from '../../lib/resolveState';
@@ -68,9 +68,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const scales = usePaletteStore((s) => s.scales);
-  const engineModes = useIntentStore((s) => s.engineModes);
-  const engineTarget = useIntentStore((s) => s.engineTarget);
+  const engineModes    = useIntentStore((s) => s.engineModes);
+  const engineTarget   = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
+  const appTheme       = useIntentStore((s) => s.appTheme);
+  const highContrast   = useIntentStore((s) => s.highContrast);
+  const setHighContrast = useIntentStore((s) => s.setHighContrast);
+  const activeMarkerMode = useEffectiveMode();
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const vocabEntries     = useVocabStore((s) => s.entries);
@@ -100,7 +104,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const [size, setSize]             = useState({ width: 800, height: 400 });
   const [showHelp, setShowHelp]     = useState(false);
   const [viewMode, setViewMode]     = useState<ViewMode>('curves');
-  const [markerMode, setMarkerMode] = useState<string | null>(null);
   const n = ramp.steps.length;
   const PAD = 18;
 
@@ -108,10 +111,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     if (viewMode !== 'gradient') return '';
     return buildScaleLinearGradientCss(scale);
   }, [viewMode, scale]);
-
-  const activeMarkerMode = markerMode && engineModes.includes(markerMode as (typeof engineModes)[number])
-    ? markerMode
-    : engineModes[0];
 
   type IntentMarkerData =
     | { status: 'skipped' }
@@ -260,7 +259,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     return { x, y };
   }
 
-  const shortModeLabel = (m: string) => m.replace(/-high-contrast$/, '-HC');
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ background: 'var(--p-bg)' }}>
@@ -309,48 +307,29 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           })}
         </div>
 
-        {viewMode === 'gradient' && engineModes.length > 1 && (
-          <div
-            role="radiogroup"
-            aria-label="Engine mode for intent markers"
-            style={{
-              display: 'inline-flex',
-              borderRadius: 6,
-              background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
-              padding: 2,
-              gap: 2,
-            }}
-          >
-            {engineModes.map((m) => {
-              const active = activeMarkerMode === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setMarkerMode(m)}
-                  title={m}
-                  style={{
-                    border: 'none',
-                    background: active ? 'var(--p-text)' : 'transparent',
-                    color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    padding: '3px 10px',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {shortModeLabel(m)}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {viewMode === 'gradient' && (() => {
+          const hcVariant = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
+          const hcAvailable = engineModes.includes(hcVariant);
+          return (
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+              color: 'var(--p-text-secondary)',
+              cursor: hcAvailable ? 'pointer' : 'default',
+              opacity: hcAvailable ? 1 : 0.4,
+              userSelect: 'none',
+            }}>
+              <input
+                type="checkbox"
+                checked={highContrast && hcAvailable}
+                disabled={!hcAvailable}
+                onChange={(e) => setHighContrast(e.target.checked)}
+                style={{ cursor: hcAvailable ? 'pointer' : 'default', accentColor: 'var(--p-accent)' }}
+              />
+              HC
+            </label>
+          );
+        })()}
       </div>
 
       {/* Step name headers + gamut indicators */}

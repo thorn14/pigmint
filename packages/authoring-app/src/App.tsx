@@ -154,6 +154,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    useIntentStore.getState().setAppTheme(theme);
   }, [theme]);
 
   useEffect(() => {

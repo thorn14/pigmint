@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
-import { useIntentStore } from '../../store/intentStore';
+import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import type { ResolvedToken, ComplianceLevel } from '@pigmint/core';
@@ -123,21 +123,23 @@ function TokenCard({
 // ─── Main preview ─────────────────────────────────────────────────────────────
 
 export function TokensPreview() {
-  const scales      = usePaletteStore((s) => s.scales);
+  const scales           = usePaletteStore((s) => s.scales);
   const engineModes      = useIntentStore((s) => s.engineModes);
   const engineTarget     = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver   = useIntentStore((s) => s.engineResolver);
+  const appTheme         = useIntentStore((s) => s.appTheme);
+  const highContrast     = useIntentStore((s) => s.highContrast);
+  const setHighContrast  = useIntentStore((s) => s.setHighContrast);
+  const effectiveMode    = useEffectiveMode();
+
+  const hcVariant        = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
+  const hcAvailable      = engineModes.includes(hcVariant);
 
   const vocabEntries      = useVocabStore((s) => s.entries);
   const vocabRaw          = useVocabStore((s) => s.raw);
   const vocabSurfacePaths = useVocabStore((s) => s.surfacePaths);
   const vocabSurfaceSteps = useVocabStore((s) => s.surfaceSteps);
-
-  const [activeMode, setActiveMode] = useState(engineModes[0] ?? 'light');
-  const effectiveMode = engineModes.includes(activeMode as typeof engineModes[number])
-    ? activeMode
-    : engineModes[0] ?? 'light';
 
   const useWcag = engineCompliance !== 'apca';
 
@@ -228,39 +230,37 @@ export function TokensPreview() {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-      {/* Mode tabs */}
-      {engineModes.length > 1 && (
-        <div style={{
-          display: 'flex',
-          padding: '0 12px',
-          borderBottom: '1px solid var(--p-border)',
-          flexShrink: 0,
-          gap: 2,
+      {/* HC toolbar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 16px',
+        borderBottom: '1px solid var(--p-border)',
+        flexShrink: 0,
+        fontSize: 11,
+        color: 'var(--p-text-secondary)',
+      }}>
+        <span style={{ fontWeight: 600, color: 'var(--p-text)', textTransform: 'capitalize' }}>
+          {effectiveMode.replace(/-/g, ' ')}
+        </span>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          cursor: hcAvailable ? 'pointer' : 'default',
+          opacity: hcAvailable ? 1 : 0.4,
+          marginLeft: 'auto',
+          userSelect: 'none',
         }}>
-          {engineModes.map((m) => {
-            const active = effectiveMode === m;
-            return (
-              <button
-                key={m}
-                onClick={() => setActiveMode(m)}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: active ? 600 : 400,
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
-                  color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
-                  cursor: 'pointer',
-                  marginBottom: -1,
-                }}
-              >
-                {m}
-              </button>
-            );
-          })}
-        </div>
-      )}
+          <input
+            type="checkbox"
+            checked={highContrast && hcAvailable}
+            disabled={!hcAvailable}
+            onChange={(e) => setHighContrast(e.target.checked)}
+            style={{ cursor: hcAvailable ? 'pointer' : 'default', accentColor: 'var(--p-accent)' }}
+          />
+          High contrast
+        </label>
+      </div>
 
       {/* Surface groups */}
       <div style={{

@@ -56,7 +56,12 @@ export interface PersistedIntentState {
   overrides: IntentOverrides;
 }
 
-interface IntentState extends PersistedIntentState {}
+export type AppTheme = 'light' | 'dark';
+
+interface IntentState extends PersistedIntentState {
+  appTheme: AppTheme;
+  highContrast: boolean;
+}
 
 interface IntentActions {
   setEngineTarget: (target: ComplianceTarget) => void;
@@ -73,6 +78,8 @@ interface IntentActions {
   clearAll: () => void;
   loadOverrides: (overrides: IntentOverrides) => void;
   loadState: (state: Partial<PersistedIntentState>) => void;
+  setAppTheme: (theme: AppTheme) => void;
+  setHighContrast: (hc: boolean) => void;
 }
 
 const DEFAULT_STATE: PersistedIntentState = {
@@ -181,6 +188,8 @@ function snapshot(state: PersistedIntentState): PersistedIntentState {
 export const useIntentStore = create<IntentState & IntentActions>()(
   immer((set) => ({
     ...loadFromStorage(),
+    appTheme: 'light' as AppTheme,
+    highContrast: false,
 
     setEngineTarget: (target) =>
       set((state) => {
@@ -297,8 +306,30 @@ export const useIntentStore = create<IntentState & IntentActions>()(
         if (next.overrides) state.overrides = { ...next.overrides };
         persist(snapshot(state));
       }),
+
+    setAppTheme: (theme) =>
+      set((state) => {
+        state.appTheme = theme;
+      }),
+
+    setHighContrast: (hc) =>
+      set((state) => {
+        state.highContrast = hc;
+      }),
   })),
 );
+
+/** Returns the single mode that should be previewed given the current app theme and HC toggle. */
+export function useEffectiveMode(): EngineMode {
+  const appTheme    = useIntentStore((s) => s.appTheme);
+  const highContrast = useIntentStore((s) => s.highContrast);
+  const engineModes  = useIntentStore((s) => s.engineModes);
+
+  const base: EngineMode  = appTheme === 'dark' ? 'dark' : 'light';
+  const hc: EngineMode    = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
+  const want: EngineMode  = highContrast && engineModes.includes(hc) ? hc : base;
+  return engineModes.includes(want) ? want : (engineModes[0] ?? base);
+}
 
 export function mergeIntent(
   base: FormalIntent,

@@ -1,24 +1,38 @@
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
+import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
 import type {
   PortableSurfaceToken,
   PortableSemanticToken,
+  GeneratedRamp,
+  ColorScale,
 } from '@pigmint/core';
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
-const ROW: React.CSSProperties = {
+const ROW_BASE: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '160px repeat(4, minmax(0, 1fr)) 28px',
-  gap: 8,
+  gap: 6,
   alignItems: 'center',
   padding: '4px 12px',
   borderBottom: '1px solid var(--p-border)',
   fontSize: 12,
+};
+
+// Surface rows: name | ramp | light-step | dark-step | delete
+const SURFACE_ROW: React.CSSProperties = {
+  ...ROW_BASE,
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.4fr) 28px',
+};
+
+// Semantic/decorative rows: name | ramp | surface | preference | consistency | delete
+const ROW: React.CSSProperties = {
+  ...ROW_BASE,
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 28px',
 };
 
 const HEADER: React.CSSProperties = {
@@ -103,41 +117,211 @@ function ec() {
   return { compliance: s.engineCompliance, target: s.engineTarget, modes: s.engineModes };
 }
 
-// ─── Surface row ──────────────────────────────────────────────────────────────
+// ─── Color dot ────────────────────────────────────────────────────────────────
 
-function SurfaceRow({ name, token, rampNames, onUpdate, onDelete }: {
-  name: string; token: PortableSurfaceToken; rampNames: string[];
-  onUpdate: (u: Partial<PortableSurfaceToken>) => void; onDelete: () => void;
-}) {
-  const isMulti = token.lightStep !== undefined || token.darkStep !== undefined;
+function ColorDot({ hex, size = 12 }: { hex?: string; size?: number }) {
+  if (!hex) return null;
   return (
-    <div style={ROW}>
-      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-      <select style={sel} value={token.ramp} onChange={(e) => onUpdate({ ramp: e.target.value })}>
-        {rampNames.map((r) => <option key={r}>{r}</option>)}
-      </select>
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center', minWidth: 0 }}>
-        {isMulti ? (
+    <div style={{
+      width: size, height: size, borderRadius: 2, flexShrink: 0,
+      background: hex, border: '1px solid rgba(0,0,0,0.14)',
+    }} />
+  );
+}
+
+// ─── Step select ──────────────────────────────────────────────────────────────
+
+function StepSelect({ rampName, rampMap, value, onChange }: {
+  rampName: string;
+  rampMap: Map<string, GeneratedRamp>;
+  value: number;
+  onChange: (index: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 160 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  const ramp = rampMap.get(rampName);
+  const steps = ramp?.steps ?? [];
+  const safeIdx = steps.length > 0 ? Math.max(0, Math.min(value, steps.length - 1)) : 0;
+  const current = steps[safeIdx];
+
+  function openDropdown() {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) setPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(180, rect.width) });
+    setOpen((v) => !v);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (
+        !dropRef.current?.contains(e.target as Node) &&
+        !btnRef.current?.contains(e.target as Node)
+      ) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div style={{ position: 'relative', minWidth: 0 }}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openDropdown}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5, width: '100%',
+          padding: '3px 6px', fontSize: 12,
+          background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+          borderRadius: 4, cursor: 'pointer', color: 'var(--p-text)',
+          boxSizing: 'border-box' as const, minWidth: 0,
+        }}
+      >
+        {current ? (
           <>
-            <label style={{ fontSize: 11, color: 'var(--p-text-secondary)', flexShrink: 0 }}>light</label>
-            <input type="number" min={0} style={{ ...inp, width: 48 }} value={token.lightStep ?? 0}
-              onChange={(e) => onUpdate({ lightStep: Number(e.target.value), step: undefined })} />
-            <label style={{ fontSize: 11, color: 'var(--p-text-secondary)', flexShrink: 0 }}>dark</label>
-            <input type="number" min={0} style={{ ...inp, width: 48 }} value={token.darkStep ?? 0}
-              onChange={(e) => onUpdate({ darkStep: Number(e.target.value), step: undefined })} />
+            <ColorDot hex={current.hex} />
+            <span style={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1, textAlign: 'left' as const }}>
+              {current.name}
+            </span>
           </>
         ) : (
-          <>
-            <label style={{ fontSize: 11, color: 'var(--p-text-secondary)', flexShrink: 0 }}>step</label>
-            <input type="number" min={0} style={{ ...inp, width: 48 }} value={token.step ?? 0}
-              onChange={(e) => onUpdate({ step: Number(e.target.value) })} />
-            <button style={{ ...btn, fontSize: 10 }} onClick={() => onUpdate({ lightStep: token.step ?? 0, darkStep: token.step ?? 0, step: undefined })}>
-              per-mode
-            </button>
-          </>
+          <span style={{ color: 'var(--p-text-secondary)', flex: 1 }}>—</span>
         )}
-      </div>
-      <span /><span />
+        <span style={{ opacity: 0.4, fontSize: 8, flexShrink: 0 }}>▾</span>
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed',
+            top: pos.top, left: pos.left, minWidth: pos.width,
+            background: 'var(--p-bg)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            zIndex: 300,
+            maxHeight: 280, overflowY: 'auto' as const,
+          }}
+        >
+          {steps.length === 0 && (
+            <div style={{ padding: '8px 12px', color: 'var(--p-text-tertiary)', fontSize: 12 }}>
+              No steps
+            </div>
+          )}
+          {steps.map((step, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { onChange(i); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '5px 10px', width: '100%', textAlign: 'left' as const,
+                background: i === safeIdx ? 'var(--p-bg-subtle)' : 'transparent',
+                border: 'none',
+                borderBottom: i < steps.length - 1 ? '1px solid var(--p-border)' : 'none',
+                cursor: 'pointer', color: 'var(--p-text)', fontSize: 12,
+              }}
+            >
+              <ColorDot hex={step.hex} size={20} />
+              <span style={{ fontFamily: 'monospace', fontWeight: i === safeIdx ? 600 : 400 }}>
+                {step.name}
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--p-text-secondary)', marginLeft: 'auto', fontFamily: 'monospace' }}>
+                {step.hex}
+              </span>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+// ─── Ramp select with swatch ──────────────────────────────────────────────────
+
+function RampSelect({ rampNames, value, onChange, scales }: {
+  rampNames: string[];
+  value: string;
+  onChange: (name: string) => void;
+  scales: ColorScale[];
+}) {
+  const sourceHex = scales.find((s) => s.name === value)?.sourceHex;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+      <ColorDot hex={sourceHex} />
+      <select style={{ ...sel, flex: 1 }} value={value} onChange={(e) => onChange(e.target.value)}>
+        {rampNames.map((r) => <option key={r}>{r}</option>)}
+      </select>
+    </div>
+  );
+}
+
+// ─── Surface select with swatch ───────────────────────────────────────────────
+
+function SurfaceSelect({ surfaceNames, value, onChange, surfaces, rampMap }: {
+  surfaceNames: string[];
+  value: string;
+  onChange: (name: string) => void;
+  surfaces: Record<string, PortableSurfaceToken>;
+  rampMap: Map<string, GeneratedRamp>;
+}) {
+  const surfaceToken = surfaces[value];
+  const surfaceRamp = surfaceToken ? rampMap.get(surfaceToken.ramp) : null;
+  const lightIdx = surfaceToken ? (surfaceToken.lightStep ?? surfaceToken.step ?? 0) : 0;
+  const hex = surfaceRamp?.steps[Math.max(0, Math.min(lightIdx, surfaceRamp.steps.length - 1))]?.hex;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+      <ColorDot hex={hex} />
+      <select style={{ ...sel, flex: 1 }} value={value} onChange={(e) => onChange(e.target.value)}>
+        {surfaceNames.map((s) => <option key={s}>{s}</option>)}
+      </select>
+    </div>
+  );
+}
+
+// ─── Surface row ──────────────────────────────────────────────────────────────
+
+function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelete }: {
+  name: string;
+  token: PortableSurfaceToken;
+  rampNames: string[];
+  rampMap: Map<string, GeneratedRamp>;
+  scales: ColorScale[];
+  onUpdate: (u: Partial<PortableSurfaceToken>) => void;
+  onDelete: () => void;
+}) {
+  const ramp = rampMap.get(token.ramp);
+  const lastIdx = (ramp?.steps.length ?? 1) - 1;
+
+  const lightIdx = token.lightStep ?? token.step ?? 0;
+  const darkIdx = token.darkStep ?? (token.step !== undefined ? lastIdx : 0);
+
+  function setLight(i: number) {
+    onUpdate({ lightStep: i, darkStep: darkIdx, step: undefined });
+  }
+  function setDark(i: number) {
+    onUpdate({ lightStep: lightIdx, darkStep: i, step: undefined });
+  }
+
+  return (
+    <div style={SURFACE_ROW}>
+      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {name}
+      </span>
+      <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
+      <StepSelect rampName={token.ramp} rampMap={rampMap} value={lightIdx} onChange={setLight} />
+      <StepSelect rampName={token.ramp} rampMap={rampMap} value={darkIdx} onChange={setDark} />
       <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
     </div>
   );
@@ -145,19 +329,30 @@ function SurfaceRow({ name, token, rampNames, onUpdate, onDelete }: {
 
 // ─── Semantic token row ────────────────────────────────────────────────────────
 
-function SemanticRow({ name, token, rampNames, surfaceNames, onUpdate, onDelete }: {
-  name: string; token: PortableSemanticToken; rampNames: string[]; surfaceNames: string[];
-  onUpdate: (u: Partial<PortableSemanticToken>) => void; onDelete: () => void;
+function SemanticRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfaces, onUpdate, onDelete }: {
+  name: string;
+  token: PortableSemanticToken;
+  rampNames: string[];
+  surfaceNames: string[];
+  rampMap: Map<string, GeneratedRamp>;
+  scales: ColorScale[];
+  surfaces: Record<string, PortableSurfaceToken>;
+  onUpdate: (u: Partial<PortableSemanticToken>) => void;
+  onDelete: () => void;
 }) {
   return (
     <div style={ROW}>
-      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-      <select style={sel} value={token.ramp} onChange={(e) => onUpdate({ ramp: e.target.value })}>
-        {rampNames.map((r) => <option key={r}>{r}</option>)}
-      </select>
-      <select style={sel} value={token.surfaces[0] ?? ''} onChange={(e) => onUpdate({ surfaces: [e.target.value] })}>
-        {surfaceNames.map((s) => <option key={s}>{s}</option>)}
-      </select>
+      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {name}
+      </span>
+      <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
+      <SurfaceSelect
+        surfaceNames={surfaceNames}
+        value={token.surfaces[0] ?? ''}
+        onChange={(s) => onUpdate({ surfaces: [s] })}
+        surfaces={surfaces}
+        rampMap={rampMap}
+      />
       <select style={sel} value={token.preference} onChange={(e) => onUpdate({ preference: e.target.value as PortableSemanticToken['preference'] })}>
         {PREFS.map((p) => <option key={p}>{p}</option>)}
       </select>
@@ -210,9 +405,124 @@ const kindTab: (active: boolean) => React.CSSProperties = (active) => ({
   cursor: 'pointer',
 });
 
-function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSemantic }: {
+// Larger step select for the modal
+function ModalStepSelect({ rampName, rampMap, value, onChange }: {
+  rampName: string;
+  rampMap: Map<string, GeneratedRamp>;
+  value: number;
+  onChange: (index: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 200 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  const ramp = rampMap.get(rampName);
+  const steps = ramp?.steps ?? [];
+  const safeIdx = steps.length > 0 ? Math.max(0, Math.min(value, steps.length - 1)) : 0;
+  const current = steps[safeIdx];
+
+  function openDropdown() {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) setPos({ top: rect.bottom + 2, left: rect.left, width: rect.width });
+    setOpen((v) => !v);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (
+        !dropRef.current?.contains(e.target as Node) &&
+        !btnRef.current?.contains(e.target as Node)
+      ) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openDropdown}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '6px 10px', fontSize: 13,
+          background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+          borderRadius: 6, cursor: 'pointer', color: 'var(--p-text)',
+          boxSizing: 'border-box' as const,
+        }}
+      >
+        {current ? (
+          <>
+            <ColorDot hex={current.hex} size={16} />
+            <span style={{ fontFamily: 'monospace', flex: 1, textAlign: 'left' as const }}>{current.name}</span>
+            <span style={{ fontSize: 11, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>{current.hex}</span>
+          </>
+        ) : (
+          <span style={{ color: 'var(--p-text-secondary)' }}>Select step…</span>
+        )}
+        <span style={{ opacity: 0.4, fontSize: 10, flexShrink: 0, marginLeft: 4 }}>▾</span>
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed',
+            top: pos.top, left: pos.left, width: pos.width,
+            background: 'var(--p-bg)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            zIndex: 400,
+            maxHeight: 300, overflowY: 'auto' as const,
+          }}
+        >
+          {steps.map((step, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { onChange(i); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '6px 12px', width: '100%', textAlign: 'left' as const,
+                background: i === safeIdx ? 'var(--p-bg-subtle)' : 'transparent',
+                border: 'none',
+                borderBottom: i < steps.length - 1 ? '1px solid var(--p-border)' : 'none',
+                cursor: 'pointer', color: 'var(--p-text)', fontSize: 13,
+              }}
+            >
+              <ColorDot hex={step.hex} size={22} />
+              <span style={{ fontFamily: 'monospace', fontWeight: i === safeIdx ? 600 : 400, flex: 1 }}>
+                {step.name}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>
+                {step.hex}
+              </span>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onClose, onAddSurface, onAddSemantic }: {
   rampNames: string[];
   surfaceNames: string[];
+  rampMap: Map<string, GeneratedRamp>;
+  scales: ColorScale[];
+  surfaces: Record<string, PortableSurfaceToken>;
   onClose: () => void;
   onAddSurface: (name: string, token: PortableSurfaceToken) => void;
   onAddSemantic: (kind: 'foreground' | 'nonText', name: string, token: PortableSemanticToken) => void;
@@ -221,12 +531,22 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
   const [name, setName] = useState('');
   const [ramp, setRamp] = useState(rampNames[0] ?? '');
   const [surface, setSurface] = useState(surfaceNames[0] ?? '');
-  const [lightStep, setLightStep] = useState(0);
-  const [darkStep, setDarkStep] = useState(10);
   const [pref, setPref] = useState<PortableSemanticToken['preference']>('lowest-passing');
   const [cons, setCons] = useState<PortableSemanticToken['consistency']>('independent');
   const [error, setError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
+
+  const rampObj = rampMap.get(ramp);
+  const rampLastIdx = (rampObj?.steps.length ?? 1) - 1;
+  const [lightStep, setLightStep] = useState(0);
+  const [darkStep, setDarkStep] = useState(rampLastIdx);
+
+  // Reset dark step when ramp changes
+  useEffect(() => {
+    const r = rampMap.get(ramp);
+    setDarkStep((r?.steps.length ?? 1) - 1);
+    setLightStep(0);
+  }, [ramp, rampMap]);
 
   useEffect(() => {
     nameRef.current?.focus();
@@ -257,9 +577,10 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
     { id: 'nonText', label: 'NonText' },
   ];
 
+  const selectedRampSourceHex = scales.find((s) => s.name === ramp)?.sourceHex;
+
   return createPortal(
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -268,7 +589,6 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
           zIndex: 100,
         }}
       />
-      {/* Panel */}
       <div style={{
         position: 'fixed',
         top: '50%', left: '50%',
@@ -277,14 +597,13 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
         background: 'var(--p-bg)',
         border: '1px solid var(--p-border)',
         borderRadius: 10,
-        width: 400,
+        width: 420,
         maxWidth: 'calc(100vw - 32px)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
       }}>
-        {/* Title bar */}
         <div style={{
           padding: '14px 16px 12px',
           borderBottom: '1px solid var(--p-border)',
@@ -295,7 +614,6 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
           Add token
         </div>
 
-        {/* Kind tabs */}
         <div style={{
           display: 'flex',
           borderBottom: '1px solid var(--p-border)',
@@ -308,7 +626,6 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
           ))}
         </div>
 
-        {/* Fields */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px' }}>
           <div style={field}>
             <span style={label}>Name</span>
@@ -324,22 +641,23 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
 
           <div style={field}>
             <span style={label}>Ramp</span>
-            <select style={modalSel} value={ramp} onChange={(e) => setRamp(e.target.value)}>
-              {rampNames.map((r) => <option key={r}>{r}</option>)}
-            </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ColorDot hex={selectedRampSourceHex} size={16} />
+              <select style={{ ...modalSel, flex: 1 }} value={ramp} onChange={(e) => setRamp(e.target.value)}>
+                {rampNames.map((r) => <option key={r}>{r}</option>)}
+              </select>
+            </div>
           </div>
 
           {kind === 'surface' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={field}>
                 <span style={label}>Light step</span>
-                <input type="number" min={0} style={modalInp} value={lightStep}
-                  onChange={(e) => setLightStep(Number(e.target.value))} />
+                <ModalStepSelect rampName={ramp} rampMap={rampMap} value={lightStep} onChange={setLightStep} />
               </div>
               <div style={field}>
                 <span style={label}>Dark step</span>
-                <input type="number" min={0} style={modalInp} value={darkStep}
-                  onChange={(e) => setDarkStep(Number(e.target.value))} />
+                <ModalStepSelect rampName={ramp} rampMap={rampMap} value={darkStep} onChange={setDarkStep} />
               </div>
             </div>
           )}
@@ -353,9 +671,18 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
                     Add a surface first
                   </span>
                 ) : (
-                  <select style={modalSel} value={surface} onChange={(e) => setSurface(e.target.value)}>
-                    {surfaceNames.map((s) => <option key={s}>{s}</option>)}
-                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {(() => {
+                      const st = surfaces[surface];
+                      const sr = st ? rampMap.get(st.ramp) : null;
+                      const li = st ? (st.lightStep ?? st.step ?? 0) : 0;
+                      const hex = sr?.steps[Math.max(0, Math.min(li, sr.steps.length - 1))]?.hex;
+                      return <ColorDot hex={hex} size={16} />;
+                    })()}
+                    <select style={{ ...modalSel, flex: 1 }} value={surface} onChange={(e) => setSurface(e.target.value)}>
+                      {surfaceNames.map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
                 )}
               </div>
               <div style={field}>
@@ -378,7 +705,6 @@ function AddTokenModal({ rampNames, surfaceNames, onClose, onAddSurface, onAddSe
           )}
         </div>
 
-        {/* Actions */}
         <div style={{
           display: 'flex',
           gap: 8,
@@ -431,6 +757,14 @@ export function TokensPanel() {
   const nonText = raw?.nonText ?? {};
   const decorative = raw?.decorative ?? {};
   const surfaceNames = Object.keys(surfaces);
+
+  const rampMap = useMemo(() => {
+    const map = new Map<string, GeneratedRamp>();
+    for (const scale of scales) {
+      try { map.set(scale.name, generateRamp(scale)); } catch { /* ignore */ }
+    }
+    return map;
+  }, [scales]);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [showPaste, setShowPaste] = useState(false);
@@ -566,74 +900,108 @@ export function TokensPanel() {
 
       {/* Edit view — sections */}
       {view === 'edit' && (
-      <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ flex: 1, overflow: 'auto' }}>
 
-        {/* Surfaces */}
-        <div style={FIRST_SECTION}>Surfaces</div>
-        <div style={HEADER}>
-          <span>name</span><span>ramp</span><span>step(s)</span><span /><span /><span />
-        </div>
-        {Object.entries(surfaces).map(([name, token]) => (
-          <SurfaceRow key={name} name={name} token={token} rampNames={rampNames}
-            onUpdate={(u) => updateSurface(name, u, ec())}
-            onDelete={() => removeSurface(name, ec())} />
-        ))}
-        {surfaceNames.length === 0 && (
-          <div style={EMPTY_ROW}>No surfaces yet — use + Add to create one</div>
-        )}
+          {/* Surfaces */}
+          <div style={FIRST_SECTION}>Surfaces</div>
+          <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW.gridTemplateColumns }}>
+            <span>name</span><span>ramp</span><span>light</span><span>dark</span><span />
+          </div>
+          {Object.entries(surfaces).map(([name, token]) => (
+            <SurfaceRow
+              key={name}
+              name={name}
+              token={token}
+              rampNames={rampNames}
+              rampMap={rampMap}
+              scales={scales}
+              onUpdate={(u) => updateSurface(name, u, ec())}
+              onDelete={() => removeSurface(name, ec())}
+            />
+          ))}
+          {surfaceNames.length === 0 && (
+            <div style={EMPTY_ROW}>No surfaces yet — use + Add to create one</div>
+          )}
 
-        {/* Foreground */}
-        <div style={SECTION}>Foreground</div>
-        <div style={HEADER}>
-          <span>name</span><span>ramp</span><span>surface</span><span>preference</span><span>consistency</span><span />
-        </div>
-        {Object.entries(foreground).map(([name, token]) => (
-          <SemanticRow key={name} name={name} token={token} rampNames={rampNames} surfaceNames={surfaceNames}
-            onUpdate={(u) => updateToken('foreground', name, u, ec())}
-            onDelete={() => removeToken('foreground', name, ec())} />
-        ))}
-        {Object.keys(foreground).length === 0 && (
-          <div style={EMPTY_ROW}>No foreground tokens yet</div>
-        )}
+          {/* Foreground */}
+          <div style={SECTION}>Foreground</div>
+          <div style={HEADER}>
+            <span>name</span><span>ramp</span><span>surface</span><span>preference</span><span>consistency</span><span />
+          </div>
+          {Object.entries(foreground).map(([name, token]) => (
+            <SemanticRow
+              key={name}
+              name={name}
+              token={token}
+              rampNames={rampNames}
+              surfaceNames={surfaceNames}
+              rampMap={rampMap}
+              scales={scales}
+              surfaces={surfaces}
+              onUpdate={(u) => updateToken('foreground', name, u, ec())}
+              onDelete={() => removeToken('foreground', name, ec())}
+            />
+          ))}
+          {Object.keys(foreground).length === 0 && (
+            <div style={EMPTY_ROW}>No foreground tokens yet</div>
+          )}
 
-        {/* NonText */}
-        <div style={SECTION}>NonText</div>
-        <div style={HEADER}>
-          <span>name</span><span>ramp</span><span>surface</span><span>preference</span><span>consistency</span><span />
-        </div>
-        {Object.entries(nonText).map(([name, token]) => (
-          <SemanticRow key={name} name={name} token={token} rampNames={rampNames} surfaceNames={surfaceNames}
-            onUpdate={(u) => updateToken('nonText', name, u, ec())}
-            onDelete={() => removeToken('nonText', name, ec())} />
-        ))}
-        {Object.keys(nonText).length === 0 && (
-          <div style={EMPTY_ROW}>No nonText tokens yet</div>
-        )}
+          {/* NonText */}
+          <div style={SECTION}>NonText</div>
+          <div style={HEADER}>
+            <span>name</span><span>ramp</span><span>surface</span><span>preference</span><span>consistency</span><span />
+          </div>
+          {Object.entries(nonText).map(([name, token]) => (
+            <SemanticRow
+              key={name}
+              name={name}
+              token={token}
+              rampNames={rampNames}
+              surfaceNames={surfaceNames}
+              rampMap={rampMap}
+              scales={scales}
+              surfaces={surfaces}
+              onUpdate={(u) => updateToken('nonText', name, u, ec())}
+              onDelete={() => removeToken('nonText', name, ec())}
+            />
+          ))}
+          {Object.keys(nonText).length === 0 && (
+            <div style={EMPTY_ROW}>No nonText tokens yet</div>
+          )}
 
-        {/* Decorative */}
-        {Object.keys(decorative).length > 0 && (
-          <>
-            <div style={SECTION}>Decorative</div>
-            <div style={HEADER}>
-              <span>name</span><span>ramp</span><span>step</span><span /><span /><span />
-            </div>
-            {Object.entries(decorative).map(([name, token]) => (
-              <div key={name} style={ROW}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>{name}</span>
-                <select style={sel} value={token.ramp} onChange={(e) => addDecorative(name, { ...token, ramp: e.target.value }, ec())}>
-                  {rampNames.map((r) => <option key={r}>{r}</option>)}
-                </select>
-                <input type="number" min={0} style={{ ...inp, width: 60 }}
-                  value={token.step}
-                  onChange={(e) => addDecorative(name, { ...token, step: Number(e.target.value) }, ec())} />
-                <span /><span />
-                <button style={delBtn} onClick={() => removeToken('decorative', name, ec())}>✕</button>
+          {/* Decorative */}
+          {Object.keys(decorative).length > 0 && (
+            <>
+              <div style={SECTION}>Decorative</div>
+              <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW.gridTemplateColumns }}>
+                <span>name</span><span>ramp</span><span>step</span><span /><span />
               </div>
-            ))}
-          </>
-        )}
+              {Object.entries(decorative).map(([name, token]) => {
+                const stepIdx = token.step ?? 0;
+                return (
+                  <div key={name} style={SURFACE_ROW}>
+                    <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                    <RampSelect
+                      rampNames={rampNames}
+                      value={token.ramp}
+                      onChange={(r) => addDecorative(name, { ...token, ramp: r }, ec())}
+                      scales={scales}
+                    />
+                    <StepSelect
+                      rampName={token.ramp}
+                      rampMap={rampMap}
+                      value={stepIdx}
+                      onChange={(i) => addDecorative(name, { ...token, step: i }, ec())}
+                    />
+                    <span />
+                    <button style={delBtn} onClick={() => removeToken('decorative', name, ec())}>✕</button>
+                  </div>
+                );
+              })}
+            </>
+          )}
 
-      </div>
+        </div>
       )}
 
       {/* Add token modal */}
@@ -641,6 +1009,9 @@ export function TokensPanel() {
         <AddTokenModal
           rampNames={rampNames}
           surfaceNames={surfaceNames}
+          rampMap={rampMap}
+          scales={scales}
+          surfaces={surfaces}
           onClose={() => setShowAddModal(false)}
           onAddSurface={(n, t) => addSurface(n, t, ec())}
           onAddSemantic={(kind, n, t) => addToken(kind, n, t, ec())}
