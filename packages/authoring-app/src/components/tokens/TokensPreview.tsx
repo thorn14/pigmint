@@ -41,6 +41,9 @@ function TokenCard({
     ? (useWcag ? `${contrast.toFixed(2)}:1` : `Lc ${Math.abs(contrast).toFixed(0)}`)
     : '—';
 
+  const np = token.source.nearestPrimitive ?? '';
+  const stepLabel = np.includes('.') ? np.slice(np.lastIndexOf('.') + 1) : np;
+
   return (
     <div style={{
       width: 168,
@@ -77,7 +80,9 @@ function TokenCard({
           flex: 1,
         }}>
           {usage === 'text' && (
-            <span style={{ color: token.hex, fontSize: 22, fontWeight: 700, lineHeight: 1 }}>Aa</span>
+            <span style={{ color: token.hex, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
+              {stepLabel || '—'}
+            </span>
           )}
           <span style={{
             color: token.hex,
@@ -182,6 +187,19 @@ export function TokensPreview() {
     return map;
   }, [resolution, effectiveMode, surfacePathSet]);
 
+  const surfaceStepLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!resolution.ok || !surfacePathSet) return map;
+    for (const t of resolution.tokens) {
+      if (t.mode !== effectiveMode) continue;
+      if (!surfacePathSet.has(t.path)) continue;
+      const label = t.source.nearestPrimitive
+        ?? `${t.source.ramp}@${(t.source.position * 100).toFixed(0)}%`;
+      map.set(t.path, label);
+    }
+    return map;
+  }, [resolution, effectiveMode, surfacePathSet]);
+
   // token path → 'text' | 'nonText' | 'decorative'
   const usageMap = useMemo(() => {
     const map = new Map<string, 'text' | 'nonText' | 'decorative'>();
@@ -279,6 +297,7 @@ export function TokensPreview() {
           Array.from(grouped.entries()).map(([surface, tokens]) => {
             const surfaceKey = surface.replace(/^\{|\}$/g, '');
             const bgHex = surfaceHexMap.get(surfaceKey) ?? '#cccccc';
+            const stepLabel = surfaceStepLabelMap.get(surfaceKey);
             return (
               <div key={surface}>
                 {/* Surface header */}
@@ -297,6 +316,11 @@ export function TokensPreview() {
                   <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
                     {bgHex}
                   </span>
+                  {stepLabel && (
+                    <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
+                      {stepLabel}
+                    </span>
+                  )}
                   <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginLeft: 4 }}>
                     {tokens.length} token{tokens.length !== 1 ? 's' : ''}
                   </span>

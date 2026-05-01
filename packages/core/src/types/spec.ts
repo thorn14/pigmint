@@ -48,6 +48,7 @@ export interface ReceiptSource {
   ramp: string;
   position: number;
   nearestPrimitive?: string;
+  selectionNote?: string;
 }
 
 export interface ContrastReceipt {

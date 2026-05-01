@@ -1,5 +1,6 @@
 import { formatCss, parse, oklch as toOklch } from 'culori';
 import { getWcagContrast } from '../math/contrast.js';
+import type { ThresholdElevation } from './resolve.js';
 import type { GeneratedRamp, GeneratedStep } from '../types/palette.js';
 import type {
   ComplianceReceipt,
@@ -20,9 +21,15 @@ export interface ResolveSurfaceInput {
   ramp: GeneratedRamp;
   baselineHex: string;
   intent: FormalIntent;
+  thresholdElevation?: ThresholdElevation;
 }
 
-function pickSurfaceStep(ramp: GeneratedRamp, scheme: 'light' | 'dark', role: SurfaceRole): GeneratedStep {
+function pickSurfaceStep(
+  ramp: GeneratedRamp,
+  scheme: 'light' | 'dark',
+  role: SurfaceRole,
+  elevate?: ThresholdElevation,
+): GeneratedStep {
   const steps = ramp.steps;
   if (steps.length === 0) throw new Error(`ramp ${ramp.scaleName} has no steps`);
   const last = steps.length - 1;
@@ -31,7 +38,7 @@ function pickSurfaceStep(ramp: GeneratedRamp, scheme: 'light' | 'dark', role: Su
     switch (r) {
       case 'main': return 0;
       case 'elevated': return 0;
-      case 'subtle': return 1;
+      case 'subtle': return elevate === 'hc' ? 0 : 1;
       case 'inverse': return last;
     }
   };
@@ -39,7 +46,7 @@ function pickSurfaceStep(ramp: GeneratedRamp, scheme: 'light' | 'dark', role: Su
   const darkIndex = (r: SurfaceRole): number => {
     switch (r) {
       case 'main': return last;
-      case 'elevated': return Math.max(0, last - 1);
+      case 'elevated': return elevate === 'hc' ? last : Math.max(0, last - 1);
       case 'subtle': return last;
       case 'inverse': return 0;
     }
@@ -70,8 +77,8 @@ export interface ResolveSurfaceResult {
 }
 
 export function resolveSurface(input: ResolveSurfaceInput): ResolveSurfaceResult {
-  const { tokenPath, mode, scheme, role, ramp, baselineHex, intent } = input;
-  const step = pickSurfaceStep(ramp, scheme, role);
+  const { tokenPath, mode, scheme, role, ramp, baselineHex, intent, thresholdElevation } = input;
+  const step = pickSurfaceStep(ramp, scheme, role, thresholdElevation);
 
   const stepCount = ramp.steps.length;
   const index = ramp.steps.findIndex((s) => s === step);

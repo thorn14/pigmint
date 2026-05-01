@@ -206,6 +206,54 @@ export function pickStepAnchored(
   return { index: best.index, ratio: best.ratio };
 }
 
+/**
+ * Fallback picker when no step passes the threshold. Walks from the end of the ramp that has the
+ * highest contrast against `surfaceHex` (the "appropriate extreme" for this surface) inward toward
+ * the midpoint, returning the step with the highest contrast found on that side.
+ * Includes a `selectionNote` recording the direction walked, threshold required, and best achieved.
+ */
+export function pickStepTowardExtreme(
+  pickRamp: GeneratedRamp,
+  surfaceHex: string,
+  kind: ContrastKind,
+  requiredForNote: number,
+): { index: number; ratio: number; selectionNote: string } | null {
+  const steps = pickRamp.steps;
+  if (steps.length === 0) return null;
+
+  const firstStep = steps[0];
+  const lastStep = steps[steps.length - 1];
+  if (!firstStep || !lastStep) return null;
+
+  const firstContrast = resolutionMetric(kind, firstStep.hex, surfaceHex);
+  const lastContrast = resolutionMetric(kind, lastStep.hex, surfaceHex);
+  const walkFromEnd = lastContrast >= firstContrast;
+
+  let best: { index: number; ratio: number } | null = null;
+  if (walkFromEnd) {
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const step = steps[i];
+      if (!step) continue;
+      const m = resolutionMetric(kind, step.hex, surfaceHex);
+      if (best === null || m > best.ratio) best = { index: i, ratio: m };
+    }
+  } else {
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      if (!step) continue;
+      const m = resolutionMetric(kind, step.hex, surfaceHex);
+      if (best === null || m > best.ratio) best = { index: i, ratio: m };
+    }
+  }
+
+  if (!best) return null;
+
+  const direction = walkFromEnd ? 'darker extreme' : 'lighter extreme';
+  const selectionNote =
+    `fallback: walked toward ${direction}; required ${requiredForNote.toFixed(2)}, best achieved ${best.ratio.toFixed(2)}`;
+  return { ...best, selectionNote };
+}
+
 export function indexAtNormalizedT(len: number, t: number): number {
   if (len <= 0) return 0;
   if (len === 1) return 0;
@@ -241,6 +289,7 @@ export function makeResolveResultFromPicked(
   picked: { index: number; ratio: number },
   step: GeneratedStep,
   thresholdElevation?: ThresholdElevation,
+  selectionNote?: string,
 ): ResolveResult {
   const kind = intent.threshold.kind;
   const pickStepCount = pickRamp.steps.length;
@@ -280,6 +329,7 @@ export function makeResolveResultFromPicked(
     ramp: ramp.scaleName,
     position,
     nearestPrimitive,
+    ...(selectionNote ? { selectionNote } : {}),
   };
 
   const token: ResolvedToken = {
@@ -333,11 +383,18 @@ export function resolveToken(input: ResolveInput): ResolveResult {
       tokenPath,
     );
   }
+  let selectionNote: string | undefined;
   if (picked === null) {
-    throw new ResolveError(
-      `no ramp step in "${ramp.scaleName}" meets threshold against surface ${surfaceHex}`,
-      tokenPath,
-    );
+    const required = passThreshold(intent.threshold, thresholdElevation);
+    const fallback = pickStepTowardExtreme(pickRamp, surfaceHex, intent.threshold.kind, required);
+    if (!fallback) {
+      throw new ResolveError(
+        `no ramp step in "${ramp.scaleName}" meets threshold against surface ${surfaceHex}`,
+        tokenPath,
+      );
+    }
+    picked = fallback;
+    selectionNote = fallback.selectionNote;
   }
 
   const step = pickRamp.steps[picked.index];
@@ -357,6 +414,7 @@ export function resolveToken(input: ResolveInput): ResolveResult {
     picked,
     step,
     thresholdElevation,
+    selectionNote,
   );
 }
 

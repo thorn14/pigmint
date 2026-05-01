@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AppStringSelect } from '../base-ui';
 import { useIntentStore } from '../../store/intentStore';
@@ -6,6 +6,8 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
 import type { WcagMapEntry, ApcaMapEntry, ContrastMapColorRef } from '../../types/palette';
+import { ComboToTokenModal } from './ComboToTokenModal';
+import type { GeneratedRamp } from '@pigmint/core';
 
 type WcagLevel = 'aaa' | 'aa' | 'aa-large';
 type ApcaLevel = 'lc75' | 'lc60' | 'lc45';
@@ -53,15 +55,17 @@ function matchesSearch(
     || bg.ramp.toLowerCase().includes(q) || bg.step.toLowerCase().includes(q) || bg.hex.toLowerCase().includes(q);
 }
 
-function WcagComboCard({ entry }: { entry: WcagMapEntry }) {
+function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () => void }) {
   return (
     <div
+      onClick={onClick}
       style={{
         borderRadius: 8,
         overflow: 'hidden',
         border: '1px solid var(--p-border)',
         minWidth: 140,
         flexShrink: 0,
+        cursor: 'pointer',
       }}
     >
       <div
@@ -98,15 +102,17 @@ function WcagComboCard({ entry }: { entry: WcagMapEntry }) {
   );
 }
 
-function ApcaComboCard({ entry }: { entry: ApcaMapEntry }) {
+function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () => void }) {
   return (
     <div
+      onClick={onClick}
       style={{
         borderRadius: 8,
         overflow: 'hidden',
         border: '1px solid var(--p-border)',
         minWidth: 140,
         flexShrink: 0,
+        cursor: 'pointer',
       }}
     >
       <div
@@ -256,12 +262,27 @@ export function AccessibleCombos() {
   const scales = usePaletteStore((s) => s.scales);
   const useWcag = useIntentStore((s) => s.engineCompliance === 'wcag21');
 
+  const appTheme = useIntentStore((s) => s.appTheme);
+
   const [search, setSearch] = useState('');
-  const [polarity, setPolarity] = useState<Polarity>('all');
+  const [polarity, setPolarity] = useState<Polarity>(appTheme === 'dark' ? 'dark' : 'light');
   const [wcagLevel, setWcagLevel] = useState<WcagLevel>('aa');
   const [apcaLevel, setApcaLevel] = useState<ApcaLevel>('lc60');
   const [sortAsc, setSortAsc] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<WcagMapEntry | ApcaMapEntry | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPolarity(appTheme === 'dark' ? 'dark' : 'light');
+  }, [appTheme]);
+
+  const rampMap = useMemo(() => {
+    const map = new Map<string, GeneratedRamp>();
+    for (const scale of scales) {
+      try { map.set(scale.name, generateRamp(scale)); } catch { /* ignore */ }
+    }
+    return map;
+  }, [scales]);
 
   // Group steps by ramp so we only compare within the same ramp
   const stepsByRamp = useMemo(
@@ -416,10 +437,10 @@ export function AccessibleCombos() {
                 >
                   {useWcag
                     ? (rowEntries as WcagMapEntry[]).map((entry, i) => (
-                        <WcagComboCard key={startIdx + i} entry={entry} />
+                        <WcagComboCard key={startIdx + i} entry={entry} onClick={() => setSelectedEntry(entry)} />
                       ))
                     : (rowEntries as ApcaMapEntry[]).map((entry, i) => (
-                        <ApcaComboCard key={startIdx + i} entry={entry} />
+                        <ApcaComboCard key={startIdx + i} entry={entry} onClick={() => setSelectedEntry(entry)} />
                       ))}
                 </div>
               );
@@ -427,6 +448,15 @@ export function AccessibleCombos() {
           </div>
         )}
       </div>
+
+      {selectedEntry && (
+        <ComboToTokenModal
+          entry={selectedEntry}
+          isWcag={useWcag}
+          rampMap={rampMap}
+          onClose={() => setSelectedEntry(null)}
+        />
+      )}
     </div>
   );
 }

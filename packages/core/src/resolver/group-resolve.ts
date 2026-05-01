@@ -7,6 +7,7 @@ import {
   pickStepAnchored,
   pickStepAtNormalizedT,
   pickStepLowestPassing,
+  pickStepTowardExtreme,
   resolveToken,
   type ThresholdElevation,
 } from './resolve.js';
@@ -58,15 +59,16 @@ export function resolveMatchedAcrossRamps(
   if (members.length === 0) return [];
   if (members.length === 1) {
     const m0 = members[0]!;
-    const single =
-      intent.preference === 'matched-to-set'
-        ? { ...intent, preference: 'lowest-passing' as const, consistency: 'independent' as const }
-        : { ...intent, consistency: 'independent' as const };
+    // matched-to-set with a single member uses resolveMatchedToSet so the
+    // directional-extreme fallback applies in HC mode, same as multi-member groups.
+    if (intent.preference === 'matched-to-set') {
+      return resolveMatchedToSet(intent, members, binding);
+    }
     return [
       resolveToken({
         tokenPath: m0.entry.path,
         mode: binding.mode,
-        intent: single,
+        intent: { ...intent, consistency: 'independent' as const },
         ramp: m0.ramp,
         surfaceHex: m0.surfaceHex,
         surfaceRef: m0.surfaceRef,
@@ -182,26 +184,35 @@ export function resolveMatchedToSet(
 
   const th = intent.threshold;
   const elevate = binding.thresholdElevation;
+  const required = passThreshold(th, elevate);
 
-  const seeds = members.map((m) =>
-    pickStepLowestPassing(m.pickRamp, m.surfaceHex, th, elevate),
-  );
-  const failedSeeds = members
+  type Pick = { index: number; ratio: number; selectionNote?: string };
+
+  const seeds: (Pick | null)[] = members.map((m) => {
+    const passing = pickStepLowestPassing(m.pickRamp, m.surfaceHex, th, elevate);
+    if (passing !== null) return passing;
+    // No step meets the (potentially HC-elevated) threshold — walk toward the appropriate extreme.
+    return pickStepTowardExtreme(m.pickRamp, m.surfaceHex, th.kind, required);
+  });
+
+  const emptyRamps = members
     .map((m, i) => (seeds[i] === null ? m.entry.path : null))
     .filter((p): p is string => p !== null);
-  if (failedSeeds.length > 0) {
+  if (emptyRamps.length > 0) {
     throw new DriverError(
-      `matched-to-set: members [${failedSeeds.join(', ')}] have no passing step in mode ${binding.mode}`,
+      `matched-to-set: members [${emptyRamps.join(', ')}] have no steps at all in mode ${binding.mode}`,
     );
   }
 
-  let picks = seeds as { index: number; ratio: number }[];
+  let picks = seeds as Pick[];
   let lastTarget = Number.NaN;
   for (let iter = 0; iter < MATCHED_TO_SET_MAX_ITER; iter++) {
     const target = median(picks.map((p) => p.ratio));
-    const next: { index: number; ratio: number }[] = [];
+    const next: Pick[] = [];
     for (const m of members) {
-      const got = pickStepAnchored(m.pickRamp, m.surfaceHex, th, target, elevate);
+      const got: Pick | null =
+        pickStepAnchored(m.pickRamp, m.surfaceHex, th, target, elevate) ??
+        pickStepTowardExtreme(m.pickRamp, m.surfaceHex, th.kind, required);
       if (!got) {
         throw new DriverError('matched-to-set: anchored pick unexpectedly failed');
       }
@@ -232,6 +243,7 @@ export function resolveMatchedToSet(
         p,
         step,
         elevate,
+        p.selectionNote,
       ).token,
     );
   }

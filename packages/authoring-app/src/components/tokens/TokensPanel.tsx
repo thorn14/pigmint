@@ -23,12 +23,6 @@ const ROW_BASE: React.CSSProperties = {
   fontSize: 12,
 };
 
-// Surface rows: name | ramp | light-step | dark-step | delete
-const SURFACE_ROW: React.CSSProperties = {
-  ...ROW_BASE,
-  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.4fr) 28px',
-};
-
 // Semantic/decorative rows: name | ramp | surface | preference | consistency | delete
 const ROW: React.CSSProperties = {
   ...ROW_BASE,
@@ -215,7 +209,7 @@ function StepSelect({ rampName, rampMap, value, onChange }: {
         >
           {steps.length === 0 && (
             <div style={{ padding: '8px 12px', color: 'var(--p-text-tertiary)', fontSize: 12 }}>
-              No steps
+              Ramp "{rampName}" not available — check console
             </div>
           )}
           {steps.map((step, i) => (
@@ -292,6 +286,16 @@ function SurfaceSelect({ surfaceNames, value, onChange, surfaces, rampMap }: {
 
 // ─── Surface row ──────────────────────────────────────────────────────────────
 
+// Surface rows: name | ramp | step(s) | mode-toggle | delete
+const SURFACE_ROW_UNIFIED: React.CSSProperties = {
+  ...ROW_BASE,
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,2.8fr) 26px 28px',
+};
+const SURFACE_ROW_SPLIT: React.CSSProperties = {
+  ...ROW_BASE,
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.4fr) 28px',
+};
+
 function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelete }: {
   name: string;
   token: PortableSurfaceToken;
@@ -304,24 +308,59 @@ function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelet
   const ramp = rampMap.get(token.ramp);
   const lastIdx = (ramp?.steps.length ?? 1) - 1;
 
+  const isUnified = token.step !== undefined;
+  const unifiedIdx = token.step ?? 0;
   const lightIdx = token.lightStep ?? token.step ?? 0;
   const darkIdx = token.darkStep ?? (token.step !== undefined ? lastIdx : 0);
 
-  function setLight(i: number) {
-    onUpdate({ lightStep: i, darkStep: darkIdx, step: undefined });
+  function toSplit() {
+    onUpdate({ lightStep: unifiedIdx, darkStep: lastIdx, step: undefined });
   }
-  function setDark(i: number) {
-    onUpdate({ lightStep: lightIdx, darkStep: i, step: undefined });
+  function toUnified() {
+    onUpdate({ lightStep: undefined, darkStep: undefined, step: lightIdx });
+  }
+
+  const modeToggle = (
+    <button
+      type="button"
+      title={isUnified ? 'Split into separate light / dark steps' : 'Use one step for all modes'}
+      onClick={isUnified ? toSplit : toUnified}
+      style={{
+        padding: '2px 4px', fontSize: 10, lineHeight: 1,
+        background: 'var(--p-bg-subtle)', border: '1px solid var(--p-border)',
+        borderRadius: 3, cursor: 'pointer', color: 'var(--p-text-secondary)',
+        whiteSpace: 'nowrap' as const,
+      }}
+    >
+      {isUnified ? '↔' : '='}
+    </button>
+  );
+
+  if (isUnified) {
+    return (
+      <div style={SURFACE_ROW_UNIFIED}>
+        <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {name}
+        </span>
+        <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
+        <StepSelect rampName={token.ramp} rampMap={rampMap} value={unifiedIdx}
+          onChange={(i) => onUpdate({ step: i, lightStep: undefined, darkStep: undefined })} />
+        {modeToggle}
+        <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
+      </div>
+    );
   }
 
   return (
-    <div style={SURFACE_ROW}>
+    <div style={SURFACE_ROW_SPLIT}>
       <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {name}
       </span>
       <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
-      <StepSelect rampName={token.ramp} rampMap={rampMap} value={lightIdx} onChange={setLight} />
-      <StepSelect rampName={token.ramp} rampMap={rampMap} value={darkIdx} onChange={setDark} />
+      <StepSelect rampName={token.ramp} rampMap={rampMap} value={lightIdx}
+        onChange={(i) => onUpdate({ lightStep: i, darkStep: darkIdx, step: undefined })} />
+      <StepSelect rampName={token.ramp} rampMap={rampMap} value={darkIdx}
+        onChange={(i) => onUpdate({ lightStep: lightIdx, darkStep: i, step: undefined })} />
       <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
     </div>
   );
@@ -761,7 +800,11 @@ export function TokensPanel() {
   const rampMap = useMemo(() => {
     const map = new Map<string, GeneratedRamp>();
     for (const scale of scales) {
-      try { map.set(scale.name, generateRamp(scale)); } catch { /* ignore */ }
+      try {
+        map.set(scale.name, generateRamp(scale));
+      } catch (e) {
+        console.warn(`[TokensPanel] generateRamp failed for "${scale.name}":`, e);
+      }
     }
     return map;
   }, [scales]);
@@ -904,8 +947,8 @@ export function TokensPanel() {
 
           {/* Surfaces */}
           <div style={FIRST_SECTION}>Surfaces</div>
-          <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW.gridTemplateColumns }}>
-            <span>name</span><span>ramp</span><span>light</span><span>dark</span><span />
+          <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW_SPLIT.gridTemplateColumns }}>
+            <span>name</span><span>ramp</span><span>light / all</span><span>dark</span><span />
           </div>
           {Object.entries(surfaces).map(([name, token]) => (
             <SurfaceRow
@@ -973,13 +1016,13 @@ export function TokensPanel() {
           {Object.keys(decorative).length > 0 && (
             <>
               <div style={SECTION}>Decorative</div>
-              <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW.gridTemplateColumns }}>
+              <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW_SPLIT.gridTemplateColumns }}>
                 <span>name</span><span>ramp</span><span>step</span><span /><span />
               </div>
               {Object.entries(decorative).map(([name, token]) => {
                 const stepIdx = token.step ?? 0;
                 return (
-                  <div key={name} style={SURFACE_ROW}>
+                  <div key={name} style={SURFACE_ROW_SPLIT}>
                     <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                     <RampSelect
                       rampNames={rampNames}

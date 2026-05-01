@@ -194,6 +194,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
           ramp,
           baselineHex: binding.baselineHex,
           intent: entry.defaultIntent,
+          thresholdElevation: binding.thresholdElevation,
         }));
       }
 

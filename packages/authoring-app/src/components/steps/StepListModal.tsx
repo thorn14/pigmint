@@ -54,6 +54,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
 
   const [error, setError] = useState<string | null>(null);
 
+  const [applyToAllNames, setApplyToAllNames] = useState(applyToAll);
   const [applyToAllLightness, setApplyToAllLightness] = useState(true);
 
   function handleApply() {
@@ -63,7 +64,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
         setError('Name list is empty.');
         return;
       }
-      if (applyToAll) {
+      if (applyToAllNames) {
         setStepsAll(parsed);
       } else {
         setStepsAndLightness(scale.id, parsed, null);
@@ -91,8 +92,8 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
   const title = mode === 'names' ? 'Edit Step Names' : 'Edit Lightness Values';
   const placeholder = mode === 'names' ? '50, 100, 200, 300, 400' : '0.9927, 0.9745, 0.9344, 0.8511';
   const hint = mode === 'names'
-    ? `Comma or newline separated. Changing the count adds or removes steps.${applyToAll ? ' Applies to all scales.' : ''}`
-    : `${scale.stepCount} values required (0–1 or 0–100), comma or space separated. Applies to all scales by default.`;
+    ? `Comma or newline separated. Changing the count adds or removes steps.`
+    : `${scale.stepCount} values required (0–1 or 0–100), comma or space separated.`;
 
   return (
     <AppDialog onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -170,6 +171,12 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
         />
         {error && (
           <p style={{ margin: 0, fontSize: 12, color: 'var(--p-danger)' }}>{error}</p>
+        )}
+        {mode === 'names' && (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-tertiary)', cursor: 'pointer' }}>
+            <AppCheckbox checked={applyToAllNames} onCheckedChange={(c) => setApplyToAllNames(c)} />
+            Apply to all scales
+          </label>
         )}
         {mode === 'lightness' && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-tertiary)', cursor: 'pointer' }}>
