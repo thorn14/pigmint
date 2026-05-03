@@ -221,9 +221,3 @@ Each example has its own `pigmint.yaml` and `tokens.yaml`. Run `pigmint build` (
 | `packages/adapter-mui` | MUI v6 adapter |
 | `packages/authoring-app` | Visual authoring UI (Vite + React) |
 | `packages/sticker-sheet-tailwind` | Sticker-sheet preview component |
-
-## Spec
-
-Engine contracts and ADR rationale live in [`spec/`](./spec/). Start with [`spec/00-overview.md`](./spec/00-overview.md) for the reading order.
-
-Architecture decisions: [`plan.md`](./plan.md)
