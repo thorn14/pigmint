@@ -23,10 +23,8 @@ function buildContainer(semantic: Record<string, unknown>): DtcgContainer {
         engine: { version: '0.0.0' },
       },
     },
-    color: {
-      primitive: {},
-      ...semantic,
-    },
+    primitive: {},
+    ...semantic,
   };
 }
 

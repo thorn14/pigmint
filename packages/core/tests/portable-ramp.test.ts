@@ -21,7 +21,7 @@ describe('remapPortableVocabularyRamps', () => {
       nonText: {},
     };
     const out = remapPortableVocabularyRamps(vocab, ['gray'], 'blue');
-    expect(out.surfaces.main.ramp).toBe('blue');
-    expect(out.foreground.fg.ramp).toBe('blue');
+    expect(out.surfaces.main!.ramp).toBe('blue');
+    expect(out.foreground.fg!.ramp).toBe('blue');
   });
 });

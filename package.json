@@ -12,6 +12,9 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
     "start": "pnpm --filter @pigmint/authoring-app dev",
     "sticker:tailwind": "pnpm --filter @pigmint/sticker-sheet-tailwind dev",
     "sticker:mui": "pnpm --filter @pigmint/sticker-sheet-mui dev"

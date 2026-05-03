@@ -108,9 +108,9 @@ describe('muiEmit', () => {
     };
     expect(parsed.artifactVersion).toBe('mui-receipts@0.1');
     const paths = parsed.tokens.map((t) => t.tokenPath).sort();
-    expect(paths).toContain('color.surface.main');
-    expect(paths).toContain('color.foreground.main');
-    expect(paths).toContain('color.action.primary.background');
+    expect(paths).toContain('surface.main');
+    expect(paths).toContain('foreground.main');
+    expect(paths).toContain('action.primary.background');
     for (const t of parsed.tokens) {
       expect(t.modes.light).toMatch(/^#[0-9a-f]{6}$/i);
       expect(t.modes.dark).toMatch(/^#[0-9a-f]{6}$/i);
@@ -145,7 +145,7 @@ describe('muiEmit', () => {
       Record<string, string>
     >;
     expect(light.background!.default).toBeTruthy();
-    const surface = receipts.tokens.find((t) => t.tokenPath === 'color.surface.main')!;
+    const surface = receipts.tokens.find((t) => t.tokenPath === 'surface.main')!;
     expect(surface.palettePaths).toEqual(['background.default']);
     expect(surface.modes.light).toBe(light.background!.default);
   });

@@ -108,8 +108,8 @@ describe('tailwindEmit', () => {
     expect(file.content).toMatch(/\.light-high-contrast \{/);
     expect(file.content).toMatch(/\.dark-high-contrast \{/);
     expect(file.content).not.toMatch(/data-contrast/);
-    expect(file.content).toMatch(/--color-surface-main:/);
-    expect(file.content).toMatch(/--color-action-primary-background:/);
+    expect(file.content).toMatch(/--surface-main:/);
+    expect(file.content).toMatch(/--action-primary-background:/);
     expect(file.content).toMatch(/oklch\(/);
   });
 
