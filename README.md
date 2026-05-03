@@ -64,6 +64,10 @@ The app has five tabs:
 
 To import an existing config: **Import → Import pigmint.yaml**. After tuning, use **Export → Export pigmint.yaml** to persist curve data, then re-run `pigmint build`.
 
+## Contributing
+
+See **[`docs/contributing.md`](./docs/contributing.md)** for the contributor guide. It covers adding a new adapter and adding a new sticker sheet, including the portability conventions that keep every package self-contained.
+
 ## Agents & AI assistants
 
 See **[`docs/agent-usage.md`](./docs/agent-usage.md)** for the complete agent authoring guide. It covers:
