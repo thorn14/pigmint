@@ -5,7 +5,12 @@ import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
+import {
+  alphaCompositeHex,
+  parseStepRef,
+} from '@pigmint/core';
 import type {
+  PortableAlphaToken,
   PortableSurfaceToken,
   PortableSemanticToken,
   GeneratedRamp,
@@ -104,7 +109,8 @@ const delBtn: React.CSSProperties = {
 
 const PREFS = ['lowest-passing', 'highest-contrast', 'matched-to-set'] as const;
 const CONS = ['independent', 'matched-across-ramps'] as const;
-type TokenKind = 'surface' | 'foreground' | 'nonText' | 'decorative';
+const ALPHA_PREFS = ['lowest-passing', 'highest-contrast'] as const;
+type TokenKind = 'surface' | 'foreground' | 'nonText' | 'decorative' | 'alpha';
 
 function ec() {
   const s = useIntentStore.getState();
@@ -113,12 +119,16 @@ function ec() {
 
 // ─── Color dot ────────────────────────────────────────────────────────────────
 
-function ColorDot({ hex, size = 12 }: { hex?: string; size?: number }) {
+function ColorDot({ hex, alpha, size = 12 }: { hex?: string; alpha?: number; size?: number }) {
   if (!hex) return null;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const color = (alpha !== undefined && alpha < 1) ? `rgba(${r},${g},${b},${alpha})` : hex;
   return (
     <div style={{
       width: size, height: size, borderRadius: 2, flexShrink: 0,
-      background: hex, border: '1px solid rgba(0,0,0,0.14)',
+      background: color, border: '1px solid rgba(0,0,0,0.14)',
     }} />
   );
 }
@@ -403,6 +413,114 @@ function SemanticRow({ name, token, rampNames, surfaceNames, rampMap, scales, su
   );
 }
 
+// ─── Alpha token row ──────────────────────────────────────────────────────────
+
+const ALPHA_ROW: React.CSSProperties = {
+  ...ROW_BASE,
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1fr) 90px minmax(0,1fr) 28px',
+};
+
+function AlphaRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfaces, onUpdate, onDelete }: {
+  name: string;
+  token: PortableAlphaToken;
+  rampNames: string[];
+  surfaceNames: string[];
+  rampMap: Map<string, GeneratedRamp>;
+  scales: ColorScale[];
+  surfaces: Record<string, PortableSurfaceToken>;
+  onUpdate: (u: Partial<PortableAlphaToken>) => void;
+  onDelete: () => void;
+}) {
+  const isDegenerate = Boolean(token.base);
+  const parsed = token.base ? parseStepRef(token.base) : null;
+  const rampName = token.baseRamp ?? parsed?.ramp ?? rampNames[0] ?? '';
+  const ramp = rampMap.get(rampName);
+
+  // Resolve step index from step name (degenerate case)
+  const stepName = parsed?.step ?? '';
+  const stepIdx = ramp
+    ? Math.max(0, ramp.steps.findIndex((s) => s.name === stepName))
+    : 0;
+
+  // Composite preview: only when ref surface is explicitly set
+  const refSurfaceToken = token.referenceSurface ? surfaces[token.referenceSurface] : undefined;
+  const refRamp = refSurfaceToken ? rampMap.get(refSurfaceToken.ramp) : undefined;
+  const refLightIdx = refSurfaceToken ? (refSurfaceToken.lightStep ?? refSurfaceToken.step ?? 0) : 0;
+  const refHex = refRamp?.steps[Math.max(0, Math.min(refLightIdx, (refRamp.steps.length ?? 1) - 1))]?.hex;
+  const baseHex = isDegenerate ? ramp?.steps[stepIdx]?.hex : undefined;
+  const compositedHex = baseHex && refHex ? alphaCompositeHex(baseHex, token.value, refHex) : undefined;
+  const previewHex = compositedHex ?? baseHex;
+  const previewAlpha = compositedHex ? undefined : (baseHex ? token.value : undefined);
+
+  function handleRampChange(r: string) {
+    if (isDegenerate) {
+      const newStepName = rampMap.get(r)?.steps[stepIdx]?.name ?? stepName;
+      onUpdate({ base: `{color.primitive.${r}.${newStepName}}` });
+    } else {
+      onUpdate({ baseRamp: r });
+    }
+  }
+
+  function handleStepChange(idx: number) {
+    const newStepName = ramp?.steps[idx]?.name ?? String(idx);
+    onUpdate({ base: `{color.primitive.${rampName}.${newStepName}}` });
+  }
+
+  const surfaceName = token.surfaces?.[0] ?? surfaceNames[0] ?? '';
+
+  return (
+    <div style={ALPHA_ROW}>
+      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {name}
+      </span>
+      <RampSelect rampNames={rampNames} value={rampName} onChange={handleRampChange} scales={scales} />
+      {isDegenerate ? (
+        <StepSelect rampName={rampName} rampMap={rampMap} value={stepIdx} onChange={handleStepChange} />
+      ) : (
+        <SurfaceSelect
+          surfaceNames={surfaceNames}
+          value={surfaceName}
+          onChange={(s) => onUpdate({ surfaces: [s] })}
+          surfaces={surfaces}
+          rampMap={rampMap}
+        />
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+        {previewHex && <ColorDot hex={previewHex} alpha={previewAlpha} />}
+        <input
+          type="number"
+          min={0} max={1} step={0.05}
+          style={{ ...inp, minWidth: 0, flex: 1 }}
+          value={token.value}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (!Number.isNaN(v)) onUpdate({ value: Math.min(1, Math.max(0, Math.round(v * 100) / 100)) });
+          }}
+        />
+      </div>
+      {isDegenerate ? (
+        <select
+          style={sel}
+          value={token.referenceSurface ?? ''}
+          onChange={(e) => onUpdate({ referenceSurface: e.target.value || undefined })}
+        >
+          <option value="">auto</option>
+          {surfaceNames.map((s) => <option key={s}>{s}</option>)}
+        </select>
+      ) : (
+        <select
+          style={sel}
+          value={token.preference ?? 'lowest-passing'}
+          onChange={(e) => onUpdate({ preference: e.target.value as PortableAlphaToken['preference'] })}
+        >
+          {ALPHA_PREFS.map((p) => <option key={p}>{p}</option>)}
+        </select>
+      )}
+      <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
+    </div>
+  );
+}
+
 // ─── Add token modal ──────────────────────────────────────────────────────────
 
 const field: React.CSSProperties = {
@@ -556,7 +674,7 @@ function ModalStepSelect({ rampName, rampMap, value, onChange }: {
   );
 }
 
-function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onClose, onAddSurface, onAddSemantic }: {
+function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onClose, onAddSurface, onAddSemantic, onAddAlpha }: {
   rampNames: string[];
   surfaceNames: string[];
   rampMap: Map<string, GeneratedRamp>;
@@ -565,6 +683,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
   onClose: () => void;
   onAddSurface: (name: string, token: PortableSurfaceToken) => void;
   onAddSemantic: (kind: 'foreground' | 'nonText', name: string, token: PortableSemanticToken) => void;
+  onAddAlpha: (name: string, token: PortableAlphaToken) => void;
 }) {
   const [kind, setKind] = useState<TokenKind>('surface');
   const [name, setName] = useState('');
@@ -580,11 +699,21 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
   const [lightStep, setLightStep] = useState(0);
   const [darkStep, setDarkStep] = useState(rampLastIdx);
 
+  // Alpha-specific state
+  const [alphaSubKind, setAlphaSubKind] = useState<'scrim' | 'token'>('scrim');
+  const [alphaStep, setAlphaStep] = useState(rampLastIdx);
+  const [alphaValue, setAlphaValue] = useState(0.4);
+  const [alphaRefSurface, setAlphaRefSurface] = useState('');
+  const [alphaPref, setAlphaPref] = useState<'lowest-passing' | 'highest-contrast'>('lowest-passing');
+  const [alphaUsage, setAlphaUsage] = useState<'text' | 'nonText'>('nonText');
+
   // Reset dark step when ramp changes
   useEffect(() => {
     const r = rampMap.get(ramp);
-    setDarkStep((r?.steps.length ?? 1) - 1);
+    const last = (r?.steps.length ?? 1) - 1;
+    setDarkStep(last);
     setLightStep(0);
+    setAlphaStep(last);
   }, [ramp, rampMap]);
 
   useEffect(() => {
@@ -596,6 +725,17 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Composite preview for alpha scrim
+  const alphaRamp = rampMap.get(ramp);
+  const alphaBaseHex = alphaRamp?.steps[Math.max(0, Math.min(alphaStep, (alphaRamp.steps.length ?? 1) - 1))]?.hex;
+  const alphaRefToken = alphaRefSurface ? surfaces[alphaRefSurface] : undefined;
+  const alphaRefRamp = alphaRefToken ? rampMap.get(alphaRefToken.ramp) : undefined;
+  const alphaRefLightIdx = alphaRefToken ? (alphaRefToken.lightStep ?? alphaRefToken.step ?? 0) : 0;
+  const alphaRefHex = alphaRefRamp?.steps[Math.max(0, Math.min(alphaRefLightIdx, (alphaRefRamp.steps.length ?? 1) - 1))]?.hex;
+  const alphaCompositePreview = alphaSubKind === 'scrim' && alphaBaseHex && alphaRefHex
+    ? alphaCompositeHex(alphaBaseHex, alphaValue, alphaRefHex)
+    : undefined;
+
   function commit() {
     const n = name.trim();
     if (!n) { setError('Name is required'); return; }
@@ -606,6 +746,27 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
     } else if (kind === 'foreground' || kind === 'nonText') {
       if (!surface) { setError('Surface is required'); return; }
       onAddSemantic(kind, n, { ramp, surfaces: [surface], preference: pref, consistency: cons });
+    } else if (kind === 'alpha') {
+      if (alphaSubKind === 'scrim') {
+        const stepName = alphaRamp?.steps[Math.max(0, Math.min(alphaStep, (alphaRamp.steps.length ?? 1) - 1))]?.name ?? String(alphaStep);
+        const token: PortableAlphaToken = {
+          base: `{color.primitive.${ramp}.${stepName}}`,
+          value: alphaValue,
+          ...(alphaRefSurface ? { referenceSurface: alphaRefSurface } : {}),
+        };
+        onAddAlpha(n, token);
+      } else {
+        if (!surface) { setError('Surface is required'); return; }
+        const token: PortableAlphaToken = {
+          baseRamp: ramp,
+          value: alphaValue,
+          surfaces: [surface],
+          preference: alphaPref,
+          usage: alphaUsage,
+          ...(alphaRefSurface ? { referenceSurface: alphaRefSurface } : {}),
+        };
+        onAddAlpha(n, token);
+      }
     }
     onClose();
   }
@@ -614,6 +775,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
     { id: 'surface', label: 'Surface' },
     { id: 'foreground', label: 'Foreground' },
     { id: 'nonText', label: 'NonText' },
+    { id: 'alpha', label: 'Alpha' },
   ];
 
   const selectedRampSourceHex = scales.find((s) => s.name === ramp)?.sourceHex;
@@ -739,6 +901,113 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
             </>
           )}
 
+          {kind === 'alpha' && (
+            <>
+              {/* Sub-kind toggle */}
+              <div style={field}>
+                <span style={label}>Type</span>
+                <div style={{ display: 'flex', gap: 0, border: '1px solid var(--p-border)', borderRadius: 6, overflow: 'hidden' }}>
+                  {(['scrim', 'token'] as const).map((sk) => (
+                    <button
+                      key={sk}
+                      type="button"
+                      onClick={() => setAlphaSubKind(sk)}
+                      style={{
+                        flex: 1, padding: '6px 0', fontSize: 12, border: 'none', cursor: 'pointer',
+                        background: alphaSubKind === sk ? 'var(--p-bg-inset)' : 'transparent',
+                        color: alphaSubKind === sk ? 'var(--p-text)' : 'var(--p-text-secondary)',
+                        fontWeight: alphaSubKind === sk ? 600 : 400,
+                        borderBottom: alphaSubKind === sk ? '2px solid var(--p-accent)' : '2px solid transparent',
+                      }}
+                    >
+                      {sk === 'scrim' ? 'Scrim (fixed step)' : 'Token (resolve step)'}
+                    </button>
+                  ))}
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+                  {alphaSubKind === 'scrim'
+                    ? 'Fixed step + alpha — composite and emit. Decorative / exempt.'
+                    : 'Fixed alpha — resolver picks the passing step. Contrast-checked.'}
+                </span>
+              </div>
+
+              {/* Step picker (scrim only) */}
+              {alphaSubKind === 'scrim' && (
+                <div style={field}>
+                  <span style={label}>Step</span>
+                  <ModalStepSelect rampName={ramp} rampMap={rampMap} value={alphaStep} onChange={setAlphaStep} />
+                </div>
+              )}
+
+              {/* Alpha value */}
+              <div style={field}>
+                <span style={label}>Alpha</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {alphaCompositePreview && <ColorDot hex={alphaCompositePreview} size={20} />}
+                  <input
+                    type="range"
+                    min={0} max={1} step={0.05}
+                    style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+                    value={alphaValue}
+                    onChange={(e) => setAlphaValue(parseFloat(e.target.value))}
+                  />
+                  <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', minWidth: 32, textAlign: 'right' as const }}>
+                    {Math.round(alphaValue * 100)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Surface (token only — contrast target) */}
+              {alphaSubKind === 'token' && (
+                <>
+                  <div style={field}>
+                    <span style={label}>Contrast surface</span>
+                    {surfaceNames.length === 0 ? (
+                      <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>Add a surface first</span>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {(() => {
+                          const st = surfaces[surface];
+                          const sr = st ? rampMap.get(st.ramp) : null;
+                          const li = st ? (st.lightStep ?? st.step ?? 0) : 0;
+                          const hex = sr?.steps[Math.max(0, Math.min(li, sr.steps.length - 1))]?.hex;
+                          return <ColorDot hex={hex} size={16} />;
+                        })()}
+                        <select style={{ ...modalSel, flex: 1 }} value={surface} onChange={(e) => setSurface(e.target.value)}>
+                          {surfaceNames.map((s) => <option key={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={field}>
+                      <span style={label}>Preference</span>
+                      <select style={modalSel} value={alphaPref} onChange={(e) => setAlphaPref(e.target.value as typeof alphaPref)}>
+                        {ALPHA_PREFS.map((p) => <option key={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div style={field}>
+                      <span style={label}>Usage</span>
+                      <select style={modalSel} value={alphaUsage} onChange={(e) => setAlphaUsage(e.target.value as typeof alphaUsage)}>
+                        <option value="nonText">nonText</option>
+                        <option value="text">text</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Reference surface (optional, both types) */}
+              <div style={field}>
+                <span style={label}>Reference surface <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></span>
+                <select style={modalSel} value={alphaRefSurface} onChange={(e) => setAlphaRefSurface(e.target.value)}>
+                  <option value="">auto (bgMain / bgInverse per mode)</option>
+                  {surfaceNames.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+
           {error && (
             <span style={{ fontSize: 12, color: '#e55' }}>{error}</span>
           )}
@@ -786,6 +1055,9 @@ export function TokensPanel() {
   const updateToken = useVocabStore((s) => s.updateToken);
   const addDecorative = useVocabStore((s) => s.addDecorative);
   const removeToken = useVocabStore((s) => s.removeToken);
+  const addAlpha = useVocabStore((s) => s.addAlpha);
+  const updateAlpha = useVocabStore((s) => s.updateAlpha);
+  const removeAlpha = useVocabStore((s) => s.removeAlpha);
   const exportYaml = useVocabStore((s) => s.exportYaml);
   const clear = useVocabStore((s) => s.clear);
 
@@ -795,6 +1067,7 @@ export function TokensPanel() {
   const foreground = raw?.foreground ?? {};
   const nonText = raw?.nonText ?? {};
   const decorative = raw?.decorative ?? {};
+  const alpha = raw?.alpha ?? {};
   const surfaceNames = Object.keys(surfaces);
 
   const rampMap = useMemo(() => {
@@ -1044,6 +1317,30 @@ export function TokensPanel() {
             </>
           )}
 
+          {/* Alpha */}
+          {Object.keys(alpha).length > 0 && (
+            <>
+              <div style={SECTION}>Alpha</div>
+              <div style={{ ...HEADER, gridTemplateColumns: ALPHA_ROW.gridTemplateColumns }}>
+                <span>name</span><span>ramp</span><span>step / surface</span><span>α</span><span>ref / pref</span><span />
+              </div>
+              {Object.entries(alpha).map(([name, token]) => (
+                <AlphaRow
+                  key={name}
+                  name={name}
+                  token={token}
+                  rampNames={rampNames}
+                  surfaceNames={Object.keys(surfaces)}
+                  rampMap={rampMap}
+                  scales={scales}
+                  surfaces={surfaces}
+                  onUpdate={(u) => updateAlpha(name, u, ec())}
+                  onDelete={() => removeAlpha(name, ec())}
+                />
+              ))}
+            </>
+          )}
+
         </div>
       )}
 
@@ -1058,6 +1355,7 @@ export function TokensPanel() {
           onClose={() => setShowAddModal(false)}
           onAddSurface={(n, t) => addSurface(n, t, ec())}
           onAddSemantic={(kind, n, t) => addToken(kind, n, t, ec())}
+          onAddAlpha={(n, t) => addAlpha(n, t, ec())}
         />
       )}
     </div>

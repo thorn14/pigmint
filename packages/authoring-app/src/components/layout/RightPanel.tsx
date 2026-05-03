@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
+import { formatCss } from 'culori';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
@@ -62,6 +63,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const updateChromaLow = usePaletteStore((s) => s.updateChromaLow);
   const updateChromaHigh = usePaletteStore((s) => s.updateChromaHigh);
+  const updateSourceAlpha = usePaletteStore((s) => s.updateSourceAlpha);
   const setChromaShapeAll = usePaletteStore((s) => s.setChromaShapeAll);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
@@ -235,6 +237,24 @@ export function RightPanel({ scale, activeStep }: Props) {
               <span style={{ whiteSpace: 'nowrap' }}>C {scale.sourceOklch.c.toFixed(4)}</span>
               <span style={{ whiteSpace: 'nowrap' }}>H {scale.sourceOklch.h.toFixed(2)}°</span>
             </div>
+          </AppField>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <AppField label={`Alpha — ${Math.round(scale.sourceAlpha * 100)}%`} htmlFor={`${idBase}-alpha`}>
+            <AppSlider
+              id={`${idBase}-alpha`}
+              value={scale.sourceAlpha}
+              min={0}
+              max={1}
+              step={0.01}
+              onValueChange={(v: number) => updateSourceAlpha(scale.id, v)}
+            />
+            {scale.sourceAlpha < 1 && (
+              <div style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginTop: 4 }}>
+                Steps emit <code style={{ fontFamily: 'monospace' }}>oklch(L C H / {Math.round(scale.sourceAlpha * 100)}%)</code>
+              </div>
+            )}
           </AppField>
         </div>
       </div>
@@ -423,7 +443,7 @@ export function RightPanel({ scale, activeStep }: Props) {
       <div style={sectionStyle}>
         <SectionLabel>Curve Smoothing</SectionLabel>
         <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginBottom: 10, lineHeight: 1.4 }}>
-          Blends interior nodes toward a smooth average. Leaf nodes (first/last) are always preserved.
+          Smooths interior nodes. Leaf nodes are preserved.
         </p>
         {(
           [
@@ -558,15 +578,24 @@ export function RightPanel({ scale, activeStep }: Props) {
           </div>
 
           {/* Swatches */}
+          {(() => {
+            const stepAlpha = activeStep.oklch.alpha;
+            const isTransparent = stepAlpha != null && stepAlpha < 1;
+            const { l: sl, c: sc, h: sh } = activeStep.oklch;
+            const rgbaColor = isTransparent
+              ? (formatCss({ mode: 'oklch', l: sl, c: sc, h: sh, alpha: stepAlpha }) ?? activeStep.hex)
+              : activeStep.hex;
+            const swatchStyle = (color: string): React.CSSProperties => ({ backgroundColor: color });
+            return (
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
               <div
-                style={{ width: 32, height: activeStep.gamut === 'p3' ? 13 : 32, borderRadius: 3, backgroundColor: activeStep.hex, border: '1px solid var(--p-border)' }}
+                style={{ width: 32, height: activeStep.gamut === 'p3' ? 13 : 32, borderRadius: 3, ...swatchStyle(rgbaColor), border: '1px solid var(--p-border)' }}
                 title="sRGB hex — safe fallback for all displays"
               />
               {activeStep.gamut === 'p3' && activeStep.displayP3 && (
                 <div
-                  style={{ width: 32, height: 13, borderRadius: 3, backgroundColor: supportsP3 ? activeStep.displayP3 : activeStep.hex, border: '1px solid var(--p-border)' }}
+                  style={{ width: 32, height: 13, borderRadius: 3, ...swatchStyle(supportsP3 ? activeStep.displayP3 : rgbaColor), border: '1px solid var(--p-border)' }}
                   title="Display P3 — wide-gamut rendering on supported displays"
                 />
               )}
@@ -606,6 +635,8 @@ export function RightPanel({ scale, activeStep }: Props) {
               )}
             </div>
           </div>
+            );
+          })()}
 
           {/* OKLCH */}
           <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-tertiary)', marginBottom: 3 }}>

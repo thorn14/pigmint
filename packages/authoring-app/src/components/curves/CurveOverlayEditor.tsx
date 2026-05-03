@@ -1,4 +1,5 @@
 import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { formatCss } from 'culori';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import type { ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -388,7 +389,9 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               aria-label={`${step.name}: ${step.hex}`}
               className="flex-1 relative border-r last:border-r-0 cursor-pointer"
               style={{
-                backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
+                backgroundColor: step.oklch.alpha != null && step.oklch.alpha < 1
+                  ? (formatCss({ mode: 'oklch', ...step.oklch }) ?? step.hex)
+                  : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex),
                 borderColor: 'rgba(0,0,0,0.07)',
                 boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
               }}

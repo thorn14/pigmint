@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { formatCss } from 'culori';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import type { ResolvedToken, ComplianceLevel } from '@pigmint/core';
+
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +46,17 @@ function TokenCard({
   const np = token.source.nearestPrimitive ?? '';
   const stepLabel = np.includes('.') ? np.slice(np.lastIndexOf('.') + 1) : np;
 
+  // ADR-016 alpha tokens carry alphaValue; ramp-alpha tokens carry it on oklch.alpha
+  const tokenAlpha = token.alpha?.alphaValue ?? token.oklch.alpha;
+  const isTransparent = tokenAlpha != null && tokenAlpha < 1;
+  // Use oklch() CSS format so alpha is never stripped (formatHex always drops it)
+  const { l, c, h } = token.oklch;
+  const colorValue = isTransparent
+    ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
+    : token.hex;
+
+  const nonTextBgStyle: React.CSSProperties = { background: colorValue };
+
   return (
     <div style={{
       width: 168,
@@ -54,22 +67,22 @@ function TokenCard({
     }}>
       {/* Preview area */}
       <div style={{
-        background: surfaceHex,
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
         minHeight: 78,
+        background: surfaceHex,
         overflow: 'hidden',
         boxSizing: 'border-box',
         width: '100%',
-        ...(usage !== 'text' ? { border: `1px solid ${token.hex}` } : {}),
+        ...(usage !== 'text' ? { border: `1px solid ${colorValue}` } : {}),
       }}>
         {usage !== 'text' && (
           <div style={{
             height: 3,
             flexShrink: 0,
             width: '100%',
-            background: token.hex,
+            ...nonTextBgStyle,
           }} />
         )}
         <div style={{
@@ -80,12 +93,12 @@ function TokenCard({
           flex: 1,
         }}>
           {usage === 'text' && (
-            <span style={{ color: token.hex, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
+            <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
               {stepLabel || '—'}
             </span>
           )}
           <span style={{
-            color: token.hex,
+            color: colorValue,
             fontSize: 10,
             opacity: 0.85,
             fontFamily: 'monospace',
@@ -183,6 +196,22 @@ export function TokensPreview() {
       if (t.mode !== effectiveMode) continue;
       if (!surfacePathSet.has(t.path)) continue;
       map.set(t.path, t.hex);
+    }
+    return map;
+  }, [resolution, effectiveMode, surfacePathSet]);
+
+  /** CSS color for surfaces — uses oklch() with alpha when the ramp has sourceAlpha < 1. */
+  const surfaceColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!resolution.ok || !surfacePathSet) return map;
+    for (const t of resolution.tokens) {
+      if (t.mode !== effectiveMode) continue;
+      if (!surfacePathSet.has(t.path)) continue;
+      const alpha = t.oklch.alpha;
+      const color = (alpha != null && alpha < 1)
+        ? (formatCss({ mode: 'oklch', ...t.oklch }) ?? t.hex)
+        : t.hex;
+      map.set(t.path, color);
     }
     return map;
   }, [resolution, effectiveMode, surfacePathSet]);
@@ -297,6 +326,7 @@ export function TokensPreview() {
           Array.from(grouped.entries()).map(([surface, tokens]) => {
             const surfaceKey = surface.replace(/^\{|\}$/g, '');
             const bgHex = surfaceHexMap.get(surfaceKey) ?? '#cccccc';
+            const bgColor = surfaceColorMap.get(surfaceKey) ?? bgHex;
             const stepLabel = surfaceStepLabelMap.get(surfaceKey);
             return (
               <div key={surface}>
@@ -306,9 +336,9 @@ export function TokensPreview() {
                     width: 16,
                     height: 16,
                     borderRadius: 3,
-                    background: bgHex,
                     border: '1px solid var(--p-border)',
                     flexShrink: 0,
+                    background: bgColor,
                   }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)', fontFamily: 'monospace' }}>
                     {surfaceKey}
@@ -331,7 +361,8 @@ export function TokensPreview() {
                     <TokenCard
                       key={t.path}
                       token={t}
-                      surfaceHex={bgHex}
+                      surfaceHex={bgColor}
+
                       usage={usageMap.get(t.path) ?? 'text'}
                       useWcag={useWcag}
                     />

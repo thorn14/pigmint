@@ -6,6 +6,10 @@ import {
   resolveMatchedAcrossRamps,
   type NonSurfaceContext,
 } from './group-resolve.js';
+import {
+  resolveAlphaToken,
+  defaultAlphaReferenceSurface,
+} from './alpha-resolve.js';
 import { DriverError } from './errors.js';
 import { resolveSurface, resolveSurfaceByIndex, type SurfaceRole } from './surfaces.js';
 import { generateRamp } from '../math/ramp.js';
@@ -18,15 +22,6 @@ import type {
   ResolvedToken,
   VocabularyEntry,
 } from '../types/spec.js';
-
-// ADR-016 (post-v1): alpha sub-resolver.
-// The default reference surfaces for alpha-composited tokens are `color.surface.main`
-// for scheme=light and `color.surface.inverse` for scheme=dark (i.e. the canonical
-// "light-on-dark" and "dark-on-light" baselines). When the sub-resolver lands it
-// should consume `AdapterConfig.alpha.referenceSurface` as an override and fall
-// back to these defaults. Until then, alpha is authored as pre-composited color
-// and the driver resolves against the opaque reference directly — see
-// `ModeBinding.baselineHex` below.
 
 const DEFAULT_DENSE_STEPS = 256;
 
@@ -203,8 +198,59 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
       if (modeMap) modeMap[entry.path] = token.hex;
     }
 
+    // Resolve alpha-carrying tokens (ADR-016) — both decorative and non-decorative variants.
+    const alphaEntries = nonSurfaces.filter((e) => e.alpha != null);
+    for (const entry of alphaEntries) {
+      const modifier = entry.alpha!;
+      const rampName = modifier.baseRamp ?? (
+        modifier.baseRef ? parseAlphaBaseRefRamp(modifier.baseRef) : requireTokenRamp(tokenRamp, entry.path)
+      );
+      const ramp = requireRamp(ramps, rampName);
+      const modeSurfaces = surfaceByModeAndPath[binding.mode];
+      if (!modeSurfaces) throw new DriverError(`mode ${binding.mode} has no surface map`);
+
+      const refSurfacePath = modifier.referenceSurface ?? defaultAlphaReferenceSurface(binding.scheme);
+      const referenceSurfaceHex = modeSurfaces[refSurfacePath];
+      if (!referenceSurfaceHex) {
+        throw new DriverError(
+          `alpha token ${entry.path}: reference surface "${refSurfacePath}" not resolved for mode ${binding.mode}`,
+        );
+      }
+
+      let surfaceHex: string | undefined;
+      let surfaceRef: string | undefined;
+      if (entry.usage !== 'decorative' && entry.primarySurface) {
+        const h = modeSurfaces[entry.primarySurface];
+        if (!h) {
+          throw new DriverError(
+            `alpha token ${entry.path}: contrast surface "${entry.primarySurface}" not resolved for mode ${binding.mode}`,
+          );
+        }
+        surfaceHex = h;
+        surfaceRef = `{${entry.primarySurface}}`;
+      }
+
+      const { token } = resolveAlphaToken(
+        {
+          tokenPath: entry.path,
+          mode: binding.mode,
+          usage: entry.usage,
+          modifier,
+          ramp,
+          referenceSurfaceHex,
+          referenceSurfacePath: refSurfacePath,
+          surfaceHex,
+          surfaceRef,
+        },
+        ramps,
+      );
+      tokens.push(token);
+    }
+
+    const alphaPathSet = new Set(alphaEntries.map((e) => e.path));
     const items: { path: string; context: NonSurfaceContext; intent: FormalIntent }[] = [];
     for (const entry of nonSurfaces) {
+      if (alphaPathSet.has(entry.path)) continue;
       if (entry.usage === 'decorative') continue;
       if (!entry.defaultIntent || !entry.primarySurface) {
         throw new DriverError(
@@ -370,6 +416,16 @@ function resampleCurve(values: number[], targetLength: number): number[] {
     result[i] = a + (b - a) * frac;
   }
   return result;
+}
+
+function parseAlphaBaseRefRamp(ref: string): string {
+  const inner = ref.startsWith('{') && ref.endsWith('}') ? ref.slice(1, -1) : ref;
+  const parts = inner.split('.');
+  // Expect: color.primitive.<ramp>.<step>
+  if (parts.length === 4 && parts[0] === 'color' && parts[1] === 'primitive' && parts[2]) {
+    return parts[2];
+  }
+  throw new DriverError(`alpha modifier baseRef "${ref}" must be "{color.primitive.<ramp>.<step>}"`);
 }
 
 function resolveSurfaceReference(

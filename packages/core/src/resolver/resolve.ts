@@ -115,7 +115,7 @@ function complianceLevelWcag(t: Threshold, ratio: number): ComplianceLevel {
   return 'fail';
 }
 
-function complianceForThreshold(
+export function complianceForThreshold(
   t: Threshold,
   usedMetric: number,
   thresholdElevation?: ThresholdElevation,

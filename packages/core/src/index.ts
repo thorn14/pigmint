@@ -14,6 +14,15 @@ export {
   getWcagContrast,
   getApcaContrast,
 } from './math/contrast.js';
+export { alphaCompositeHex, toRgbaString, toHex8 } from './math/composite.js';
+export {
+  resolveAlphaToken,
+  defaultAlphaReferenceSurface,
+  parseStepRef,
+  findStepByName,
+  type AlphaResolveInput,
+  type AlphaResolveResult,
+} from './resolver/alpha-resolve.js';
 export {
   buildChromaCurve,
   buildDefaultCurves,

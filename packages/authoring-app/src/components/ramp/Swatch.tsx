@@ -1,3 +1,4 @@
+import { formatCss } from 'culori';
 import type { GeneratedStep } from '../../types/palette';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
 import { ContrastBadge } from '../accessibility/ContrastBadge';
@@ -6,6 +7,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+
 
 interface Props {
   step: GeneratedStep;
@@ -17,7 +19,14 @@ export function Swatch({ step, isActive, onClick }: Props) {
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const apca = useIntentStore((s) => s.engineCompliance === 'apca');
 
-  const bgColor = (!srgbPreview && supportsP3 && step.displayP3) || step.hex;
+  const stepAlpha = step.oklch.alpha;
+  const isTransparent = stepAlpha != null && stepAlpha < 1;
+  const { l, c, h } = step.oklch;
+  const bgColor = isTransparent
+    ? (formatCss({ mode: 'oklch', l, c, h, alpha: stepAlpha }) ?? step.hex)
+    : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex);
+
+  const bgStyle: React.CSSProperties = { backgroundColor: bgColor };
 
   if (apca) {
     const lcWhite = getApcaContrast('#ffffff', step.hex);
@@ -32,7 +41,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
         className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
           ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
         `}
-        style={{ backgroundColor: bgColor, minHeight: '80px', minWidth: '64px' }}
+        style={{ ...bgStyle, minHeight: '80px', minWidth: '64px' }}
         title={`${step.name}: ${step.hex}`}
       >
         <span className="text-[10px] font-mono font-medium leading-tight" style={{ color: textColor }}>
@@ -60,7 +69,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
       className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
         ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
       `}
-      style={{ backgroundColor: bgColor, minHeight: '80px', minWidth: '64px' }}
+      style={{ ...bgStyle, minHeight: '80px', minWidth: '64px' }}
       title={`${step.name}: ${step.hex}`}
     >
       <span className="text-[10px] font-mono font-medium leading-tight" style={{ color: textColor }}>

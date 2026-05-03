@@ -9,6 +9,7 @@ import {
   type PortableSurfaceToken,
   type PortableSemanticToken,
   type PortableDecorativeToken,
+  type PortableAlphaToken,
 } from '@pigmint/core';
 import type { VocabularyEntry, EngineConfig, SurfaceStepDecl } from '@pigmint/core';
 import { usePaletteStore } from './paletteStore';
@@ -35,6 +36,10 @@ interface VocabActions {
   updateToken(section: 'foreground' | 'nonText', name: string, updates: Partial<PortableSemanticToken>, engineConfig: EngineConfig): void;
   addDecorative(name: string, token: PortableDecorativeToken, engineConfig: EngineConfig): void;
   removeToken(section: 'foreground' | 'nonText' | 'decorative', name: string, engineConfig: EngineConfig): void;
+
+  addAlpha(name: string, token: PortableAlphaToken, engineConfig: EngineConfig): void;
+  updateAlpha(name: string, updates: Partial<PortableAlphaToken>, engineConfig: EngineConfig): void;
+  removeAlpha(name: string, engineConfig: EngineConfig): void;
 
   exportYaml(): string;
   clear(): void;
@@ -146,6 +151,28 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
         const sectionMap = v[section] as Record<string, unknown> ?? {};
         const { [name]: _, ...rest } = sectionMap;
         return { ...v, [section]: rest };
+      }, engineConfig));
+    },
+
+    addAlpha(name, token, engineConfig) {
+      set(applyMutation(get().raw, (v) => ({
+        ...v,
+        alpha: { ...(v.alpha ?? {}), [name]: token },
+      }), engineConfig));
+    },
+
+    updateAlpha(name, updates, engineConfig) {
+      set(applyMutation(get().raw, (v) => {
+        const existing = v.alpha?.[name];
+        if (!existing) return v;
+        return { ...v, alpha: { ...(v.alpha ?? {}), [name]: { ...existing, ...updates } } };
+      }, engineConfig));
+    },
+
+    removeAlpha(name, engineConfig) {
+      set(applyMutation(get().raw, (v) => {
+        const { [name]: _, ...rest } = v.alpha ?? {};
+        return { ...v, alpha: Object.keys(rest).length > 0 ? rest : undefined };
       }, engineConfig));
     },
 

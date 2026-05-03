@@ -1,7 +1,9 @@
 import type {
+  AlphaModifier,
   ComplianceTarget,
   EngineConfig,
   FormalIntent,
+  PortableAlphaToken,
   PortableDecorativeToken,
   PortableSemanticToken,
   PortableSurfaceToken,
@@ -161,6 +163,128 @@ function validateDecorativeToken(
   return raw as unknown as PortableDecorativeToken;
 }
 
+/**
+ * Normalise a step reference to `{color.primitive.<ramp>.<step>}` form.
+ * Accepts the full DTCG form or shorthand `<ramp>.<step>`.
+ */
+function normaliseStepRef(ref: string, label: string, filePath: string): string {
+  if (ref.startsWith('{color.primitive.') && ref.endsWith('}')) return ref;
+  // Shorthand: "slate.900"
+  const parts = ref.split('.');
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    return `{color.primitive.${parts[0]}.${parts[1]}}`;
+  }
+  throw new PortableVocabularyError(
+    `${label} must be "{color.primitive.<ramp>.<step>}" or "<ramp>.<step>"; got "${ref}"`,
+    filePath,
+  );
+}
+
+function validateAlphaToken(
+  name: string,
+  raw: unknown,
+  surfaceNames: Set<string>,
+  filePath: string,
+): PortableAlphaToken {
+  if (!isObj(raw)) {
+    throw new PortableVocabularyError(`alpha.${name} must be a mapping`, filePath);
+  }
+
+  const hasBase = 'base' in raw && raw.base !== undefined;
+  const hasBaseRamp = 'baseRamp' in raw && raw.baseRamp !== undefined;
+
+  if (!hasBase && !hasBaseRamp) {
+    throw new PortableVocabularyError(
+      `alpha.${name} must have either "base" or "baseRamp"`,
+      filePath,
+    );
+  }
+  if (hasBase && hasBaseRamp) {
+    throw new PortableVocabularyError(
+      `alpha.${name}: "base" and "baseRamp" are mutually exclusive`,
+      filePath,
+    );
+  }
+
+  assertNumber(raw.value, `alpha.${name}.value`, filePath);
+  const value = raw.value as number;
+  if (value < 0 || value > 1) {
+    throw new PortableVocabularyError(
+      `alpha.${name}.value must be between 0 and 1`,
+      filePath,
+    );
+  }
+
+  if (hasBase) {
+    assertString(raw.base, `alpha.${name}.base`, filePath);
+    // Validate and normalise the step reference
+    normaliseStepRef(raw.base as string, `alpha.${name}.base`, filePath);
+  }
+
+  if (hasBaseRamp) {
+    assertString(raw.baseRamp, `alpha.${name}.baseRamp`, filePath);
+
+    if (!Array.isArray(raw.surfaces) || raw.surfaces.length === 0) {
+      throw new PortableVocabularyError(
+        `alpha.${name}.surfaces must be a non-empty array when baseRamp is set`,
+        filePath,
+      );
+    }
+    for (const s of raw.surfaces) {
+      if (typeof s !== 'string' || !surfaceNames.has(s)) {
+        throw new PortableVocabularyError(
+          `alpha.${name}.surfaces references unknown surface "${s}"`,
+          filePath,
+        );
+      }
+    }
+
+    const pref = raw.preference;
+    if (typeof pref !== 'string' || (pref !== 'lowest-passing' && pref !== 'highest-contrast')) {
+      throw new PortableVocabularyError(
+        `alpha.${name}.preference must be "lowest-passing" or "highest-contrast"`,
+        filePath,
+      );
+    }
+
+    if ('usage' in raw && raw.usage !== undefined) {
+      if (raw.usage !== 'text' && raw.usage !== 'nonText') {
+        throw new PortableVocabularyError(
+          `alpha.${name}.usage must be "text" or "nonText"`,
+          filePath,
+        );
+      }
+    }
+
+    if ('level' in raw && raw.level !== undefined) {
+      if (!VALID_LEVELS.has(raw.level as string)) {
+        throw new PortableVocabularyError(
+          `alpha.${name}.level must be "AA" or "AAA"`,
+          filePath,
+        );
+      }
+    }
+  }
+
+  if ('referenceSurface' in raw && raw.referenceSurface !== undefined) {
+    assertString(raw.referenceSurface, `alpha.${name}.referenceSurface`, filePath);
+    if (!surfaceNames.has(raw.referenceSurface as string)) {
+      throw new PortableVocabularyError(
+        `alpha.${name}.referenceSurface references unknown surface "${raw.referenceSurface}"`,
+        filePath,
+      );
+    }
+  }
+
+  // Normalise base ref in the returned object
+  const out = { ...raw } as Record<string, unknown>;
+  if (hasBase && typeof raw.base === 'string') {
+    out.base = normaliseStepRef(raw.base, `alpha.${name}.base`, filePath);
+  }
+
+  return out as unknown as PortableAlphaToken;
+}
+
 export function validatePortableVocabulary(raw: unknown, filePath: string): PortableVocabulary {
   if (!isObj(raw)) {
     throw new PortableVocabularyError('vocabulary must be a mapping', filePath);
@@ -182,10 +306,11 @@ export function validatePortableVocabulary(raw: unknown, filePath: string): Port
   const hasForeground = isObj(raw.foreground) && Object.keys(raw.foreground).length > 0;
   const hasNonText = isObj(raw.nonText) && Object.keys(raw.nonText).length > 0;
   const hasDecorative = isObj(raw.decorative) && Object.keys(raw.decorative).length > 0;
+  const hasAlpha = isObj(raw.alpha) && Object.keys(raw.alpha).length > 0;
 
-  if (!hasForeground && !hasNonText && !hasDecorative) {
+  if (!hasForeground && !hasNonText && !hasDecorative && !hasAlpha) {
     throw new PortableVocabularyError(
-      'vocabulary must have at least one non-empty section: foreground, nonText, or decorative',
+      'vocabulary must have at least one non-empty section: foreground, nonText, decorative, or alpha',
       filePath,
     );
   }
@@ -211,7 +336,20 @@ export function validatePortableVocabulary(raw: unknown, filePath: string): Port
     }
   }
 
-  return { surfaces, foreground, nonText, ...(hasDecorative ? { decorative } : {}) };
+  const alpha: Record<string, PortableAlphaToken> = {};
+  if (isObj(raw.alpha)) {
+    for (const [name, entry] of Object.entries(raw.alpha)) {
+      alpha[name] = validateAlphaToken(name, entry, surfaceNames, filePath);
+    }
+  }
+
+  return {
+    surfaces,
+    foreground,
+    nonText,
+    ...(hasDecorative ? { decorative } : {}),
+    ...(hasAlpha ? { alpha } : {}),
+  };
 }
 
 function deriveIntent(
@@ -284,7 +422,52 @@ export function portableToVocabularyEntries(
     });
   }
 
+  for (const [name, token] of Object.entries(vocab.alpha ?? {})) {
+    entries.push(portableAlphaToEntry(name, token, engineConfig));
+  }
+
   return entries;
+}
+
+function portableAlphaToEntry(
+  name: string,
+  token: PortableAlphaToken,
+  engineConfig: EngineConfig,
+): VocabularyEntry {
+  // Degenerate case: base (fixed step) + fixed alpha → decorative/exempt
+  if (token.base) {
+    const modifier: AlphaModifier = {
+      baseRef: token.base,
+      value: token.value,
+      ...(token.referenceSurface ? { referenceSurface: token.referenceSurface } : {}),
+    };
+    return { path: name, usage: 'decorative', alpha: modifier, states: ['base'] };
+  }
+
+  // Path 1: baseRamp + fixed alpha + intent
+  const kind = engineConfig.compliance === 'apca' ? 'apca' : 'wcag';
+  const level = (token.level ?? engineConfig.target) as ComplianceTarget;
+  const usage = token.usage ?? 'nonText';
+  const intent: FormalIntent = {
+    threshold: { kind, level, usage },
+    preference: token.preference!,
+    consistency: 'independent',
+    surfaceContext: 'primary',
+  };
+  const modifier: AlphaModifier = {
+    baseRamp: token.baseRamp,
+    value: token.value,
+    ...(token.referenceSurface ? { referenceSurface: token.referenceSurface } : {}),
+    intent,
+  };
+  return {
+    path: name,
+    usage,
+    primarySurface: token.surfaces?.[0],
+    additionalSurfaces: token.surfaces?.slice(1),
+    alpha: modifier,
+    states: ['base'],
+  };
 }
 
 export function buildSurfaceStepMap(vocab: PortableVocabulary): Map<string, SurfaceStepDecl> {
@@ -338,6 +521,29 @@ export function remapPortableVocabularyRamps(
       Object.entries(vocab.decorative).map(([k, t]) => [k, fix(t)]),
     );
   }
+  if (vocab.alpha !== undefined) {
+    out.alpha = Object.fromEntries(
+      Object.entries(vocab.alpha).map(([k, t]) => {
+        if (t.baseRamp && deletedKeys.has(rampMatchKey(t.baseRamp))) {
+          return [k, { ...t, baseRamp: fallbackRampName }];
+        }
+        // base (step ref) remap: replace the ramp segment if it matches a deleted ramp
+        if (t.base) {
+          const ramp = rampFromStepRef(t.base);
+          if (ramp && deletedKeys.has(rampMatchKey(ramp))) {
+            // Rebuild the step ref with the fallback ramp, preserving the step name
+            const inner = t.base.startsWith('{') ? t.base.slice(1, -1) : t.base;
+            const parts = inner.split('.');
+            if (parts.length === 4) {
+              const newRef = `{color.primitive.${fallbackRampName}.${parts[3]}}`;
+              return [k, { ...t, base: newRef }];
+            }
+          }
+        }
+        return [k, t];
+      }),
+    );
+  }
   return out;
 }
 
@@ -365,6 +571,15 @@ export function coerceTokenRampToPaletteScales(
   return out;
 }
 
+/** Extract the ramp name from a normalised step ref `{color.primitive.<ramp>.<step>}`. */
+function rampFromStepRef(ref: string): string | null {
+  const inner = ref.startsWith('{') && ref.endsWith('}') ? ref.slice(1, -1) : ref;
+  const parts = inner.split('.');
+  return parts.length === 4 && parts[0] === 'color' && parts[1] === 'primitive' && parts[2]
+    ? parts[2]
+    : null;
+}
+
 export function buildTokenRampFromPortable(vocab: PortableVocabulary): Record<string, string> {
   const map: Record<string, string> = {};
   for (const [name, entry] of Object.entries(vocab.surfaces)) {
@@ -378,6 +593,14 @@ export function buildTokenRampFromPortable(vocab: PortableVocabulary): Record<st
   }
   for (const [name, entry] of Object.entries(vocab.decorative ?? {})) {
     map[name] = entry.ramp;
+  }
+  for (const [name, token] of Object.entries(vocab.alpha ?? {})) {
+    if (token.baseRamp) {
+      map[name] = token.baseRamp;
+    } else if (token.base) {
+      const ramp = rampFromStepRef(token.base);
+      if (ramp) map[name] = ramp;
+    }
   }
   return map;
 }

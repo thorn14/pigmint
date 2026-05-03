@@ -112,6 +112,44 @@ export interface ModeEntry {
   states?: Record<string, ModeEntry>;
 }
 
+// ─── Alpha modifier (spec/07, ADR-016) ───────────────────────────────
+
+/**
+ * Declares an alpha compositing modifier on a vocabulary token (ADR-016).
+ *
+ * Resolution paths:
+ * - Path 1 (fixed alpha, resolve step): set `baseRamp` + fixed `value` + `intent`. The
+ *   sub-resolver walks the ramp and picks the step whose composited result satisfies the intent.
+ * - Path 2 (fixed step, resolve alpha): set `baseRef` + `value` range. Deferred — not yet
+ *   implemented; a fixed `value` with `baseRef` degenerates to a no-op composite.
+ * - Degenerate (both fixed): set `baseRef` + fixed `value` — just composites and emits.
+ */
+export interface AlphaModifier {
+  /** Ramp name — path 1: fixed alpha, the sub-resolver picks the step. */
+  baseRamp?: string;
+  /**
+   * Step reference as `{color.primitive.<ramp>.<step>}` — path 2 or degenerate fixed case.
+   * When `value` is a fixed number this becomes a simple composite with no step search.
+   */
+  baseRef?: string;
+  /** Alpha [0,1] for path 1 or degenerate; [min, max] range for path 2. */
+  value: number | [number, number];
+  /**
+   * Surface path to composite against. Defaults to `color.surface.main` (light scheme) or
+   * `color.surface.inverse` (dark scheme) when omitted (ADR-016 decision 2026-04-23).
+   */
+  referenceSurface?: string;
+  /** Formal intent applied to the composited result. Required for non-decorative path-1 tokens. */
+  intent?: FormalIntent;
+}
+
+/** Receipt fields added to alpha-carrying tokens (spec/07). */
+export interface AlphaReceipt {
+  alphaValue: number;
+  referenceSurface: string;
+  composited: { hex: string; against: string };
+}
+
 // ─── Vocabulary (spec/09) ────────────────────────────────────────────
 
 export type TokenState = 'base' | 'hover' | 'active' | 'focus' | 'disabled';
@@ -123,6 +161,8 @@ export interface VocabularyEntry {
   primarySurface?: string;
   additionalSurfaces?: string[];
   defaultIntent?: FormalIntent;
+  /** Alpha modifier — present on alpha-carrying tokens (ADR-016, spec/07). */
+  alpha?: AlphaModifier;
   states?: TokenState[];
   statesForm?: StatesForm;
   description?: string;
@@ -229,11 +269,43 @@ export interface PortableDecorativeToken {
   step: number;
 }
 
+/**
+ * Alpha token entry in `tokens.yaml` (spec/07, ADR-016).
+ *
+ * Two shapes:
+ * - **Degenerate** (`base` + fixed `value`): specific step composited at the declared alpha.
+ *   No contrast check — always decorative / exempt.
+ * - **Path 1** (`baseRamp` + fixed `value` + `surfaces` + `preference`): resolver walks the ramp
+ *   and picks the step whose composited result satisfies the intent against the contrast surface.
+ */
+export interface PortableAlphaToken {
+  /**
+   * Fixed step reference. Either full DTCG form `{color.primitive.<ramp>.<step>}` or
+   * shorthand `<ramp>.<step>` (e.g. `slate.900`). Mutually exclusive with `baseRamp`.
+   */
+  base?: string;
+  /** Ramp to search — path 1. Requires `surfaces` and `preference`. Mutually exclusive with `base`. */
+  baseRamp?: string;
+  /** Alpha [0,1]. */
+  value: number;
+  /** Surface name from the `surfaces` section to composite against. Defaults per scheme when omitted. */
+  referenceSurface?: string;
+  /** For path 1: surface name(s) to contrast against (compliance check). */
+  surfaces?: string[];
+  /** For path 1: step-picking strategy. */
+  preference?: 'lowest-passing' | 'highest-contrast';
+  /** For path 1: usage category. Defaults to `'nonText'`. */
+  usage?: 'text' | 'nonText';
+  /** Compliance level. Defaults to the engine's `target`. */
+  level?: 'AA' | 'AAA';
+}
+
 export interface PortableVocabulary {
   surfaces: Record<string, PortableSurfaceToken>;
   foreground: Record<string, PortableSemanticToken>;
   nonText: Record<string, PortableSemanticToken>;
   decorative?: Record<string, PortableDecorativeToken>;
+  alpha?: Record<string, PortableAlphaToken>;
 }
 
 // ─── Internal resolver types ─────────────────────────────────────────
@@ -249,4 +321,6 @@ export interface ResolvedToken {
   contrast: ContrastReceipt | null;
   compliance: ComplianceReceipt | null;
   intent: FormalIntent;
+  /** Present when this token carries an alpha modifier (ADR-016, spec/07). */
+  alpha?: AlphaReceipt;
 }

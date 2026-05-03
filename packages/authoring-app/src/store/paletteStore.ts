@@ -73,6 +73,7 @@ interface PaletteActions {
   updateChromaPeak: (id: string, peak: number) => void;
   updateChromaLow: (id: string, low: number) => void;
   updateChromaHigh: (id: string, high: number) => void;
+  updateSourceAlpha: (id: string, alpha: number) => void;
   setChromaShapeAll: (low: number, peak: number, high: number) => void;
   setChromaCurveValues: (id: string, values: number[]) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
@@ -274,7 +275,7 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
     name: typeof partial.name === 'string' ? partial.name : fallbackName,
     sourceHex: oklchToHex(sourceOklch),
     sourceOklch,
-    sourceAlpha: sourceOklch.alpha ?? 1,
+    sourceAlpha: typeof partial.sourceAlpha === 'number' ? partial.sourceAlpha : (sourceOklch.alpha ?? 1),
     stepCount,
     naming,
     curves,
@@ -839,6 +840,13 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const clamped = Math.max(0, Math.min(0.4, high));
       scale.chromaHigh = clamped;
       scale.curves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount, scale.chromaLow ?? 0, clamped);
+    }),
+
+    updateSourceAlpha: (id, alpha) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      pushHistory(state);
+      scale.sourceAlpha = Math.min(1, Math.max(0, alpha));
     }),
 
     setChromaShapeAll: (low, peak, high) => set((state) => {

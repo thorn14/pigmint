@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { formatCss } from 'culori';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
@@ -23,7 +24,10 @@ function ColorSwatchTooltip({
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const swatchColor = (!srgbPreview && supportsP3 && step.displayP3) || step.hex;
+  const stepAlpha = step.oklch.alpha;
+  const swatchColor = (stepAlpha != null && stepAlpha < 1)
+    ? (formatCss({ mode: 'oklch', ...step.oklch }) ?? step.hex)
+    : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex);
 
   useEffect(() => {
     if (!visible || !wrapperRef.current) return;

@@ -1,4 +1,5 @@
 import type { ColorScale } from '../types/palette';
+import { formatCss } from 'culori';
 import { computeHueShift, maxP3Chroma, oklchToHex, smoothCurveValues } from './colorMath';
 
 // Linear interpolation
@@ -197,8 +198,11 @@ export function buildScaleLinearGradientCss(scale: ColorScale): string {
     );
     const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
     const cClamped = Math.min(c, maxP3Chroma(l, h));
-    const hex = oklchToHex({ l, c: cClamped, h });
-    stops.push(`${hex} ${(t * 100).toFixed(2)}%`);
+    const alpha = scale.sourceAlpha ?? 1;
+    const stop = alpha < 1
+      ? (formatCss({ mode: 'oklch', l, c: cClamped, h, alpha }) ?? oklchToHex({ l, c: cClamped, h }))
+      : oklchToHex({ l, c: cClamped, h });
+    stops.push(`${stop} ${(t * 100).toFixed(2)}%`);
   }
   return `linear-gradient(to right, ${stops.join(', ')})`;
 }
