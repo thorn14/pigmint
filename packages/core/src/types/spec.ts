@@ -199,6 +199,18 @@ export interface EngineConfig {
   resolver?: ResolverConfig;
 }
 
+/** Inline curve override for a ramp in `pigmint.yaml`. All arrays must have length === stepCount. */
+export interface RampCurveInline {
+  /** Per-step L values in [0, 1]. */
+  lightness?: number[];
+  /** Per-step C (chroma) values. */
+  chroma?: number[];
+  /** Per-step H (hue) values in degrees. */
+  hue?: number[];
+  /** Spline smoothing in [0, 1]; default 0. */
+  smoothing?: number;
+}
+
 export interface RampConfig {
   name: string;
   /** Hex literal — CLI derives default curves. Mutually exclusive with `fromFile`. */
@@ -206,6 +218,20 @@ export interface RampConfig {
   /** Path to a primitives.json — load pre-computed steps. Mutually exclusive with `source`. */
   fromFile?: string;
   curve?: string;
+  /** Number of steps to generate. Default 11. Range [2, 24]. */
+  stepCount?: number;
+  /** Step naming preset. Default 'tailwind'. */
+  naming?: 'tailwind' | 'numeric';
+  /** Inline L/C/H curve override. When present, arrays must have length === stepCount. */
+  curves?: RampCurveInline;
+  /** Hue rotation applied at the light and dark ends of the ramp. */
+  hueShift?: { lightEnd?: number; darkEnd?: number };
+  /** Peak chroma. Defaults to source color's chroma. */
+  chromaPeak?: number;
+  /** Chroma floor (light end). Overrides buildDefaultCurves chroma shape when set. */
+  chromaLow?: number;
+  /** Chroma floor (dark end). Overrides buildDefaultCurves chroma shape when set. */
+  chromaHigh?: number;
 }
 
 export interface AdapterConfig {

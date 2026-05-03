@@ -132,6 +132,101 @@ export function validateProjectConfig(raw: unknown, path: string): ProjectConfig
         path,
       );
     }
+
+    const resolvedStepCount = 'stepCount' in r && r.stepCount !== undefined
+      ? r.stepCount
+      : 11;
+
+    if ('stepCount' in r && r.stepCount !== undefined) {
+      if (
+        typeof r.stepCount !== 'number' ||
+        !Number.isInteger(r.stepCount) ||
+        r.stepCount < 2 ||
+        r.stepCount > 24
+      ) {
+        throw new ConfigError(
+          `ramp "${String(r.name)}" stepCount must be an integer in [2, 24]`,
+          path,
+        );
+      }
+    }
+
+    if ('naming' in r && r.naming !== undefined) {
+      if (r.naming !== 'tailwind' && r.naming !== 'numeric') {
+        throw new ConfigError(
+          `ramp "${String(r.name)}" naming must be "tailwind" or "numeric"`,
+          path,
+        );
+      }
+    }
+
+    if ('curves' in r && r.curves !== undefined) {
+      if (!isPlainObject(r.curves)) {
+        throw new ConfigError(
+          `ramp "${String(r.name)}" curves must be a mapping`,
+          path,
+        );
+      }
+      for (const channel of ['lightness', 'chroma', 'hue'] as const) {
+        if (channel in r.curves && r.curves[channel] !== undefined) {
+          const arr = r.curves[channel];
+          if (!Array.isArray(arr) || arr.length !== resolvedStepCount) {
+            throw new ConfigError(
+              `ramp "${String(r.name)}" curves.${channel} must be an array of length ${resolvedStepCount} (stepCount)`,
+              path,
+            );
+          }
+          for (const val of arr) {
+            if (typeof val !== 'number' || !isFinite(val)) {
+              throw new ConfigError(
+                `ramp "${String(r.name)}" curves.${channel} must contain only finite numbers`,
+                path,
+              );
+            }
+          }
+        }
+      }
+      if ('smoothing' in r.curves && r.curves.smoothing !== undefined) {
+        if (typeof r.curves.smoothing !== 'number' || !isFinite(r.curves.smoothing)) {
+          throw new ConfigError(
+            `ramp "${String(r.name)}" curves.smoothing must be a finite number`,
+            path,
+          );
+        }
+      }
+    }
+
+    if ('hueShift' in r && r.hueShift !== undefined) {
+      if (!isPlainObject(r.hueShift)) {
+        throw new ConfigError(
+          `ramp "${String(r.name)}" hueShift must be a mapping`,
+          path,
+        );
+      }
+      for (const end of ['lightEnd', 'darkEnd'] as const) {
+        if (end in r.hueShift && r.hueShift[end] !== undefined) {
+          const v = r.hueShift[end];
+          if (typeof v !== 'number' || !isFinite(v) || v < -360 || v > 360) {
+            throw new ConfigError(
+              `ramp "${String(r.name)}" hueShift.${end} must be a finite number in [-360, 360]`,
+              path,
+            );
+          }
+        }
+      }
+    }
+
+    for (const chromaField of ['chromaPeak', 'chromaLow', 'chromaHigh'] as const) {
+      if (chromaField in r && r[chromaField] !== undefined) {
+        const v = r[chromaField];
+        if (typeof v !== 'number' || !isFinite(v) || v < 0) {
+          throw new ConfigError(
+            `ramp "${String(r.name)}" ${chromaField} must be a non-negative finite number`,
+            path,
+          );
+        }
+      }
+    }
   }
 
   const output = raw.output;

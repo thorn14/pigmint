@@ -1,5 +1,5 @@
 import { parse, formatHex, converter } from 'culori';
-import type { OklchColor } from '../types/palette';
+import type { CurveConfig, HueShiftConfig, OklchColor, StepNamingConfig } from '../types/palette';
 
 const toOklch = converter('oklch');
 
@@ -14,6 +14,14 @@ export interface ImportedScale {
   steps: ImportedStep[];
   sourceHex: string;
   sourceOklch: OklchColor;
+  /** When present (imported from pigmint.yaml with curve data), these are used directly in the store. */
+  curves?: CurveConfig;
+  hueShift?: HueShiftConfig;
+  chromaPeak?: number;
+  chromaLow?: number;
+  chromaHigh?: number;
+  stepCount?: number;
+  naming?: StepNamingConfig;
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {

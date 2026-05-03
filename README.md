@@ -54,6 +54,36 @@ A visual editor for ramps, intent, and `pigmint.yaml` round-trip.
 pnpm start       # launches authoring app at http://localhost:5173
 ```
 
+The app has five tabs:
+
+- **Primitives** — inspect and tune L/C/H curves for each ramp. Edits here are written back to `pigmint.yaml` on export.
+- **Preview** — visualise all ramp steps across every mode and CVD simulation.
+- **Combos** — full contrast matrix showing every foreground/background pair.
+- **Tokens** — author and edit semantic tokens (surfaces, foreground, non-text, decorative, alpha) and see live resolution.
+- **Audit** — load a `pigmint-audit.json` report, inspect violations, and apply suggestions directly in the UI.
+
+To import an existing config: **Import → Import pigmint.yaml**. After tuning, use **Export → Export pigmint.yaml** to persist curve data, then re-run `pigmint build`.
+
+## Agents & AI assistants
+
+See **[`docs/agent-usage.md`](./docs/agent-usage.md)** for the complete agent authoring guide. It covers:
+
+- Bootstrapping `pigmint.yaml` and `tokens.yaml` from scratch
+- Full ramp curve field reference (lightness, chroma, hue, smoothing, hue shifts)
+- Vocabulary authoring (surfaces, foreground, non-text, decorative, alpha tokens)
+- The build → human-review → audit → refine loop
+- End-to-end examples (minimal and full brand palette)
+
+### Claude Code skill
+
+If you have Claude Code installed, use the `/pigmint-palette` skill to scaffold a full palette interactively:
+
+```
+/pigmint-palette primary=#2563eb secondary=#7c3aed output=./design-tokens
+```
+
+The skill generates `pigmint.yaml` and `tokens.yaml`, runs `pigmint build`, and walks you through the human review step.
+
 ## `pigmint.yaml` — project config
 
 Place at the root of your design-token repo (or pass `-c` to point elsewhere).

@@ -30,19 +30,43 @@ export function buildScaleFromConfig(ramp: RampConfig): ColorScale {
   }
   const sourceHex = ramp.source;
   const sourceOklch = hexToOklch(sourceHex);
-  const curves = buildDefaultCurves(sourceOklch, 11);
+  const stepCount = ramp.stepCount ?? 11;
+  const defaults = buildDefaultCurves(sourceOklch, stepCount);
+  const smoothing = ramp.curves?.smoothing ?? 0;
+  const curves = ramp.curves
+    ? {
+        lightness: {
+          values: ramp.curves.lightness ?? defaults.lightness.values,
+          smoothing,
+        },
+        chroma: {
+          values: ramp.curves.chroma ?? defaults.chroma.values,
+          smoothing,
+        },
+        hue: {
+          values: ramp.curves.hue ?? defaults.hue.values,
+          smoothing,
+        },
+      }
+    : defaults;
+
   return {
     id: ramp.name,
     name: ramp.name,
     sourceHex,
     sourceOklch,
     sourceAlpha: sourceOklch.alpha ?? 1,
-    stepCount: 11,
-    naming: { preset: 'tailwind' },
+    stepCount,
+    naming: ramp.naming ? { preset: ramp.naming } : { preset: 'tailwind' },
     curves,
-    hueShift: { lightEndAdjust: 0, darkEndAdjust: 0 },
+    hueShift: {
+      lightEndAdjust: ramp.hueShift?.lightEnd ?? 0,
+      darkEndAdjust: ramp.hueShift?.darkEnd ?? 0,
+    },
     lightnessPreset: 'tailwind',
-    chromaPeak: sourceOklch.c,
+    chromaPeak: ramp.chromaPeak ?? sourceOklch.c,
+    chromaLow: ramp.chromaLow,
+    chromaHigh: ramp.chromaHigh,
   };
 }
 

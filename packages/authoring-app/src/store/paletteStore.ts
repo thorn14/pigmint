@@ -902,41 +902,62 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       if (replace) state.scales = [];
 
       for (const imp of imported) {
-        const stepCount = imp.steps.length;
         const sourceOklch = imp.sourceOklch;
         const normalizedHex = oklchToHex(sourceOklch);
 
-        const lightnessValues = imp.steps.map((s) => s.oklch.l);
-        const chromaValues = imp.steps.map((s) => s.oklch.c);
-        const hueValues = imp.steps.map((s, idx) => {
-          // Compute the auto hue shift that generateRamp will add at this step position,
-          // then subtract it so the net result equals the token's actual hue.
-          const t = imp.steps.length === 1 ? 0 : idx / (imp.steps.length - 1);
-          const autoShift = computeHueShift(sourceOklch.h, t, 0, 0);
-          const delta = s.oklch.h - sourceOklch.h;
-          const wrapped = ((delta % 360) + 540) % 360 - 180;
-          return wrapped - autoShift;
-        });
+        let scale: ColorScale;
 
-        const maxC = Math.max(...chromaValues, 0.001);
+        if (imp.curves) {
+          // Curve data came from a pigmint.yaml export — restore the ColorScale faithfully.
+          scale = {
+            id: uid(),
+            name: uniqueScaleName(imp.name, state.scales),
+            sourceHex: normalizedHex,
+            sourceOklch,
+            sourceAlpha: sourceOklch.alpha ?? 1,
+            stepCount: imp.stepCount ?? imp.steps.length,
+            naming: imp.naming ?? { preset: 'tailwind' },
+            curves: imp.curves,
+            hueShift: imp.hueShift ?? { lightEndAdjust: 0, darkEndAdjust: 0 },
+            lightnessPreset: 'tailwind',
+            chromaPeak: imp.chromaPeak ?? sourceOklch.c,
+            chromaLow: imp.chromaLow,
+            chromaHigh: imp.chromaHigh,
+          };
+        } else {
+          // Generic import (Figma, W3C tokens) — reverse-engineer curves from step colors.
+          const stepCount = imp.steps.length;
+          const lightnessValues = imp.steps.map((s) => s.oklch.l);
+          const chromaValues = imp.steps.map((s) => s.oklch.c);
+          const hueValues = imp.steps.map((s, idx) => {
+            // Compute the auto hue shift that generateRamp will add at this step position,
+            // then subtract it so the net result equals the token's actual hue.
+            const t = stepCount === 1 ? 0 : idx / (stepCount - 1);
+            const autoShift = computeHueShift(sourceOklch.h, t, 0, 0);
+            const delta = s.oklch.h - sourceOklch.h;
+            const wrapped = ((delta % 360) + 540) % 360 - 180;
+            return wrapped - autoShift;
+          });
+          const maxC = Math.max(...chromaValues, 0.001);
 
-        const scale: ColorScale = {
-          id: uid(),
-          name: uniqueScaleName(imp.name, state.scales),
-          sourceHex: normalizedHex,
-          sourceOklch,
-          sourceAlpha: sourceOklch.alpha ?? 1,
-          stepCount,
-          naming: { preset: 'custom', customNames: imp.steps.map((s) => s.name) },
-          curves: {
-            lightness: { values: lightnessValues },
-            chroma: { values: chromaValues },
-            hue: { values: hueValues },
-          },
-          hueShift: { lightEndAdjust: 0, darkEndAdjust: 0 },
-          lightnessPreset: 'custom',
-          chromaPeak: maxC,
-        };
+          scale = {
+            id: uid(),
+            name: uniqueScaleName(imp.name, state.scales),
+            sourceHex: normalizedHex,
+            sourceOklch,
+            sourceAlpha: sourceOklch.alpha ?? 1,
+            stepCount,
+            naming: { preset: 'custom', customNames: imp.steps.map((s) => s.name) },
+            curves: {
+              lightness: { values: lightnessValues },
+              chroma: { values: chromaValues },
+              hue: { values: hueValues },
+            },
+            hueShift: { lightEndAdjust: 0, darkEndAdjust: 0 },
+            lightnessPreset: 'custom',
+            chromaPeak: maxC,
+          };
+        }
 
         state.scales.push(scale);
       }

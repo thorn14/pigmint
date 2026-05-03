@@ -4,7 +4,9 @@ import {
   hexToOklch,
   oklchToHex,
   buildChromaCurve,
+  buildDefaultCurves,
   computeHueShift,
+  generateRamp,
   TAILWIND_LIGHTNESS,
   TAILWIND_STEPS,
   type ComplianceTarget,
@@ -30,9 +32,26 @@ export interface PigmintEngine {
   resolver?: ResolverConfig;
 }
 
+export interface PigmintYamlRamp {
+  name: string;
+  source: string;
+  stepCount?: number;
+  naming?: 'tailwind' | 'numeric';
+  curves?: {
+    lightness?: number[];
+    chroma?: number[];
+    hue?: number[];
+    smoothing?: number;
+  };
+  hueShift?: { lightEnd?: number; darkEnd?: number };
+  chromaPeak?: number;
+  chromaLow?: number;
+  chromaHigh?: number;
+}
+
 export interface PigmintYamlDoc {
   engine: PigmintEngine;
-  ramps: Array<{ name: string; source: string }>;
+  ramps: PigmintYamlRamp[];
   output: {
     dtcg: string;
   };
@@ -64,6 +83,58 @@ export interface SerializeInput {
   engine?: Partial<PigmintEngine>;
 }
 
+function arraysEqual(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => Math.abs(v - (b[i] ?? 0)) < 1e-10);
+}
+
+function serializeRamp(s: ColorScale): PigmintYamlRamp {
+  const ramp: PigmintYamlRamp = { name: s.name, source: s.sourceHex };
+
+  if (s.stepCount !== 11) ramp.stepCount = s.stepCount;
+  if (s.naming.preset !== 'tailwind' && s.naming.preset !== 'custom') {
+    ramp.naming = s.naming.preset as 'tailwind' | 'numeric';
+  }
+
+  const defaults = buildDefaultCurves(s.sourceOklch, s.stepCount);
+  const lDefault = defaults.lightness.values;
+  const cDefault = defaults.chroma.values;
+  const hDefault = defaults.hue.values;
+
+  const lValues = s.curves.lightness.values;
+  const cValues = s.curves.chroma.values;
+  const hValues = s.curves.hue.values;
+
+  const lCustom = !arraysEqual(lValues, lDefault);
+  const cCustom = !arraysEqual(cValues, cDefault);
+  const hCustom = !arraysEqual(hValues, hDefault);
+  const smoothing = s.curves.lightness.smoothing ?? 0;
+
+  if (lCustom || cCustom || hCustom || smoothing !== 0) {
+    ramp.curves = {};
+    if (lCustom) ramp.curves.lightness = lValues.map((v) => Math.round(v * 1e6) / 1e6);
+    if (cCustom) ramp.curves.chroma = cValues.map((v) => Math.round(v * 1e6) / 1e6);
+    if (hCustom) ramp.curves.hue = hValues.map((v) => Math.round(v * 1e4) / 1e4);
+    if (smoothing !== 0) ramp.curves.smoothing = smoothing;
+  }
+
+  if (s.hueShift.lightEndAdjust !== 0) {
+    ramp.hueShift = { ...ramp.hueShift, lightEnd: s.hueShift.lightEndAdjust };
+  }
+  if (s.hueShift.darkEndAdjust !== 0) {
+    ramp.hueShift = { ...ramp.hueShift, darkEnd: s.hueShift.darkEndAdjust };
+  }
+
+  const defaultChromaPeak = s.sourceOklch.c;
+  if (Math.abs(s.chromaPeak - defaultChromaPeak) > 1e-10) {
+    ramp.chromaPeak = Math.round(s.chromaPeak * 1e6) / 1e6;
+  }
+  if (s.chromaLow !== undefined) ramp.chromaLow = Math.round(s.chromaLow * 1e6) / 1e6;
+  if (s.chromaHigh !== undefined) ramp.chromaHigh = Math.round(s.chromaHigh * 1e6) / 1e6;
+
+  return ramp;
+}
+
 export function serializePigmintYaml(input: SerializeInput): string {
   const engineInput = input.engine ?? {};
   const engine: PigmintEngine = {
@@ -75,7 +146,7 @@ export function serializePigmintYaml(input: SerializeInput): string {
   };
   const doc: PigmintYamlDoc = {
     engine,
-    ramps: input.scales.map((s) => ({ name: s.name, source: s.sourceHex })),
+    ramps: input.scales.map(serializeRamp),
     output: DEFAULT_OUTPUT,
   };
 
@@ -137,22 +208,95 @@ export function parsePigmintYaml(text: string): ParsedPigmintYaml {
       throw new Error(`Ramp \`${name}\` has invalid source color: ${source}`);
     }
     const oklch = hexToOklch(hex);
-    const stepCount = TAILWIND_STEPS.length;
-    const chromaValues = buildChromaCurve(oklch.c, stepCount);
-    const steps = TAILWIND_STEPS.map((stepName, i) => {
-      const l = TAILWIND_LIGHTNESS[i] ?? 0.5;
-      const c = chromaValues[i] ?? oklch.c;
-      const t = i / (stepCount - 1);
-      const autoShift = computeHueShift(oklch.h, t, 0, 0);
-      const h = (((oklch.h + autoShift) % 360) + 360) % 360;
-      return { name: stepName, hex: oklchToHex({ l, c, h }), oklch: { l, c, h } };
-    });
-    scales.push({
-      name,
-      sourceHex: hex,
-      sourceOklch: oklch,
-      steps,
-    });
+
+    // Read optional curve overrides from the YAML entry
+    const stepCount = typeof entry.stepCount === 'number' ? entry.stepCount : TAILWIND_STEPS.length;
+    const naming = entry.naming === 'numeric' ? 'numeric' : 'tailwind';
+    const rawCurves = isObj(entry.curves) ? entry.curves : null;
+    const rawHueShift = isObj(entry.hueShift) ? entry.hueShift : null;
+    const chromaPeak = typeof entry.chromaPeak === 'number' ? entry.chromaPeak : undefined;
+    const chromaLow = typeof entry.chromaLow === 'number' ? entry.chromaLow : undefined;
+    const chromaHigh = typeof entry.chromaHigh === 'number' ? entry.chromaHigh : undefined;
+
+    if (rawCurves) {
+      // Reconstruct a full ColorScale so generateRamp produces accurate steps
+      const defaults = buildDefaultCurves(oklch, stepCount);
+      const smoothing = typeof rawCurves.smoothing === 'number' ? rawCurves.smoothing : 0;
+      const curves = {
+        lightness: {
+          values: Array.isArray(rawCurves.lightness)
+            ? rawCurves.lightness as number[]
+            : defaults.lightness.values,
+          smoothing,
+        },
+        chroma: {
+          values: Array.isArray(rawCurves.chroma)
+            ? rawCurves.chroma as number[]
+            : defaults.chroma.values,
+          smoothing,
+        },
+        hue: {
+          values: Array.isArray(rawCurves.hue)
+            ? rawCurves.hue as number[]
+            : defaults.hue.values,
+          smoothing,
+        },
+      };
+      const hueShift = {
+        lightEndAdjust: typeof rawHueShift?.lightEnd === 'number' ? rawHueShift.lightEnd : 0,
+        darkEndAdjust: typeof rawHueShift?.darkEnd === 'number' ? rawHueShift.darkEnd : 0,
+      };
+      const colorScale = {
+        id: name,
+        name,
+        sourceHex: hex,
+        sourceOklch: oklch,
+        sourceAlpha: 1,
+        stepCount,
+        naming: { preset: naming as 'tailwind' | 'numeric' },
+        curves,
+        hueShift,
+        lightnessPreset: 'tailwind',
+        chromaPeak: chromaPeak ?? oklch.c,
+        chromaLow,
+        chromaHigh,
+      };
+      const generated = generateRamp(colorScale);
+      scales.push({
+        name,
+        sourceHex: hex,
+        sourceOklch: oklch,
+        steps: generated.steps.map((s) => ({ name: s.name, hex: s.hex, oklch: s.oklch })),
+        curves,
+        hueShift,
+        chromaPeak: colorScale.chromaPeak,
+        chromaLow,
+        chromaHigh,
+        stepCount,
+        naming: { preset: naming as 'tailwind' | 'numeric' },
+      });
+    } else {
+      // No curve data — use default derivation (backward compatible)
+      const chromaValues = buildChromaCurve(oklch.c, stepCount);
+      const stepNames = naming === 'numeric'
+        ? Array.from({ length: stepCount }, (_, i) => String(i + 1))
+        : TAILWIND_STEPS;
+      const lightnessArr = TAILWIND_LIGHTNESS;
+      const steps = stepNames.map((stepName, i) => {
+        const l = lightnessArr[i] ?? 0.5;
+        const c = chromaValues[i] ?? oklch.c;
+        const t = stepCount <= 1 ? 0 : i / (stepCount - 1);
+        const autoShift = computeHueShift(oklch.h, t, 0, 0);
+        const h = (((oklch.h + autoShift) % 360) + 360) % 360;
+        return { name: stepName, hex: oklchToHex({ l, c, h }), oklch: { l, c, h } };
+      });
+      scales.push({
+        name,
+        sourceHex: hex,
+        sourceOklch: oklch,
+        steps,
+      });
+    }
   }
 
   const intents = isObj(parsed.intents) ? (parsed.intents as IntentOverrides) : {};
