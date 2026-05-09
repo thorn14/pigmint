@@ -213,8 +213,9 @@ foreground:
   <name>:
     ramp: <ramp-name>
     surfaces: [<surface-name>, ...]   # surfaces this token must pass against
-    preference: lowest-passing        # lowest-passing | highest-contrast | matched-to-set
+    preference: lowest-passing        # lowest-passing | midpoint | median | level-up | highest-contrast | matched-to-set
     consistency: independent          # optional: independent | matched-across-ramps | anchored-to-reference
+    # midpoint / median / level-up only pair with `independent` (or `anchored-to-reference`)
     level: AA                         # optional: AA | AAA (overrides engine target)
 ```
 

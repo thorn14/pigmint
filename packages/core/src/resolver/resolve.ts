@@ -182,6 +182,11 @@ function pickStepHighestContrast(
  * between the lowest-passing and highest-contrast picks. Yields a step with
  * moderate contrast — well-suited to the "main" slot of a Light/Main/Dark
  * triplet (lowest-passing → light, midpoint → main, highest-contrast → dark).
+ *
+ * Non-monotonic ramps (rare under default curves, possible with imported
+ * primitives) can leave the rounded midpoint on a non-passing step. When that
+ * happens, fall back to whichever neighbour passes and is closest to the
+ * midpoint index, so the returned step always meets the threshold.
  */
 export function pickStepMidpoint(
   ramp: GeneratedRamp,
@@ -192,10 +197,28 @@ export function pickStepMidpoint(
   const lo = pickStepLowestPassing(ramp, surfaceHex, threshold, elevate);
   const hi = pickStepHighestContrast(ramp, surfaceHex, threshold, elevate);
   if (!lo || !hi) return null;
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, elevate);
   const mid = Math.round((lo.index + hi.index) / 2);
-  const step = ramp.steps[mid];
-  if (!step) return null;
-  return { index: mid, ratio: resolutionMetric(threshold.kind, step.hex, surfaceHex) };
+  const midStep = ramp.steps[mid];
+  if (midStep) {
+    const m = resolutionMetric(kind, midStep.hex, surfaceHex);
+    if (m >= required) return { index: mid, ratio: m };
+  }
+  const lowIdx = Math.min(lo.index, hi.index);
+  const highIdx = Math.max(lo.index, hi.index);
+  let best: { index: number; ratio: number; dist: number } | null = null;
+  for (let i = lowIdx; i <= highIdx; i++) {
+    const step = ramp.steps[i];
+    if (!step) continue;
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    if (m < required) continue;
+    const dist = Math.abs(i - mid);
+    if (best === null || dist < best.dist || (dist === best.dist && i < best.index)) {
+      best = { index: i, ratio: m, dist };
+    }
+  }
+  return best ? { index: best.index, ratio: best.ratio } : null;
 }
 
 /**
@@ -226,19 +249,24 @@ export function pickStepMedianContrast(
 
 /**
  * Lowest step that passes ONE compliance level higher than the configured
- * target (AA → AAA, AA-nonText → AAA-nonText, etc.). Equivalent to
- * `lowest-passing` evaluated against `passThreshold(threshold, 'hc')`.
- * Stronger contrast guarantee than `lowest-passing` without going all the
- * way to `highest-contrast`. Honors the elevated bar regardless of whether
- * the caller has already passed `elevate: 'hc'` (no double-elevation).
+ * target (AA → AAA, AA-nonText → AAA-nonText, etc.). Stronger contrast
+ * guarantee than `lowest-passing` without going all the way to
+ * `highest-contrast`.
+ *
+ * The accepted `elevate` parameter is the caller's HC-mode elevation; the
+ * picker uses whichever bar is stricter (level-up's `'hc'` vs the caller's
+ * elevation). Today there's only one elevation tier so the two coincide when
+ * the caller already passed `'hc'` — the resolver records a `selectionNote`
+ * in that case so the receipt makes the no-op transparent.
  */
 export function pickStepLevelUp(
   ramp: GeneratedRamp,
   surfaceHex: string,
   threshold: Threshold,
+  elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
   const kind = threshold.kind;
-  const required = passThreshold(threshold, 'hc');
+  const required = Math.max(passThreshold(threshold, 'hc'), passThreshold(threshold, elevate));
   let best: { index: number; ratio: number } | null = null;
   for (let i = 0; i < ramp.steps.length; i++) {
     const step = ramp.steps[i];
@@ -436,6 +464,7 @@ export function resolveToken(input: ResolveInput): ResolveResult {
   const pickRamp = denseRamp ?? ramp;
 
   let picked: { index: number; ratio: number } | null;
+  let selectionNote: string | undefined;
   if (intent.preference === 'lowest-passing') {
     picked = pickStepLowestPassing(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'highest-contrast') {
@@ -445,7 +474,13 @@ export function resolveToken(input: ResolveInput): ResolveResult {
   } else if (intent.preference === 'median') {
     picked = pickStepMedianContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'level-up') {
-    picked = pickStepLevelUp(pickRamp, surfaceHex, intent.threshold);
+    picked = pickStepLevelUp(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+    if (picked && thresholdElevation === 'hc') {
+      // HC mode already raised the bar to level-up's target — record so the
+      // receipt makes the no-op transparent (otherwise the pick is identical
+      // to lowest-passing under the same elevation).
+      selectionNote = 'level-up: HC mode already at elevated bar; pick coincides with lowest-passing';
+    }
   } else if (intent.preference === 'anchored') {
     const anchor = intent.constraints?.anchor;
     if (typeof anchor !== 'number' || !Number.isFinite(anchor)) {
@@ -464,7 +499,6 @@ export function resolveToken(input: ResolveInput): ResolveResult {
       tokenPath,
     );
   }
-  let selectionNote: string | undefined;
   if (picked === null) {
     const required = passThreshold(intent.threshold, thresholdElevation);
     const fallback = pickStepTowardExtreme(pickRamp, surfaceHex, intent.threshold.kind, required);

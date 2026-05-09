@@ -2,6 +2,7 @@ import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 import { parse as cssParse, formatHex } from 'culori';
 import {
   hexToOklch,
+  tryParseHex,
   oklchToHex,
   buildChromaCurve,
   buildDefaultCurves,
@@ -364,6 +365,7 @@ export function parsePigmintPrimitives(text: string): Record<string, ImportedSca
   }
 
   const out: Record<string, ImportedScale> = {};
+  const skipped: string[] = [];
   for (const [rampName, rampData] of Object.entries(primitives)) {
     if (!isObj(rampData)) continue;
     const steps: ImportedScale['steps'] = [];
@@ -374,7 +376,14 @@ export function parsePigmintPrimitives(text: string): Record<string, ImportedSca
       if (!isObj(value)) continue;
       const hex = typeof value.hex === 'string' ? value.hex : null;
       if (!hex) continue;
-      const oklch = hexToOklch(hex);
+      // Use tryParseHex so a single malformed step skips itself instead of
+      // throwing out of the whole upload (importTokens.ts uses the same
+      // forgiving pattern via hexToOklchSafe).
+      const oklch = tryParseHex(hex);
+      if (!oklch) {
+        skipped.push(`${rampName}.${stepName} ("${hex}")`);
+        continue;
+      }
       steps.push({ name: stepName, hex, oklch });
     }
     if (steps.length === 0) continue;
@@ -385,6 +394,11 @@ export function parsePigmintPrimitives(text: string): Record<string, ImportedSca
       sourceHex: midStep.hex,
       sourceOklch: midStep.oklch,
     };
+  }
+  if (Object.keys(out).length === 0 && skipped.length > 0) {
+    throw new Error(
+      `primitives.json: every step had an unparseable hex (e.g. ${skipped.slice(0, 3).join(', ')})`,
+    );
   }
   return out;
 }

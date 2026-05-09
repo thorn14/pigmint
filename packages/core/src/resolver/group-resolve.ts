@@ -251,16 +251,20 @@ export function resolveMatchedToSet(
 }
 
 function referenceResolutionIntent(base: FormalIntent): FormalIntent {
-  if (base.preference === 'highest-contrast') {
+  // The reference token is resolved independently against its surface; any
+  // per-ramp step-pick strategy is valid here. matched-to-set and anchored
+  // require coordination with the rest of the group, so collapse to
+  // lowest-passing for the reference pick.
+  if (
+    base.preference === 'highest-contrast' ||
+    base.preference === 'lowest-passing' ||
+    base.preference === 'midpoint' ||
+    base.preference === 'median' ||
+    base.preference === 'level-up'
+  ) {
     return { ...base, consistency: 'independent' };
   }
-  if (base.preference === 'lowest-passing') {
-    return { ...base, consistency: 'independent' };
-  }
-  if (base.preference === 'matched-to-set') {
-    return { ...base, preference: 'lowest-passing', consistency: 'independent' };
-  }
-  if (base.preference === 'anchored') {
+  if (base.preference === 'matched-to-set' || base.preference === 'anchored') {
     return { ...base, preference: 'lowest-passing', consistency: 'independent' };
   }
   throw new DriverError('anchored-to-reference: unsupported reference preference');

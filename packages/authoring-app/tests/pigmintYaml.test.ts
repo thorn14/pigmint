@@ -176,6 +176,35 @@ describe('pigmintYaml', () => {
     expect(blue.sourceHex).toBe('#3366cc');
   });
 
+  it('parsePigmintPrimitives skips unparseable hex steps without throwing', () => {
+    const json = JSON.stringify({
+      primitive: {
+        brand: {
+          $type: 'color',
+          '50': { $value: { hex: 'not-a-color' } },
+          '500': { $value: { hex: '#7c3aed' } },
+          '900': { $value: { hex: '#1f0a4a' } },
+        },
+      },
+    });
+    const out = parsePigmintPrimitives(json);
+    expect(out.brand).toBeDefined();
+    expect(out.brand!.steps.map((s) => s.name)).toEqual(['500', '900']);
+  });
+
+  it('parsePigmintPrimitives throws a helpful error when every step is malformed', () => {
+    const json = JSON.stringify({
+      primitive: {
+        brand: {
+          $type: 'color',
+          '50': { $value: { hex: 'nope' } },
+          '500': { $value: { hex: 'still-nope' } },
+        },
+      },
+    });
+    expect(() => parsePigmintPrimitives(json)).toThrow(/unparseable hex/);
+  });
+
   it('round-trips engine.resolver.materializeInterpolatedPrimitives', () => {
     const scales = [scale('1', 'blue', '#3366cc')];
     const yaml = serializePigmintYaml({

@@ -179,4 +179,39 @@ describe('resolveToken — lowest-passing + independent + WCAG AA text', () => {
     });
     expect(token.contrast?.wcag21).toBeGreaterThanOrEqual(7);
   });
+
+  it('level-up under hc elevation records a selectionNote on the receipt', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    const { token } = resolveToken({
+      tokenPath: 'x',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'level-up' },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+      thresholdElevation: 'hc',
+    });
+    expect(token.contrast?.wcag21).toBeGreaterThanOrEqual(7);
+    expect(token.source.selectionNote).toMatch(/level-up/);
+  });
+
+  it('midpoint never returns a step that fails the threshold (non-monotonic ramp)', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    // Inject a non-monotonic dip: copy step[0] (light, fails AA against white)
+    // into the middle so the rounded midpoint between lo and hi could land on it.
+    const lightStep = blue.steps[0]!;
+    const broken = {
+      ...blue,
+      steps: blue.steps.map((s, i) => (i === Math.floor(blue.steps.length / 2) ? { ...lightStep } : s)),
+    };
+    const { token } = resolveToken({
+      tokenPath: 'x',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'midpoint' },
+      ramp: broken,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    expect(token.contrast?.wcag21).toBeGreaterThanOrEqual(4.5);
+  });
 });
