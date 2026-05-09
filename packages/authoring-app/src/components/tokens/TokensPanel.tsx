@@ -107,7 +107,14 @@ const delBtn: React.CSSProperties = {
   color: 'var(--p-text-secondary)',
 };
 
-const PREFS = ['lowest-passing', 'highest-contrast', 'matched-to-set'] as const;
+const PREFS = [
+  'lowest-passing',
+  'midpoint',
+  'median',
+  'level-up',
+  'highest-contrast',
+  'matched-to-set',
+] as const;
 const CONS = ['independent', 'matched-across-ramps'] as const;
 const ALPHA_PREFS = ['lowest-passing', 'highest-contrast'] as const;
 type TokenKind = 'surface' | 'foreground' | 'nonText' | 'decorative' | 'alpha';
@@ -402,7 +409,20 @@ function SemanticRow({ name, token, rampNames, surfaceNames, rampMap, scales, su
         surfaces={surfaces}
         rampMap={rampMap}
       />
-      <select style={sel} value={token.preference} onChange={(e) => onUpdate({ preference: e.target.value as PortableSemanticToken['preference'] })}>
+      <select
+        style={sel}
+        value={token.preference}
+        onChange={(e) => {
+          const preference = e.target.value as PortableSemanticToken['preference'];
+          // matched-to-set requires consistency=matched-across-ramps (engine
+          // enforces; UI mirrors so the row is valid in one click).
+          if (preference === 'matched-to-set') {
+            onUpdate({ preference, consistency: 'matched-across-ramps' });
+          } else {
+            onUpdate({ preference });
+          }
+        }}
+      >
         {PREFS.map((p) => <option key={p}>{p}</option>)}
       </select>
       <select style={sel} value={token.consistency ?? 'independent'} onChange={(e) => onUpdate({ consistency: e.target.value as PortableSemanticToken['consistency'] })}>
@@ -888,7 +908,15 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
               </div>
               <div style={field}>
                 <span style={label}>Preference</span>
-                <select style={modalSel} value={pref} onChange={(e) => setPref(e.target.value as typeof pref)}>
+                <select
+                  style={modalSel}
+                  value={pref}
+                  onChange={(e) => {
+                    const next = e.target.value as typeof pref;
+                    setPref(next);
+                    if (next === 'matched-to-set') setCons('matched-across-ramps');
+                  }}
+                >
                   {PREFS.map((p) => <option key={p}>{p}</option>)}
                 </select>
               </div>

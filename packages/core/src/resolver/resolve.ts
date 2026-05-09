@@ -177,6 +177,81 @@ function pickStepHighestContrast(
   return best;
 }
 
+/**
+ * Among passing steps, pick the one whose **index** is the rounded midpoint
+ * between the lowest-passing and highest-contrast picks. Yields a step with
+ * moderate contrast — well-suited to the "main" slot of a Light/Main/Dark
+ * triplet (lowest-passing → light, midpoint → main, highest-contrast → dark).
+ */
+export function pickStepMidpoint(
+  ramp: GeneratedRamp,
+  surfaceHex: string,
+  threshold: Threshold,
+  elevate?: ThresholdElevation,
+): { index: number; ratio: number } | null {
+  const lo = pickStepLowestPassing(ramp, surfaceHex, threshold, elevate);
+  const hi = pickStepHighestContrast(ramp, surfaceHex, threshold, elevate);
+  if (!lo || !hi) return null;
+  const mid = Math.round((lo.index + hi.index) / 2);
+  const step = ramp.steps[mid];
+  if (!step) return null;
+  return { index: mid, ratio: resolutionMetric(threshold.kind, step.hex, surfaceHex) };
+}
+
+/**
+ * Among passing steps, pick the one whose **resolution metric** is closest
+ * to the median of all passing-step metrics. Bias differs from `midpoint`:
+ * favors whichever side of the ramp has more passing steps.
+ */
+export function pickStepMedianContrast(
+  ramp: GeneratedRamp,
+  surfaceHex: string,
+  threshold: Threshold,
+  elevate?: ThresholdElevation,
+): { index: number; ratio: number } | null {
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, elevate);
+  const passing: { index: number; ratio: number }[] = [];
+  for (let i = 0; i < ramp.steps.length; i++) {
+    const step = ramp.steps[i];
+    if (!step) continue;
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    if (m < required) continue;
+    passing.push({ index: i, ratio: m });
+  }
+  if (passing.length === 0) return null;
+  const sorted = [...passing].sort((a, b) => a.ratio - b.ratio);
+  return sorted[Math.floor(sorted.length / 2)] ?? null;
+}
+
+/**
+ * Lowest step that passes ONE compliance level higher than the configured
+ * target (AA → AAA, AA-nonText → AAA-nonText, etc.). Equivalent to
+ * `lowest-passing` evaluated against `passThreshold(threshold, 'hc')`.
+ * Stronger contrast guarantee than `lowest-passing` without going all the
+ * way to `highest-contrast`. Honors the elevated bar regardless of whether
+ * the caller has already passed `elevate: 'hc'` (no double-elevation).
+ */
+export function pickStepLevelUp(
+  ramp: GeneratedRamp,
+  surfaceHex: string,
+  threshold: Threshold,
+): { index: number; ratio: number } | null {
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, 'hc');
+  let best: { index: number; ratio: number } | null = null;
+  for (let i = 0; i < ramp.steps.length; i++) {
+    const step = ramp.steps[i];
+    if (!step) continue;
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    if (m < required) continue;
+    if (best === null || m < best.ratio) {
+      best = { index: i, ratio: m };
+    }
+  }
+  return best;
+}
+
 /** Among passing steps, pick the one whose **resolution metric** is closest to `anchor` (same units: ratio or Lc). */
 export function pickStepAnchored(
   pickRamp: GeneratedRamp,
@@ -365,6 +440,12 @@ export function resolveToken(input: ResolveInput): ResolveResult {
     picked = pickStepLowestPassing(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'highest-contrast') {
     picked = pickStepHighestContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+  } else if (intent.preference === 'midpoint') {
+    picked = pickStepMidpoint(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+  } else if (intent.preference === 'median') {
+    picked = pickStepMedianContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+  } else if (intent.preference === 'level-up') {
+    picked = pickStepLevelUp(pickRamp, surfaceHex, intent.threshold);
   } else if (intent.preference === 'anchored') {
     const anchor = intent.constraints?.anchor;
     if (typeof anchor !== 'number' || !Number.isFinite(anchor)) {

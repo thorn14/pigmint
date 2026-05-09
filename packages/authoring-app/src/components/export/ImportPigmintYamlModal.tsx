@@ -3,7 +3,12 @@ import { Dialog } from '@base-ui/react/dialog';
 import { usePaletteStore } from '../../store/paletteStore';
 import { AppCheckbox, AppDialog } from '../base-ui';
 import { useIntentStore } from '../../store/intentStore';
-import { parsePigmintYaml, type ParsedPigmintYaml } from '../../lib/pigmintYaml';
+import {
+  parsePigmintPrimitives,
+  parsePigmintYaml,
+  type ParsedPigmintYaml,
+} from '../../lib/pigmintYaml';
+import type { ImportedScale } from '../../lib/importTokens';
 
 interface Props {
   onClose: () => void;
@@ -18,21 +23,26 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedPigmintYaml | null>(null);
+  const [primitives, setPrimitives] = useState<Record<string, ImportedScale> | null>(null);
+  const [primitivesFileName, setPrimitivesFileName] = useState<string | null>(null);
   const [replaceMode, setReplaceMode] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const primitivesFileRef = useRef<HTMLInputElement>(null);
 
-  function handleParse(next: string) {
-    setText(next);
+  function reparse(next: string, prims: Record<string, ImportedScale> | null) {
     setError(null);
     setParsed(null);
-
     if (!next.trim()) return;
-
     try {
-      setParsed(parsePigmintYaml(next));
+      setParsed(parsePigmintYaml(next, prims ? { primitives: prims } : {}));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to parse');
     }
+  }
+
+  function handleParse(next: string) {
+    setText(next);
+    reparse(next, primitives);
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -41,6 +51,29 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
     const reader = new FileReader();
     reader.onload = () => handleParse(reader.result as string);
     reader.readAsText(file);
+  }
+
+  function handlePrimitivesUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const map = parsePigmintPrimitives(reader.result as string);
+        setPrimitives(map);
+        setPrimitivesFileName(file.name);
+        reparse(text, map);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to parse primitives.json');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function clearPrimitives() {
+    setPrimitives(null);
+    setPrimitivesFileName(null);
+    reparse(text, null);
   }
 
   function handleImport() {
@@ -136,6 +169,55 @@ export function ImportPigmintYamlModal({ onClose }: Props) {
             <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
               or paste YAML below
             </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => primitivesFileRef.current?.click()}
+              className="focus-visible-ring"
+              style={{
+                padding: '6px 14px',
+                fontSize: 13,
+                background: 'var(--p-bg-subtle)',
+                border: '1px solid var(--p-border)',
+                borderRadius: 6,
+                cursor: 'pointer',
+                color: 'var(--p-text)',
+              }}
+            >
+              Upload primitives.json
+            </button>
+            <input
+              ref={primitivesFileRef}
+              type="file"
+              accept=".json"
+              onChange={handlePrimitivesUpload}
+              style={{ display: 'none' }}
+            />
+            {primitivesFileName ? (
+              <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {primitivesFileName} ({primitives ? Object.keys(primitives).length : 0} ramps)
+                <button
+                  onClick={clearPrimitives}
+                  className="focus-visible-ring"
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: 11,
+                    background: 'transparent',
+                    border: '1px solid var(--p-border)',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    color: 'var(--p-text-tertiary)',
+                  }}
+                >
+                  clear
+                </button>
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
+                optional — only required for `fromFile` ramps
+              </span>
+            )}
           </div>
 
           <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>

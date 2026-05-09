@@ -22,7 +22,14 @@ export class PortableVocabularyError extends Error {
   }
 }
 
-const VALID_PREFERENCES = new Set(['lowest-passing', 'highest-contrast', 'matched-to-set']);
+const VALID_PREFERENCES = new Set([
+  'lowest-passing',
+  'highest-contrast',
+  'matched-to-set',
+  'midpoint',
+  'median',
+  'level-up',
+]);
 const VALID_CONSISTENCIES = new Set(['independent', 'matched-across-ramps', 'anchored-to-reference']);
 const VALID_LEVELS = new Set(['AA', 'AAA']);
 

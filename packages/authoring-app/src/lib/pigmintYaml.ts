@@ -183,7 +183,19 @@ function sanitizeModes(raw: unknown): EngineMode[] {
   return ordered.length > 0 ? ordered : DEFAULT_ENGINE.modes;
 }
 
-export function parsePigmintYaml(text: string): ParsedPigmintYaml {
+export interface ParsePigmintYamlOptions {
+  /**
+   * Map of ramp name → pre-materialized ImportedScale, used to resolve
+   * `ramps[].fromFile` entries without filesystem access. Build this with
+   * {@link parsePigmintPrimitives} from the paired `primitives.json`.
+   */
+  primitives?: Record<string, ImportedScale>;
+}
+
+export function parsePigmintYaml(
+  text: string,
+  options: ParsePigmintYamlOptions = {},
+): ParsedPigmintYaml {
   const parsed = yamlParse(text);
   if (!isObj(parsed)) {
     throw new Error('pigmint.yaml must be a mapping at the top level');
@@ -199,8 +211,21 @@ export function parsePigmintYaml(text: string): ParsedPigmintYaml {
     if (!isObj(entry)) continue;
     const name = typeof entry.name === 'string' ? entry.name : null;
     const source = typeof entry.source === 'string' ? entry.source : null;
+    const fromFile = typeof entry.fromFile === 'string' ? entry.fromFile : null;
+
+    if (name && fromFile && !source) {
+      const preloaded = options.primitives?.[name];
+      if (!preloaded) {
+        throw new Error(
+          `Ramp \`${name}\` uses \`fromFile: ${fromFile}\` — upload the referenced primitives.json alongside the pigmint.yaml.`,
+        );
+      }
+      scales.push(preloaded);
+      continue;
+    }
+
     if (!name || !source) {
-      throw new Error(`Ramp entry must have \`name\` and \`source\`: got ${JSON.stringify(entry)}`);
+      throw new Error(`Ramp entry must have \`name\` and \`source\` (or \`fromFile\` with primitives uploaded): got ${JSON.stringify(entry)}`);
     }
     const parsedColor = cssParse(source);
     const hex = parsedColor ? formatHex(parsedColor) : null;
@@ -312,4 +337,54 @@ export function parsePigmintYaml(text: string): ParsedPigmintYaml {
   if (Object.keys(intents).length > 0) doc.intents = intents;
 
   return { scales, intents, engine, doc };
+}
+
+/**
+ * Parse a pigmint primitives.json (DTCG container with a `primitive` section)
+ * into a map of `rampName → ImportedScale`. Used to satisfy `fromFile` entries
+ * in `parsePigmintYaml`.
+ *
+ * Each ramp's `sourceHex` is taken from the middle step (or the first step if
+ * the ramp is short). No curve data is reconstructed — `fromFile` ramps are
+ * fixed step sets, not curve-derived ramps.
+ */
+export function parsePigmintPrimitives(text: string): Record<string, ImportedScale> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    throw new Error(`primitives.json is not valid JSON: ${(err as Error).message}`);
+  }
+  if (!isObj(parsed)) {
+    throw new Error('primitives.json must be a mapping at the top level');
+  }
+  const primitives = parsed.primitive;
+  if (!isObj(primitives)) {
+    throw new Error('primitives.json must have a `primitive` object at the top level');
+  }
+
+  const out: Record<string, ImportedScale> = {};
+  for (const [rampName, rampData] of Object.entries(primitives)) {
+    if (!isObj(rampData)) continue;
+    const steps: ImportedScale['steps'] = [];
+    for (const [stepName, stepEntry] of Object.entries(rampData)) {
+      if (stepName === '$type') continue;
+      if (!isObj(stepEntry)) continue;
+      const value = (stepEntry as { $value?: unknown }).$value;
+      if (!isObj(value)) continue;
+      const hex = typeof value.hex === 'string' ? value.hex : null;
+      if (!hex) continue;
+      const oklch = hexToOklch(hex);
+      steps.push({ name: stepName, hex, oklch });
+    }
+    if (steps.length === 0) continue;
+    const midStep = steps[Math.floor(steps.length / 2)] ?? steps[0]!;
+    out[rampName] = {
+      name: rampName,
+      steps,
+      sourceHex: midStep.hex,
+      sourceOklch: midStep.oklch,
+    };
+  }
+  return out;
 }

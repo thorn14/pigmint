@@ -118,4 +118,65 @@ describe('resolveToken — lowest-passing + independent + WCAG AA text', () => {
     expect(v.oklch).toMatch(/^oklch\(/);
     expect(v.hex).toBe(step.hex);
   });
+
+  it('midpoint picks an index between lowest-passing and highest-contrast', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    const lo = resolveToken({
+      tokenPath: 'lo',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'lowest-passing' },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    const hi = resolveToken({
+      tokenPath: 'hi',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'highest-contrast' },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    const mid = resolveToken({
+      tokenPath: 'mid',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'midpoint' },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    const loIdx = blue.steps.findIndex((s) => s.name === lo.step.name);
+    const hiIdx = blue.steps.findIndex((s) => s.name === hi.step.name);
+    const midIdx = blue.steps.findIndex((s) => s.name === mid.step.name);
+    expect(midIdx).toBe(Math.round((loIdx + hiIdx) / 2));
+    expect(midIdx).toBeGreaterThanOrEqual(loIdx);
+    expect(midIdx).toBeLessThanOrEqual(hiIdx);
+  });
+
+  it('median picks a passing step at the median contrast ratio', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    const { token } = resolveToken({
+      tokenPath: 'x',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'median' },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    expect(token.contrast?.wcag21).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('level-up picks a step that clears one tier above the configured target', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    // AA-text base = 4.5; level-up bumps to 7 (AAA).
+    const { token } = resolveToken({
+      tokenPath: 'x',
+      mode: 'light',
+      intent: { ...aaTextIntent, preference: 'level-up' },
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{s}',
+    });
+    expect(token.contrast?.wcag21).toBeGreaterThanOrEqual(7);
+  });
 });

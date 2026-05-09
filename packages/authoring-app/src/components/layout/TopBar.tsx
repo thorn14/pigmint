@@ -185,6 +185,9 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const setEngineCompliance = useIntentStore((s) => s.setEngineCompliance);
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
+  const engineResolver = useIntentStore((s) => s.engineResolver);
+  const setResolverMode = useIntentStore((s) => s.setResolverMode);
+  const resolverMode = engineResolver.mode === 'continuous' ? 'continuous' : 'stepped';
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
@@ -291,6 +294,16 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
         options={[
           { value: 'wcag' as const, label: 'wcag' },
           { value: 'apca' as const, label: 'apca' },
+        ]}
+      />
+
+      <AppToolbarSegmented
+        aria-label="Resolver mode"
+        value={resolverMode}
+        onValueChange={(m) => setResolverMode(m === 'continuous' ? 'continuous' : 'stepped')}
+        options={[
+          { value: 'stepped' as const, label: 'stepped' },
+          { value: 'continuous' as const, label: 'continuous' },
         ]}
       />
 
