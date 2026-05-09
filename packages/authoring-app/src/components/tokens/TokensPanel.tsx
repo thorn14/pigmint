@@ -107,10 +107,39 @@ const delBtn: React.CSSProperties = {
   color: 'var(--p-text-secondary)',
 };
 
-const PREFS = ['lowest-passing', 'highest-contrast', 'matched-to-set'] as const;
+const PREFS = [
+  'lowest-passing',
+  'midpoint',
+  'median',
+  'level-up',
+  'highest-contrast',
+  'matched-to-set',
+] as const;
 const CONS = ['independent', 'matched-across-ramps'] as const;
 const ALPHA_PREFS = ['lowest-passing', 'highest-contrast'] as const;
 type TokenKind = 'surface' | 'foreground' | 'nonText' | 'decorative' | 'alpha';
+
+type Pref = PortableSemanticToken['preference'];
+type Cons = NonNullable<PortableSemanticToken['consistency']>;
+
+// Preference × consistency coupling — mirrors core/intent-validate.ts so the UI
+// never lets a row reach the engine in a state that would throw.
+//   matched-to-set        ⇒ matched-across-ramps (only valid pairing)
+//   midpoint/median/level-up ⇒ independent (synchronized-T has no meaning)
+//   lowest-passing/highest-contrast ⇒ either is fine
+function coercePrefConsistency(pref: Pref, current: Cons | undefined): Cons {
+  if (pref === 'matched-to-set') return 'matched-across-ramps';
+  if (pref === 'midpoint' || pref === 'median' || pref === 'level-up') return 'independent';
+  return current ?? 'independent';
+}
+
+function consistencyDisabledFor(pref: Pref, value: Cons): boolean {
+  if (pref === 'matched-to-set') return value !== 'matched-across-ramps';
+  if (pref === 'midpoint' || pref === 'median' || pref === 'level-up') {
+    return value === 'matched-across-ramps';
+  }
+  return false;
+}
 
 function ec() {
   const s = useIntentStore.getState();
@@ -402,11 +431,27 @@ function SemanticRow({ name, token, rampNames, surfaceNames, rampMap, scales, su
         surfaces={surfaces}
         rampMap={rampMap}
       />
-      <select style={sel} value={token.preference} onChange={(e) => onUpdate({ preference: e.target.value as PortableSemanticToken['preference'] })}>
+      <select
+        style={sel}
+        value={token.preference}
+        onChange={(e) => {
+          const preference = e.target.value as Pref;
+          const consistency = coercePrefConsistency(preference, token.consistency as Cons | undefined);
+          onUpdate({ preference, consistency });
+        }}
+      >
         {PREFS.map((p) => <option key={p}>{p}</option>)}
       </select>
-      <select style={sel} value={token.consistency ?? 'independent'} onChange={(e) => onUpdate({ consistency: e.target.value as PortableSemanticToken['consistency'] })}>
-        {CONS.map((c) => <option key={c}>{c}</option>)}
+      <select
+        style={sel}
+        value={token.consistency ?? 'independent'}
+        onChange={(e) => onUpdate({ consistency: e.target.value as PortableSemanticToken['consistency'] })}
+      >
+        {CONS.map((c) => (
+          <option key={c} value={c} disabled={consistencyDisabledFor(token.preference, c)}>
+            {c}
+          </option>
+        ))}
       </select>
       <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
     </div>
@@ -888,14 +933,26 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
               </div>
               <div style={field}>
                 <span style={label}>Preference</span>
-                <select style={modalSel} value={pref} onChange={(e) => setPref(e.target.value as typeof pref)}>
+                <select
+                  style={modalSel}
+                  value={pref}
+                  onChange={(e) => {
+                    const next = e.target.value as typeof pref;
+                    setPref(next);
+                    setCons(coercePrefConsistency(next, cons as Cons));
+                  }}
+                >
                   {PREFS.map((p) => <option key={p}>{p}</option>)}
                 </select>
               </div>
               <div style={field}>
                 <span style={label}>Consistency</span>
                 <select style={modalSel} value={cons} onChange={(e) => setCons(e.target.value as typeof cons)}>
-                  {CONS.map((c) => <option key={c}>{c}</option>)}
+                  {CONS.map((c) => (
+                    <option key={c} value={c} disabled={consistencyDisabledFor(pref, c)}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
             </>

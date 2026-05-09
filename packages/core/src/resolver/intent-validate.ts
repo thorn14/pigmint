@@ -16,6 +16,17 @@ export function assertValidFormalIntent(path: string, intent: FormalIntent): voi
       `token ${path}: preference "anchored" is incompatible with "matched-across-ramps" (see spec/05 matrix)`,
     );
   }
+  // midpoint/median/level-up are per-ramp step-pick strategies — they have no
+  // synchronized-T interpretation, so matched-across-ramps is rejected. Use
+  // matched-to-set if cross-ramp coordination is needed.
+  if (
+    (preference === 'midpoint' || preference === 'median' || preference === 'level-up') &&
+    consistency === 'matched-across-ramps'
+  ) {
+    throw new DriverError(
+      `token ${path}: preference "${preference}" cannot pair with "matched-across-ramps" — use "independent" or switch to "matched-to-set" for cross-ramp coordination`,
+    );
+  }
   if (consistency === 'anchored-to-reference' && !intent.constraints?.referenceRamp) {
     throw new DriverError(
       `token ${path}: consistency "anchored-to-reference" requires constraints.referenceRamp (ramp name)`,

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parsePigmintYaml, serializePigmintYaml } from '../src/lib/pigmintYaml';
+import {
+  parsePigmintPrimitives,
+  parsePigmintYaml,
+  serializePigmintYaml,
+} from '../src/lib/pigmintYaml';
 import type { ColorScale } from '../src/types/palette';
 
 function scale(id: string, name: string, sourceHex: string): ColorScale {
@@ -134,6 +138,71 @@ describe('pigmintYaml', () => {
   it('rejects invalid source colors', () => {
     const text = 'ramps:\n  - name: blue\n    source: "not-a-color"\n';
     expect(() => parsePigmintYaml(text)).toThrow();
+  });
+
+  it('rejects fromFile ramps when no primitives are provided', () => {
+    const text = 'ramps:\n  - name: brand\n    fromFile: ./primitives.json\n';
+    expect(() => parsePigmintYaml(text)).toThrow(/fromFile/);
+  });
+
+  it('resolves fromFile ramps from a paired primitives map', () => {
+    const yaml = [
+      'ramps:',
+      '  - name: brand',
+      '    fromFile: ./primitives.json',
+      '  - name: blue',
+      '    source: "#3366cc"',
+    ].join('\n');
+    const primitivesJson = JSON.stringify({
+      primitive: {
+        brand: {
+          $type: 'color',
+          '50': { $value: { hex: '#fafafa' } },
+          '500': { $value: { hex: '#7c3aed' } },
+          '900': { $value: { hex: '#1f0a4a' } },
+        },
+      },
+    });
+    const primitives = parsePigmintPrimitives(primitivesJson);
+    const parsed = parsePigmintYaml(yaml, { primitives });
+    expect(parsed.scales).toHaveLength(2);
+    const brand = parsed.scales[0]!;
+    expect(brand.name).toBe('brand');
+    expect(brand.steps.map((s) => s.name)).toEqual(['50', '500', '900']);
+    expect(brand.steps.map((s) => s.hex)).toEqual(['#fafafa', '#7c3aed', '#1f0a4a']);
+    expect(brand.sourceHex).toBe('#7c3aed');
+    const blue = parsed.scales[1]!;
+    expect(blue.name).toBe('blue');
+    expect(blue.sourceHex).toBe('#3366cc');
+  });
+
+  it('parsePigmintPrimitives skips unparseable hex steps without throwing', () => {
+    const json = JSON.stringify({
+      primitive: {
+        brand: {
+          $type: 'color',
+          '50': { $value: { hex: 'not-a-color' } },
+          '500': { $value: { hex: '#7c3aed' } },
+          '900': { $value: { hex: '#1f0a4a' } },
+        },
+      },
+    });
+    const out = parsePigmintPrimitives(json);
+    expect(out.brand).toBeDefined();
+    expect(out.brand!.steps.map((s) => s.name)).toEqual(['500', '900']);
+  });
+
+  it('parsePigmintPrimitives throws a helpful error when every step is malformed', () => {
+    const json = JSON.stringify({
+      primitive: {
+        brand: {
+          $type: 'color',
+          '50': { $value: { hex: 'nope' } },
+          '500': { $value: { hex: 'still-nope' } },
+        },
+      },
+    });
+    expect(() => parsePigmintPrimitives(json)).toThrow(/unparseable hex/);
   });
 
   it('round-trips engine.resolver.materializeInterpolatedPrimitives', () => {

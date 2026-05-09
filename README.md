@@ -189,9 +189,14 @@ nonText:
 ```
 
 **preference values:**
-- `highest-contrast` — pick the ramp step with the most contrast against the declared surfaces
-- `lowest-passing` — pick the least-prominent step that still passes the compliance target
-- `matched-to-set` — match contrast level to another token in the set
+- `lowest-passing` — least-prominent step that still passes the compliance target
+- `midpoint` — index midway between `lowest-passing` and `highest-contrast` (good for the "main" slot of a Light/Main/Dark triplet)
+- `median` — passing step at the median contrast ratio (biases toward whichever side of the ramp has more passing steps)
+- `level-up` — lowest step that passes ONE compliance tier above the configured target (AA → AAA). When HC mode is already active the bar coincides with `lowest-passing`; the receipt records this.
+- `highest-contrast` — most contrast against the declared surfaces
+- `matched-to-set` — match contrast level to another token in the set (requires `consistency: matched-across-ramps`)
+
+`midpoint`, `median`, and `level-up` are per-ramp pick strategies — they only pair with `consistency: independent` (or `anchored-to-reference`). Pairing any of them with `matched-across-ramps` is rejected by the validator; the authoring app disables the option in the dropdown.
 
 ## Adapters
 
@@ -209,10 +214,12 @@ Adapter config goes under `adapters:` in `pigmint.yaml`. Each adapter manifest (
 | Path | What it shows |
 |---|---|
 | `examples/basic/` | Minimal two-ramp build (light mode, primitives + DTCG) |
-| `examples/local-design-system/` | Multi-ramp full vocabulary, light + dark |
 | `examples/portable-demo/` | Portable DTCG output without adapters |
+| `examples/portfolio-dark/` | Portfolio palette with dark mode |
 
 Each example has its own `pigmint.yaml` and `tokens.yaml`. Run `pigmint build` (or `node <path-to-cli>/dist/bin.js build`) from the example directory.
+
+New directories under `examples/` are gitignored by default — drop your own scratch palettes there without dirtying the working tree. Add an explicit `!examples/<name>/` to `.gitignore` if you want one tracked.
 
 ## Workspace packages
 

@@ -9,7 +9,10 @@ export type Preference =
   | 'lowest-passing'
   | 'highest-contrast'
   | 'matched-to-set'
-  | 'anchored';
+  | 'anchored'
+  | 'midpoint'
+  | 'median'
+  | 'level-up';
 export type Consistency =
   | 'independent'
   | 'matched-across-ramps'
@@ -284,7 +287,13 @@ export interface PortableSurfaceToken {
 export interface PortableSemanticToken {
   ramp: string;
   surfaces: string[];
-  preference: 'lowest-passing' | 'highest-contrast' | 'matched-to-set';
+  preference:
+    | 'lowest-passing'
+    | 'highest-contrast'
+    | 'matched-to-set'
+    | 'midpoint'
+    | 'median'
+    | 'level-up';
   consistency?: 'independent' | 'matched-across-ramps' | 'anchored-to-reference';
   level?: 'AA' | 'AAA';
   interactions?: Partial<Record<string, { offset: number }>>;
