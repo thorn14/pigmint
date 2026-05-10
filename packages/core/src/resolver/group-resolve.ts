@@ -260,7 +260,8 @@ function referenceResolutionIntent(base: FormalIntent): FormalIntent {
     base.preference === 'lowest-passing' ||
     base.preference === 'midpoint' ||
     base.preference === 'median' ||
-    base.preference === 'level-up'
+    base.preference === 'level-up' ||
+    base.preference === 'preferred-contrast'
   ) {
     return { ...base, consistency: 'independent' };
   }

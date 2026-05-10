@@ -222,6 +222,41 @@ export function pickStepMidpoint(
 }
 
 /**
+ * Pick the step whose resolution metric is closest to `target`. Prefers steps
+ * that meet the threshold; only falls back to a non-passing step when no
+ * passing step exists. Mirrors the "preferred lightness" pinning concept:
+ * a single target value (not a range) that biases the picker.
+ */
+export function pickStepPreferredContrast(
+  ramp: GeneratedRamp,
+  surfaceHex: string,
+  threshold: Threshold,
+  target: number,
+  elevate?: ThresholdElevation,
+): { index: number; ratio: number } | null {
+  const kind = threshold.kind;
+  const required = passThreshold(threshold, elevate);
+  let bestPassing: { index: number; ratio: number; dist: number } | null = null;
+  let bestAny: { index: number; ratio: number; dist: number } | null = null;
+  for (let i = 0; i < ramp.steps.length; i++) {
+    const step = ramp.steps[i];
+    if (!step) continue;
+    const m = resolutionMetric(kind, step.hex, surfaceHex);
+    const dist = Math.abs(m - target);
+    if (bestAny === null || dist < bestAny.dist) {
+      bestAny = { index: i, ratio: m, dist };
+    }
+    if (m >= required) {
+      if (bestPassing === null || dist < bestPassing.dist) {
+        bestPassing = { index: i, ratio: m, dist };
+      }
+    }
+  }
+  const pick = bestPassing ?? bestAny;
+  return pick ? { index: pick.index, ratio: pick.ratio } : null;
+}
+
+/**
  * Among passing steps, pick the one whose **resolution metric** is closest
  * to the median of all passing-step metrics. Bias differs from `midpoint`:
  * favors whichever side of the ramp has more passing steps.
@@ -481,6 +516,15 @@ export function resolveToken(input: ResolveInput): ResolveResult {
       // to lowest-passing under the same elevation).
       selectionNote = 'level-up: HC mode already at elevated bar; pick coincides with lowest-passing';
     }
+  } else if (intent.preference === 'preferred-contrast') {
+    const target = intent.constraints?.targetContrast;
+    if (typeof target !== 'number' || !Number.isFinite(target)) {
+      throw new ResolveError(
+        'preferred-contrast requires constraints.targetContrast (finite number)',
+        tokenPath,
+      );
+    }
+    picked = pickStepPreferredContrast(pickRamp, surfaceHex, intent.threshold, target, thresholdElevation);
   } else if (intent.preference === 'anchored') {
     const anchor = intent.constraints?.anchor;
     if (typeof anchor !== 'number' || !Number.isFinite(anchor)) {

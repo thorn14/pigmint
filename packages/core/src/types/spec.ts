@@ -12,7 +12,8 @@ export type Preference =
   | 'anchored'
   | 'midpoint'
   | 'median'
-  | 'level-up';
+  | 'level-up'
+  | 'preferred-contrast';
 export type Consistency =
   | 'independent'
   | 'matched-across-ramps'
@@ -35,6 +36,8 @@ export interface IntentConstraints {
   minChroma?: number;
   avoidPositions?: number[];
   gamutStrategy?: GamutStrategy;
+  /** Target contrast metric when `preference: "preferred-contrast"`. WCAG ratio (e.g. 5.5) or APCA |Lc| (e.g. 75). */
+  targetContrast?: number;
 }
 
 export interface FormalIntent {
@@ -170,6 +173,13 @@ export interface VocabularyEntry {
   statesForm?: StatesForm;
   description?: string;
   removed?: boolean;
+  /**
+   * Marks an otherwise-resolvable token (foreground/nonText/alpha) as decorative — the
+   * resolver picks a step normally, but the compliance receipt is forced to `'exempt'`
+   * and audit checkers skip the contrast bar. Distinct from `usage: 'decorative'`
+   * (which carries no surface/preference and just emits a fixed step).
+   */
+  decorative?: boolean;
 }
 
 export interface Vocabulary {
@@ -293,10 +303,15 @@ export interface PortableSemanticToken {
     | 'matched-to-set'
     | 'midpoint'
     | 'median'
-    | 'level-up';
+    | 'level-up'
+    | 'preferred-contrast';
   consistency?: 'independent' | 'matched-across-ramps' | 'anchored-to-reference';
   level?: 'AA' | 'AAA';
   interactions?: Partial<Record<string, { offset: number }>>;
+  /** Skip a11y compliance enforcement; resolver still picks a step from `preference`. */
+  decorative?: boolean;
+  /** Target contrast metric when `preference === 'preferred-contrast'`. */
+  targetContrast?: number;
 }
 
 export interface PortableDecorativeToken {
@@ -328,11 +343,15 @@ export interface PortableAlphaToken {
   /** For path 1: surface name(s) to contrast against (compliance check). */
   surfaces?: string[];
   /** For path 1: step-picking strategy. */
-  preference?: 'lowest-passing' | 'highest-contrast';
+  preference?: 'lowest-passing' | 'highest-contrast' | 'preferred-contrast';
   /** For path 1: usage category. Defaults to `'nonText'`. */
   usage?: 'text' | 'nonText';
   /** Compliance level. Defaults to the engine's `target`. */
   level?: 'AA' | 'AAA';
+  /** Skip a11y compliance enforcement; resolver still picks a step from `preference`. */
+  decorative?: boolean;
+  /** Target contrast metric when `preference === 'preferred-contrast'`. */
+  targetContrast?: number;
 }
 
 export interface PortableVocabulary {

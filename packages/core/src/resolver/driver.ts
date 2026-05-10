@@ -58,6 +58,16 @@ export { DriverError } from './errors.js';
 
 const SURFACE_ROLES = new Set<SurfaceRole>(['main', 'elevated', 'subtle', 'inverse']);
 
+/**
+ * When the entry carries `decorative: true`, the resolver still picks a step
+ * (so the color matches the declared preference/surface), but compliance is
+ * recorded as `'exempt'` so the audit checker and UI skip a11y enforcement.
+ */
+function applyDecorativeExemption(entry: VocabularyEntry, token: ResolvedToken): ResolvedToken {
+  if (!entry.decorative || !token.compliance) return token;
+  return { ...token, compliance: { ...token.compliance, level: 'exempt' } };
+}
+
 function surfaceRoleFromPath(path: string): SurfaceRole | null {
   const parts = path.split('.');
   if (parts.length < 3) return null;
@@ -244,7 +254,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         },
         ramps,
       );
-      tokens.push(token);
+      tokens.push(applyDecorativeExemption(entry, token));
     }
 
     const alphaPathSet = new Set(alphaEntries.map((e) => e.path));
@@ -296,7 +306,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         thresholdElevation: binding.thresholdElevation,
         ...(it.context.denseRamp ? { denseRamp: it.context.denseRamp } : {}),
       });
-      resolvedByPath.set(it.path, token);
+      resolvedByPath.set(it.path, applyDecorativeExemption(it.context.entry, token));
     }
 
     const groupMap = (pred: (i: (typeof items)[0]) => boolean) => {
@@ -308,6 +318,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
       }
       return m;
     };
+    const entryByPath = new Map(items.map((x) => [x.path, x.context.entry] as const));
     for (const [, arr] of groupMap((i) => i.intent.consistency === 'matched-across-ramps')) {
       const toks = resolveMatchedAcrossRamps(
         arr[0]!.intent,
@@ -315,7 +326,8 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         gBinding,
       );
       for (const t of toks) {
-        resolvedByPath.set(t.path, t);
+        const e = entryByPath.get(t.path);
+        resolvedByPath.set(t.path, e ? applyDecorativeExemption(e, t) : t);
       }
     }
     for (const [, arr] of groupMap((i) => i.intent.consistency === 'anchored-to-reference')) {
@@ -326,7 +338,8 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         tokenRamp,
       );
       for (const t of toks) {
-        resolvedByPath.set(t.path, t);
+        const e = entryByPath.get(t.path);
+        resolvedByPath.set(t.path, e ? applyDecorativeExemption(e, t) : t);
       }
     }
 

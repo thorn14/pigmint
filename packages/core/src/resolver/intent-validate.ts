@@ -20,12 +20,20 @@ export function assertValidFormalIntent(path: string, intent: FormalIntent): voi
   // synchronized-T interpretation, so matched-across-ramps is rejected. Use
   // matched-to-set if cross-ramp coordination is needed.
   if (
-    (preference === 'midpoint' || preference === 'median' || preference === 'level-up') &&
+    (preference === 'midpoint' || preference === 'median' || preference === 'level-up' || preference === 'preferred-contrast') &&
     consistency === 'matched-across-ramps'
   ) {
     throw new DriverError(
       `token ${path}: preference "${preference}" cannot pair with "matched-across-ramps" — use "independent" or switch to "matched-to-set" for cross-ramp coordination`,
     );
+  }
+  if (preference === 'preferred-contrast') {
+    const t = intent.constraints?.targetContrast;
+    if (typeof t !== 'number' || !Number.isFinite(t)) {
+      throw new DriverError(
+        `token ${path}: preference "preferred-contrast" requires constraints.targetContrast (finite number)`,
+      );
+    }
   }
   if (consistency === 'anchored-to-reference' && !intent.constraints?.referenceRamp) {
     throw new DriverError(

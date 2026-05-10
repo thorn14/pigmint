@@ -100,6 +100,28 @@ function resolveFixedAlpha(
       if (m < required) continue;
       if (best === null || m > best.metric) best = { index: i, metric: m };
     }
+  } else if (intent.preference === 'preferred-contrast') {
+    const target = intent.constraints?.targetContrast;
+    if (typeof target !== 'number' || !Number.isFinite(target)) {
+      throw new Error(
+        `alpha token "${tokenPath}": preferred-contrast requires constraints.targetContrast`,
+      );
+    }
+    let bestPassing: { index: number; metric: number; dist: number } | null = null;
+    let bestAny: { index: number; metric: number; dist: number } | null = null;
+    for (let i = 0; i < ramp.steps.length; i++) {
+      const step = ramp.steps[i];
+      if (!step) continue;
+      const composited = alphaCompositeHex(step.hex, alpha, referenceSurfaceHex);
+      const m = resolutionMetric(threshold.kind, composited, surfaceHex);
+      const dist = Math.abs(m - target);
+      if (bestAny === null || dist < bestAny.dist) bestAny = { index: i, metric: m, dist };
+      if (m >= required && (bestPassing === null || dist < bestPassing.dist)) {
+        bestPassing = { index: i, metric: m, dist };
+      }
+    }
+    const pick = bestPassing ?? bestAny;
+    if (pick) best = { index: pick.index, metric: pick.metric };
   } else {
     // anchored or matched-to-set: not yet supported for alpha tokens; fall back to lowest-passing
     for (let i = 0; i < ramp.steps.length; i++) {

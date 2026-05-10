@@ -29,6 +29,7 @@ const VALID_PREFERENCES = new Set([
   'midpoint',
   'median',
   'level-up',
+  'preferred-contrast',
 ]);
 const VALID_CONSISTENCIES = new Set(['independent', 'matched-across-ramps', 'anchored-to-reference']);
 const VALID_LEVELS = new Set(['AA', 'AAA']);
@@ -154,6 +155,29 @@ function validateSemanticToken(
     }
   }
 
+  if ('decorative' in raw && raw.decorative !== undefined && typeof raw.decorative !== 'boolean') {
+    throw new PortableVocabularyError(
+      `${section}.${name}.decorative must be a boolean`,
+      filePath,
+    );
+  }
+
+  if (pref === 'preferred-contrast') {
+    if (typeof raw.targetContrast !== 'number' || !Number.isFinite(raw.targetContrast)) {
+      throw new PortableVocabularyError(
+        `${section}.${name}.targetContrast must be a finite number when preference is "preferred-contrast"`,
+        filePath,
+      );
+    }
+  } else if ('targetContrast' in raw && raw.targetContrast !== undefined) {
+    if (typeof raw.targetContrast !== 'number' || !Number.isFinite(raw.targetContrast)) {
+      throw new PortableVocabularyError(
+        `${section}.${name}.targetContrast must be a finite number`,
+        filePath,
+      );
+    }
+  }
+
   return raw as unknown as PortableSemanticToken;
 }
 
@@ -247,11 +271,30 @@ function validateAlphaToken(
     }
 
     const pref = raw.preference;
-    if (typeof pref !== 'string' || (pref !== 'lowest-passing' && pref !== 'highest-contrast')) {
+    if (
+      typeof pref !== 'string' ||
+      (pref !== 'lowest-passing' && pref !== 'highest-contrast' && pref !== 'preferred-contrast')
+    ) {
       throw new PortableVocabularyError(
-        `alpha.${name}.preference must be "lowest-passing" or "highest-contrast"`,
+        `alpha.${name}.preference must be "lowest-passing", "highest-contrast", or "preferred-contrast"`,
         filePath,
       );
+    }
+
+    if (pref === 'preferred-contrast') {
+      if (typeof raw.targetContrast !== 'number' || !Number.isFinite(raw.targetContrast)) {
+        throw new PortableVocabularyError(
+          `alpha.${name}.targetContrast must be a finite number when preference is "preferred-contrast"`,
+          filePath,
+        );
+      }
+    } else if ('targetContrast' in raw && raw.targetContrast !== undefined) {
+      if (typeof raw.targetContrast !== 'number' || !Number.isFinite(raw.targetContrast)) {
+        throw new PortableVocabularyError(
+          `alpha.${name}.targetContrast must be a finite number`,
+          filePath,
+        );
+      }
     }
 
     if ('usage' in raw && raw.usage !== undefined) {
@@ -271,6 +314,13 @@ function validateAlphaToken(
         );
       }
     }
+  }
+
+  if ('decorative' in raw && raw.decorative !== undefined && typeof raw.decorative !== 'boolean') {
+    throw new PortableVocabularyError(
+      `alpha.${name}.decorative must be a boolean`,
+      filePath,
+    );
   }
 
   if ('referenceSurface' in raw && raw.referenceSurface !== undefined) {
@@ -368,12 +418,16 @@ function deriveIntent(
   const level = (token.level ?? engineConfig.target) as ComplianceTarget;
   const consistency =
     (token.consistency as FormalIntent['consistency']) ?? 'independent';
-  return {
+  const intent: FormalIntent = {
     threshold: { kind, level, usage },
     preference: token.preference as FormalIntent['preference'],
     consistency,
     surfaceContext: 'primary',
   };
+  if (token.preference === 'preferred-contrast' && typeof token.targetContrast === 'number') {
+    intent.constraints = { targetContrast: token.targetContrast };
+  }
+  return intent;
 }
 
 export function portableToVocabularyEntries(
@@ -407,6 +461,7 @@ export function portableToVocabularyEntries(
       additionalSurfaces: token.surfaces.slice(1),
       defaultIntent: deriveIntent(token, 'text', engineConfig),
       states: ['base'],
+      ...(token.decorative ? { decorative: true } : {}),
     });
   }
 
@@ -418,6 +473,7 @@ export function portableToVocabularyEntries(
       additionalSurfaces: token.surfaces.slice(1),
       defaultIntent: deriveIntent(token, 'nonText', engineConfig),
       states: ['base'],
+      ...(token.decorative ? { decorative: true } : {}),
     });
   }
 
@@ -461,6 +517,9 @@ function portableAlphaToEntry(
     consistency: 'independent',
     surfaceContext: 'primary',
   };
+  if (token.preference === 'preferred-contrast' && typeof token.targetContrast === 'number') {
+    intent.constraints = { targetContrast: token.targetContrast };
+  }
   const modifier: AlphaModifier = {
     baseRamp: token.baseRamp,
     value: token.value,
@@ -474,6 +533,7 @@ function portableAlphaToEntry(
     additionalSurfaces: token.surfaces?.slice(1),
     alpha: modifier,
     states: ['base'],
+    ...(token.decorative ? { decorative: true } : {}),
   };
 }
 

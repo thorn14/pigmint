@@ -28,10 +28,10 @@ const ROW_BASE: React.CSSProperties = {
   fontSize: 12,
 };
 
-// Semantic/decorative rows: name | ramp | surface | preference | consistency | delete
+// Semantic/decorative rows: name | ramp | surface | preference | consistency | (move + decorative + delete)
 const ROW: React.CSSProperties = {
   ...ROW_BASE,
-  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 28px',
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 92px',
 };
 
 const HEADER: React.CSSProperties = {
@@ -114,9 +114,18 @@ const PREFS = [
   'level-up',
   'highest-contrast',
   'matched-to-set',
+  'preferred-contrast',
 ] as const;
 const CONS = ['independent', 'matched-across-ramps'] as const;
-const ALPHA_PREFS = ['lowest-passing', 'highest-contrast'] as const;
+const ALPHA_PREFS = ['lowest-passing', 'highest-contrast', 'preferred-contrast'] as const;
+
+// Sensible bounds for the preferred-contrast input — wide enough not to be
+// the limiting factor on any real ramp/surface combination.
+function contrastBounds(compliance: 'wcag21' | 'apca'): { min: number; max: number; step: number } {
+  return compliance === 'apca'
+    ? { min: 0, max: 108, step: 1 }
+    : { min: 1, max: 21, step: 0.1 };
+}
 type TokenKind = 'surface' | 'foreground' | 'nonText' | 'decorative' | 'alpha';
 
 type Pref = PortableSemanticToken['preference'];
@@ -144,6 +153,86 @@ function consistencyDisabledFor(pref: Pref, value: Cons): boolean {
 function ec() {
   const s = useIntentStore.getState();
   return { compliance: s.engineCompliance, target: s.engineTarget, modes: s.engineModes };
+}
+
+// Click-to-edit name field used by every token row.
+function EditableName({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  function commit() {
+    setEditing(false);
+    const next = draft.trim();
+    if (next && next !== value) onCommit(next);
+    else setDraft(value);
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        style={{ ...inp, fontFamily: 'monospace', minWidth: 0 }}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          else if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      title="Click to rename"
+      onClick={() => setEditing(true)}
+      style={{
+        fontFamily: 'monospace',
+        color: 'var(--p-text)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        cursor: 'text',
+        padding: '3px 6px',
+        borderRadius: 4,
+        border: '1px solid transparent',
+      }}
+    >
+      {value}
+    </span>
+  );
+}
+
+// Compact icon toggle. Used for the decorative flag on contrast-bearing rows.
+function DecorativeToggle({ value, onChange }: { value: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      title={value ? 'Decorative — a11y enforcement skipped' : 'Mark as decorative (skip a11y)'}
+      onClick={() => onChange(!value)}
+      style={{
+        padding: '2px 5px',
+        fontSize: 11,
+        lineHeight: 1,
+        background: value ? 'var(--p-accent, #6366f1)' : 'transparent',
+        color: value ? '#fff' : 'var(--p-text-secondary)',
+        border: '1px solid ' + (value ? 'var(--p-accent, #6366f1)' : 'var(--p-border)'),
+        borderRadius: 3,
+        cursor: 'pointer',
+      }}
+    >
+      ◌
+    </button>
+  );
 }
 
 // ─── Color dot ────────────────────────────────────────────────────────────────
@@ -335,7 +424,7 @@ const SURFACE_ROW_SPLIT: React.CSSProperties = {
   gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.4fr) 28px',
 };
 
-function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelete }: {
+function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelete, onRename }: {
   name: string;
   token: PortableSurfaceToken;
   rampNames: string[];
@@ -343,6 +432,7 @@ function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelet
   scales: ColorScale[];
   onUpdate: (u: Partial<PortableSurfaceToken>) => void;
   onDelete: () => void;
+  onRename: (next: string) => void;
 }) {
   const ramp = rampMap.get(token.ramp);
   const lastIdx = (ramp?.steps.length ?? 1) - 1;
@@ -378,9 +468,7 @@ function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelet
   if (isUnified) {
     return (
       <div style={SURFACE_ROW_UNIFIED}>
-        <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {name}
-        </span>
+        <EditableName value={name} onCommit={onRename} />
         <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
         <StepSelect rampName={token.ramp} rampMap={rampMap} value={unifiedIdx}
           onChange={(i) => onUpdate({ step: i, lightStep: undefined, darkStep: undefined })} />
@@ -392,9 +480,7 @@ function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelet
 
   return (
     <div style={SURFACE_ROW_SPLIT}>
-      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {name}
-      </span>
+      <EditableName value={name} onCommit={onRename} />
       <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
       <StepSelect rampName={token.ramp} rampMap={rampMap} value={lightIdx}
         onChange={(i) => onUpdate({ lightStep: i, darkStep: darkIdx, step: undefined })} />
@@ -407,53 +493,109 @@ function SurfaceRow({ name, token, rampNames, rampMap, scales, onUpdate, onDelet
 
 // ─── Semantic token row ────────────────────────────────────────────────────────
 
-function SemanticRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfaces, onUpdate, onDelete }: {
+function SemanticRow({ name, token, section, rampNames, surfaceNames, rampMap, scales, surfaces, compliance, onUpdate, onDelete, onRename, onMove }: {
   name: string;
   token: PortableSemanticToken;
+  section: 'foreground' | 'nonText';
   rampNames: string[];
   surfaceNames: string[];
   rampMap: Map<string, GeneratedRamp>;
   scales: ColorScale[];
   surfaces: Record<string, PortableSurfaceToken>;
+  compliance: 'wcag21' | 'apca';
   onUpdate: (u: Partial<PortableSemanticToken>) => void;
   onDelete: () => void;
+  onRename: (next: string) => void;
+  onMove: (to: 'foreground' | 'nonText') => void;
 }) {
+  const isPreferredContrast = token.preference === 'preferred-contrast';
+  const isDecorative = Boolean(token.decorative);
+  const dim: React.CSSProperties = isDecorative ? { opacity: 0.45 } : {};
+  const bounds = contrastBounds(compliance);
+
+  function handlePrefChange(preference: Pref) {
+    const consistency = coercePrefConsistency(preference, token.consistency as Cons | undefined);
+    const updates: Partial<PortableSemanticToken> = { preference, consistency };
+    if (preference === 'preferred-contrast' && typeof token.targetContrast !== 'number') {
+      // Seed with a sensible mid-range value so the picker has something to aim at.
+      updates.targetContrast = compliance === 'apca' ? 60 : 5;
+    }
+    onUpdate(updates);
+  }
+
   return (
     <div style={ROW}>
-      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {name}
-      </span>
-      <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
-      <SurfaceSelect
-        surfaceNames={surfaceNames}
-        value={token.surfaces[0] ?? ''}
-        onChange={(s) => onUpdate({ surfaces: [s] })}
-        surfaces={surfaces}
-        rampMap={rampMap}
-      />
+      <EditableName value={name} onCommit={onRename} />
+      <div style={dim}>
+        <RampSelect rampNames={rampNames} value={token.ramp} onChange={(r) => onUpdate({ ramp: r })} scales={scales} />
+      </div>
+      <div style={dim}>
+        <SurfaceSelect
+          surfaceNames={surfaceNames}
+          value={token.surfaces[0] ?? ''}
+          onChange={(s) => onUpdate({ surfaces: [s] })}
+          surfaces={surfaces}
+          rampMap={rampMap}
+        />
+      </div>
       <select
-        style={sel}
+        style={{ ...sel, ...dim }}
         value={token.preference}
-        onChange={(e) => {
-          const preference = e.target.value as Pref;
-          const consistency = coercePrefConsistency(preference, token.consistency as Cons | undefined);
-          onUpdate({ preference, consistency });
-        }}
+        onChange={(e) => handlePrefChange(e.target.value as Pref)}
       >
         {PREFS.map((p) => <option key={p}>{p}</option>)}
       </select>
-      <select
-        style={sel}
-        value={token.consistency ?? 'independent'}
-        onChange={(e) => onUpdate({ consistency: e.target.value as PortableSemanticToken['consistency'] })}
-      >
-        {CONS.map((c) => (
-          <option key={c} value={c} disabled={consistencyDisabledFor(token.preference, c)}>
-            {c}
-          </option>
-        ))}
-      </select>
-      <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
+      {isPreferredContrast ? (
+        <input
+          type="number"
+          min={bounds.min} max={bounds.max} step={bounds.step}
+          style={{ ...inp, ...dim }}
+          title={`Target ${compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}`}
+          value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (Number.isFinite(v)) onUpdate({ targetContrast: v });
+          }}
+        />
+      ) : (
+        <select
+          style={{ ...sel, ...dim }}
+          value={token.consistency ?? 'independent'}
+          onChange={(e) => onUpdate({ consistency: e.target.value as PortableSemanticToken['consistency'] })}
+        >
+          {CONS.map((c) => (
+            <option key={c} value={c} disabled={consistencyDisabledFor(token.preference, c)}>
+              {c}
+            </option>
+          ))}
+        </select>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+        <select
+          title={`Type — currently ${section === 'foreground' ? 'text' : 'non-text'}. Switch to convert.`}
+          value={section}
+          onChange={(e) => {
+            const next = e.target.value as 'foreground' | 'nonText';
+            if (next !== section) onMove(next);
+          }}
+          style={{
+            padding: '2px 4px',
+            fontSize: 10,
+            lineHeight: 1.2,
+            background: 'var(--p-bg-subtle)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 3,
+            color: 'var(--p-text-secondary)',
+            cursor: 'pointer',
+            width: 36,
+          }}
+        >
+          <option value="foreground">fg</option>
+          <option value="nonText">nt</option>
+        </select>
+        <DecorativeToggle value={isDecorative} onChange={(next) => onUpdate({ decorative: next || undefined })} />
+        <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
+      </div>
     </div>
   );
 }
@@ -462,10 +604,10 @@ function SemanticRow({ name, token, rampNames, surfaceNames, rampMap, scales, su
 
 const ALPHA_ROW: React.CSSProperties = {
   ...ROW_BASE,
-  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1fr) 90px minmax(0,1fr) 28px',
+  gridTemplateColumns: '140px minmax(0,1fr) minmax(0,1fr) 90px minmax(0,1fr) 56px',
 };
 
-function AlphaRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfaces, onUpdate, onDelete }: {
+function AlphaRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfaces, compliance, onUpdate, onDelete, onRename }: {
   name: string;
   token: PortableAlphaToken;
   rampNames: string[];
@@ -473,8 +615,10 @@ function AlphaRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfa
   rampMap: Map<string, GeneratedRamp>;
   scales: ColorScale[];
   surfaces: Record<string, PortableSurfaceToken>;
+  compliance: 'wcag21' | 'apca';
   onUpdate: (u: Partial<PortableAlphaToken>) => void;
   onDelete: () => void;
+  onRename: (next: string) => void;
 }) {
   const isDegenerate = Boolean(token.base);
   const parsed = token.base ? parseStepRef(token.base) : null;
@@ -513,23 +657,38 @@ function AlphaRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfa
 
   const surfaceName = token.surfaces?.[0] ?? surfaceNames[0] ?? '';
 
+  const isDecorative = Boolean(token.decorative);
+  const dim: React.CSSProperties = isDecorative ? { opacity: 0.45 } : {};
+  const isPreferredContrast = !isDegenerate && token.preference === 'preferred-contrast';
+  const bounds = contrastBounds(compliance);
+
+  function handlePrefChange(preference: PortableAlphaToken['preference']) {
+    const updates: Partial<PortableAlphaToken> = { preference };
+    if (preference === 'preferred-contrast' && typeof token.targetContrast !== 'number') {
+      updates.targetContrast = compliance === 'apca' ? 60 : 5;
+    }
+    onUpdate(updates);
+  }
+
   return (
     <div style={ALPHA_ROW}>
-      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {name}
-      </span>
-      <RampSelect rampNames={rampNames} value={rampName} onChange={handleRampChange} scales={scales} />
-      {isDegenerate ? (
-        <StepSelect rampName={rampName} rampMap={rampMap} value={stepIdx} onChange={handleStepChange} />
-      ) : (
-        <SurfaceSelect
-          surfaceNames={surfaceNames}
-          value={surfaceName}
-          onChange={(s) => onUpdate({ surfaces: [s] })}
-          surfaces={surfaces}
-          rampMap={rampMap}
-        />
-      )}
+      <EditableName value={name} onCommit={onRename} />
+      <div style={dim}>
+        <RampSelect rampNames={rampNames} value={rampName} onChange={handleRampChange} scales={scales} />
+      </div>
+      <div style={dim}>
+        {isDegenerate ? (
+          <StepSelect rampName={rampName} rampMap={rampMap} value={stepIdx} onChange={handleStepChange} />
+        ) : (
+          <SurfaceSelect
+            surfaceNames={surfaceNames}
+            value={surfaceName}
+            onChange={(s) => onUpdate({ surfaces: [s] })}
+            surfaces={surfaces}
+            rampMap={rampMap}
+          />
+        )}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
         {previewHex && <ColorDot hex={previewHex} alpha={previewAlpha} />}
         <input
@@ -552,16 +711,42 @@ function AlphaRow({ name, token, rampNames, surfaceNames, rampMap, scales, surfa
           <option value="">auto</option>
           {surfaceNames.map((s) => <option key={s}>{s}</option>)}
         </select>
+      ) : isPreferredContrast ? (
+        <div style={{ display: 'flex', gap: 4, minWidth: 0 }}>
+          <select
+            style={{ ...sel, ...dim, flex: 1 }}
+            value={token.preference ?? 'lowest-passing'}
+            onChange={(e) => handlePrefChange(e.target.value as PortableAlphaToken['preference'])}
+          >
+            {ALPHA_PREFS.map((p) => <option key={p}>{p}</option>)}
+          </select>
+          <input
+            type="number"
+            min={bounds.min} max={bounds.max} step={bounds.step}
+            style={{ ...inp, ...dim, width: 60 }}
+            title={`Target ${compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}`}
+            value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (Number.isFinite(v)) onUpdate({ targetContrast: v });
+            }}
+          />
+        </div>
       ) : (
         <select
-          style={sel}
+          style={{ ...sel, ...dim }}
           value={token.preference ?? 'lowest-passing'}
-          onChange={(e) => onUpdate({ preference: e.target.value as PortableAlphaToken['preference'] })}
+          onChange={(e) => handlePrefChange(e.target.value as PortableAlphaToken['preference'])}
         >
           {ALPHA_PREFS.map((p) => <option key={p}>{p}</option>)}
         </select>
       )}
-      <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+        {!isDegenerate && (
+          <DecorativeToggle value={isDecorative} onChange={(next) => onUpdate({ decorative: next || undefined })} />
+        )}
+        <button style={delBtn} onClick={onDelete} title="Remove">✕</button>
+      </div>
     </div>
   );
 }
@@ -719,12 +904,13 @@ function ModalStepSelect({ rampName, rampMap, value, onChange }: {
   );
 }
 
-function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onClose, onAddSurface, onAddSemantic, onAddAlpha }: {
+function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, compliance, onClose, onAddSurface, onAddSemantic, onAddAlpha }: {
   rampNames: string[];
   surfaceNames: string[];
   rampMap: Map<string, GeneratedRamp>;
   scales: ColorScale[];
   surfaces: Record<string, PortableSurfaceToken>;
+  compliance: 'wcag21' | 'apca';
   onClose: () => void;
   onAddSurface: (name: string, token: PortableSurfaceToken) => void;
   onAddSemantic: (kind: 'foreground' | 'nonText', name: string, token: PortableSemanticToken) => void;
@@ -736,8 +922,12 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
   const [surface, setSurface] = useState(surfaceNames[0] ?? '');
   const [pref, setPref] = useState<PortableSemanticToken['preference']>('lowest-passing');
   const [cons, setCons] = useState<PortableSemanticToken['consistency']>('independent');
+  const [decorative, setDecorative] = useState(false);
+  const defaultTarget = compliance === 'apca' ? 60 : 5;
+  const [targetContrast, setTargetContrast] = useState<number>(defaultTarget);
   const [error, setError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
+  const bounds = contrastBounds(compliance);
 
   const rampObj = rampMap.get(ramp);
   const rampLastIdx = (rampObj?.steps.length ?? 1) - 1;
@@ -749,7 +939,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
   const [alphaStep, setAlphaStep] = useState(rampLastIdx);
   const [alphaValue, setAlphaValue] = useState(0.4);
   const [alphaRefSurface, setAlphaRefSurface] = useState('');
-  const [alphaPref, setAlphaPref] = useState<'lowest-passing' | 'highest-contrast'>('lowest-passing');
+  const [alphaPref, setAlphaPref] = useState<NonNullable<PortableAlphaToken['preference']>>('lowest-passing');
   const [alphaUsage, setAlphaUsage] = useState<'text' | 'nonText'>('nonText');
 
   // Reset dark step when ramp changes
@@ -790,7 +980,10 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
       onAddSurface(n, { ramp, lightStep, darkStep });
     } else if (kind === 'foreground' || kind === 'nonText') {
       if (!surface) { setError('Surface is required'); return; }
-      onAddSemantic(kind, n, { ramp, surfaces: [surface], preference: pref, consistency: cons });
+      const token: PortableSemanticToken = { ramp, surfaces: [surface], preference: pref, consistency: cons };
+      if (pref === 'preferred-contrast') token.targetContrast = targetContrast;
+      if (decorative) token.decorative = true;
+      onAddSemantic(kind, n, token);
     } else if (kind === 'alpha') {
       if (alphaSubKind === 'scrim') {
         const stepName = alphaRamp?.steps[Math.max(0, Math.min(alphaStep, (alphaRamp.steps.length ?? 1) - 1))]?.name ?? String(alphaStep);
@@ -810,6 +1003,8 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
           usage: alphaUsage,
           ...(alphaRefSurface ? { referenceSurface: alphaRefSurface } : {}),
         };
+        if (alphaPref === 'preferred-contrast') token.targetContrast = targetContrast;
+        if (decorative) token.decorative = true;
         onAddAlpha(n, token);
       }
     }
@@ -945,16 +1140,40 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
                   {PREFS.map((p) => <option key={p}>{p}</option>)}
                 </select>
               </div>
-              <div style={field}>
-                <span style={label}>Consistency</span>
-                <select style={modalSel} value={cons} onChange={(e) => setCons(e.target.value as typeof cons)}>
-                  {CONS.map((c) => (
-                    <option key={c} value={c} disabled={consistencyDisabledFor(pref, c)}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {pref === 'preferred-contrast' ? (
+                <div style={field}>
+                  <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
+                  <input
+                    type="number"
+                    min={bounds.min} max={bounds.max} step={bounds.step}
+                    style={modalInp}
+                    value={targetContrast}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (Number.isFinite(v)) setTargetContrast(v);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div style={field}>
+                  <span style={label}>Consistency</span>
+                  <select style={modalSel} value={cons} onChange={(e) => setCons(e.target.value as typeof cons)}>
+                    {CONS.map((c) => (
+                      <option key={c} value={c} disabled={consistencyDisabledFor(pref, c)}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={decorative}
+                  onChange={(e) => setDecorative(e.target.checked)}
+                />
+                Decorative — skip a11y compliance check
+              </label>
             </>
           )}
 
@@ -1051,6 +1270,29 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, scales, surfaces, onC
                       </select>
                     </div>
                   </div>
+                  {alphaPref === 'preferred-contrast' && (
+                    <div style={field}>
+                      <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
+                      <input
+                        type="number"
+                        min={bounds.min} max={bounds.max} step={bounds.step}
+                        style={modalInp}
+                        value={targetContrast}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          if (Number.isFinite(v)) setTargetContrast(v);
+                        }}
+                      />
+                    </div>
+                  )}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={decorative}
+                      onChange={(e) => setDecorative(e.target.checked)}
+                    />
+                    Decorative — skip a11y compliance check
+                  </label>
                 </>
               )}
 
@@ -1108,13 +1350,19 @@ export function TokensPanel() {
   const addSurface = useVocabStore((s) => s.addSurface);
   const updateSurface = useVocabStore((s) => s.updateSurface);
   const removeSurface = useVocabStore((s) => s.removeSurface);
+  const renameSurface = useVocabStore((s) => s.renameSurface);
   const addToken = useVocabStore((s) => s.addToken);
   const updateToken = useVocabStore((s) => s.updateToken);
   const addDecorative = useVocabStore((s) => s.addDecorative);
   const removeToken = useVocabStore((s) => s.removeToken);
+  const renameToken = useVocabStore((s) => s.renameToken);
+  const moveToken = useVocabStore((s) => s.moveToken);
   const addAlpha = useVocabStore((s) => s.addAlpha);
   const updateAlpha = useVocabStore((s) => s.updateAlpha);
   const removeAlpha = useVocabStore((s) => s.removeAlpha);
+  const renameAlpha = useVocabStore((s) => s.renameAlpha);
+  const engineCompliance = useIntentStore((s) => s.engineCompliance);
+  const compliance: 'wcag21' | 'apca' = engineCompliance === 'apca' ? 'apca' : 'wcag21';
   const exportYaml = useVocabStore((s) => s.exportYaml);
   const clear = useVocabStore((s) => s.clear);
 
@@ -1290,6 +1538,7 @@ export function TokensPanel() {
               scales={scales}
               onUpdate={(u) => updateSurface(name, u, ec())}
               onDelete={() => removeSurface(name, ec())}
+              onRename={(next) => renameSurface(name, next, ec())}
             />
           ))}
           {surfaceNames.length === 0 && (
@@ -1306,13 +1555,17 @@ export function TokensPanel() {
               key={name}
               name={name}
               token={token}
+              section="foreground"
               rampNames={rampNames}
               surfaceNames={surfaceNames}
               rampMap={rampMap}
               scales={scales}
               surfaces={surfaces}
+              compliance={compliance}
               onUpdate={(u) => updateToken('foreground', name, u, ec())}
               onDelete={() => removeToken('foreground', name, ec())}
+              onRename={(next) => renameToken('foreground', name, next, ec())}
+              onMove={(to) => moveToken('foreground', to, name, ec())}
             />
           ))}
           {Object.keys(foreground).length === 0 && (
@@ -1329,13 +1582,17 @@ export function TokensPanel() {
               key={name}
               name={name}
               token={token}
+              section="nonText"
               rampNames={rampNames}
               surfaceNames={surfaceNames}
               rampMap={rampMap}
               scales={scales}
               surfaces={surfaces}
+              compliance={compliance}
               onUpdate={(u) => updateToken('nonText', name, u, ec())}
               onDelete={() => removeToken('nonText', name, ec())}
+              onRename={(next) => renameToken('nonText', name, next, ec())}
+              onMove={(to) => moveToken('nonText', to, name, ec())}
             />
           ))}
           {Object.keys(nonText).length === 0 && (
@@ -1353,7 +1610,7 @@ export function TokensPanel() {
                 const stepIdx = token.step ?? 0;
                 return (
                   <div key={name} style={SURFACE_ROW_SPLIT}>
-                    <span style={{ fontFamily: 'monospace', color: 'var(--p-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                    <EditableName value={name} onCommit={(next) => renameToken('decorative', name, next, ec())} />
                     <RampSelect
                       rampNames={rampNames}
                       value={token.ramp}
@@ -1391,8 +1648,10 @@ export function TokensPanel() {
                   rampMap={rampMap}
                   scales={scales}
                   surfaces={surfaces}
+                  compliance={compliance}
                   onUpdate={(u) => updateAlpha(name, u, ec())}
                   onDelete={() => removeAlpha(name, ec())}
+                  onRename={(next) => renameAlpha(name, next, ec())}
                 />
               ))}
             </>
@@ -1409,6 +1668,7 @@ export function TokensPanel() {
           rampMap={rampMap}
           scales={scales}
           surfaces={surfaces}
+          compliance={compliance}
           onClose={() => setShowAddModal(false)}
           onAddSurface={(n, t) => addSurface(n, t, ec())}
           onAddSemantic={(kind, n, t) => addToken(kind, n, t, ec())}
