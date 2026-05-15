@@ -4,11 +4,22 @@ import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
 import type { PortableSemanticToken, GeneratedRamp } from '@pigmint/core';
 import type { WcagMapEntry, ApcaMapEntry } from '../../types/palette';
+import { AppSelect, type AppSelectOption } from '../tokens/AppSelect';
+import { surfaceOptions, stepOptions } from '../tokens/tokenOptions';
+import { derivedConsistency } from '../tokens/tokenShared';
 
 type Mode = 'new' | 'existing';
 type FgKind = 'foreground' | 'nonText';
 
+// Combo-to-token only supports preferences that map cleanly to a 2-color
+// pairing — anchor/level-up etc. require additional context the dialog
+// doesn't collect.
 const PREFS: PortableSemanticToken['preference'][] = ['lowest-passing', 'highest-contrast', 'matched-to-set'];
+const PREF_OPTIONS: AppSelectOption[] = PREFS.map((p) => ({ value: p, label: p }));
+const FG_KIND_OPTIONS: AppSelectOption[] = [
+  { value: 'foreground', label: 'Foreground' },
+  { value: 'nonText', label: 'NonText' },
+];
 
 function ec() {
   const s = useIntentStore.getState();
@@ -32,7 +43,6 @@ const inp: React.CSSProperties = {
   background: 'var(--p-bg)', border: '1px solid var(--p-border)',
   borderRadius: 6, color: 'var(--p-text)', boxSizing: 'border-box',
 };
-const sel: React.CSSProperties = { ...inp, cursor: 'pointer' };
 const readOnly: React.CSSProperties = { ...inp, color: 'var(--p-text-secondary)' };
 const btn: React.CSSProperties = {
   padding: '3px 8px', fontSize: 11,
@@ -66,17 +76,13 @@ function StepSelect({
   value: number;
   onChange: (i: number) => void;
 }) {
-  const steps = rampMap.get(rampName)?.steps ?? [];
+  const ramp = rampMap.get(rampName);
   return (
-    <select
-      style={sel}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-    >
-      {steps.map((step, i) => (
-        <option key={i} value={i}>{step.name} — {step.hex}</option>
-      ))}
-    </select>
+    <AppSelect
+      options={stepOptions(ramp)}
+      value={String(value)}
+      onChange={(v) => onChange(Number(v))}
+    />
   );
 }
 
@@ -149,7 +155,7 @@ export function ComboToTokenModal({
       if (!resolvedSurfaceName) { setError('Select or create a surface first'); return; }
       addToken(
         fgKind, n,
-        { ramp: entry.fg.ramp, surfaces: [resolvedSurfaceName], preference: pref, consistency: 'independent' },
+        { ramp: entry.fg.ramp, surfaces: [resolvedSurfaceName], preference: pref, consistency: derivedConsistency(pref) },
         engineConfig,
       );
     }
@@ -275,9 +281,11 @@ export function ComboToTokenModal({
                     No surfaces yet — switch to New to create one
                   </span>
                 ) : (
-                  <select style={sel} value={existingSurface} onChange={(e) => { setExistingSurface(e.target.value); setError(''); }}>
-                    {surfaceNames.map((n) => <option key={n}>{n}</option>)}
-                  </select>
+                  <AppSelect
+                    options={surfaceOptions(surfaceNames, surfaces, rampMap)}
+                    value={existingSurface}
+                    onChange={(v) => { setExistingSurface(v); setError(''); }}
+                  />
                 )}
               </div>
             )}
@@ -316,17 +324,20 @@ export function ComboToTokenModal({
                   </div>
                   <div style={field}>
                     <span style={lbl}>Type</span>
-                    <select style={sel} value={fgKind} onChange={(e) => setFgKind(e.target.value as FgKind)}>
-                      <option value="foreground">Foreground</option>
-                      <option value="nonText">NonText</option>
-                    </select>
+                    <AppSelect
+                      options={FG_KIND_OPTIONS}
+                      value={fgKind}
+                      onChange={(v) => setFgKind(v as FgKind)}
+                    />
                   </div>
                 </div>
                 <div style={field}>
                   <span style={lbl}>Preference</span>
-                  <select style={sel} value={pref} onChange={(e) => setPref(e.target.value as PortableSemanticToken['preference'])}>
-                    {PREFS.map((p) => <option key={p}>{p}</option>)}
-                  </select>
+                  <AppSelect
+                    options={PREF_OPTIONS}
+                    value={pref}
+                    onChange={(v) => setPref(v as PortableSemanticToken['preference'])}
+                  />
                 </div>
               </div>
             ) : (
@@ -337,11 +348,15 @@ export function ComboToTokenModal({
                     No foreground or nonText tokens yet — switch to New to create one
                   </span>
                 ) : (
-                  <select style={sel} value={existingFg} onChange={(e) => setExistingFg(e.target.value)}>
-                    {allFgTokens.map(({ name, kind }) => (
-                      <option key={name} value={name}>{name} ({kind})</option>
-                    ))}
-                  </select>
+                  <AppSelect
+                    options={allFgTokens.map(({ name, kind }) => ({
+                      value: name,
+                      label: name,
+                      trailing: kind,
+                    }))}
+                    value={existingFg}
+                    onChange={setExistingFg}
+                  />
                 )}
               </div>
             )}

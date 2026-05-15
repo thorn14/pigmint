@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { formatCss } from 'culori';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import type { ResolvedToken, ComplianceLevel } from '@pigmint/core';
+import { EditTokenModal } from './EditTokenModal';
 
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
@@ -26,11 +27,13 @@ function TokenCard({
   surfaceHex,
   usage,
   useWcag,
+  onEdit,
 }: {
   token: ResolvedToken;
   surfaceHex: string;
   usage: 'text' | 'nonText' | 'decorative';
   useWcag: boolean;
+  onEdit: () => void;
 }) {
   const level = token.compliance?.level ?? null;
   const badge = level ? LEVEL_BADGE[level] : null;
@@ -58,13 +61,25 @@ function TokenCard({
   const nonTextBgStyle: React.CSSProperties = { background: colorValue };
 
   return (
-    <div style={{
-      width: 168,
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-    }}>
+    <button
+      type="button"
+      onClick={onEdit}
+      title="Click to edit"
+      style={{
+        width: 168,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: 0,
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        textAlign: 'left',
+        font: 'inherit',
+        color: 'inherit',
+      }}
+    >
       {/* Preview area */}
       <div style={{
         borderRadius: 8,
@@ -134,7 +149,7 @@ function TokenCard({
           {contrastStr}
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -160,6 +175,7 @@ export function TokensPreview() {
   const vocabSurfaceSteps = useVocabStore((s) => s.surfaceSteps);
 
   const useWcag = engineCompliance !== 'apca';
+  const [editingPath, setEditingPath] = useState<string | null>(null);
 
   const vocabCtx = useMemo(() => {
     if (!vocabEntries || !vocabRaw) return null;
@@ -332,17 +348,34 @@ export function TokensPreview() {
               <div key={surface}>
                 {/* Surface header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <div style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 3,
-                    border: '1px solid var(--p-border)',
-                    flexShrink: 0,
-                    background: bgColor,
-                  }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)', fontFamily: 'monospace' }}>
-                    {surfaceKey}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingPath(surfaceKey)}
+                    title="Click to edit surface"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: 0,
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                    }}
+                  >
+                    <div style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      border: '1px solid var(--p-border)',
+                      flexShrink: 0,
+                      background: bgColor,
+                    }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)', fontFamily: 'monospace' }}>
+                      {surfaceKey}
+                    </span>
+                  </button>
                   <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
                     {bgHex}
                   </span>
@@ -362,9 +395,9 @@ export function TokensPreview() {
                       key={t.path}
                       token={t}
                       surfaceHex={bgColor}
-
                       usage={usageMap.get(t.path) ?? 'text'}
                       useWcag={useWcag}
+                      onEdit={() => setEditingPath(t.path)}
                     />
                   ))}
                 </div>
@@ -373,6 +406,7 @@ export function TokensPreview() {
           })
         )}
       </div>
+      {editingPath && <EditTokenModal path={editingPath} onClose={() => setEditingPath(null)} />}
     </div>
   );
 }
