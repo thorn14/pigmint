@@ -6,7 +6,6 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
-import { exportWcagContrastMapJSON, exportApcaContrastMapJSON } from '../../lib/exportContrastMap';
 import { buildPigmintTokensJson } from '../../lib/resolveState';
 import { useVocabStore } from '../../store/vocabStore';
 import { AppDialog } from '../base-ui/app-dialog';
@@ -15,7 +14,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Tab = 'pigmint-tokens' | 'colors' | 'contrast-wcag' | 'contrast-apca';
+type Tab = 'pigmint-tokens' | 'colors';
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 14px',
@@ -111,7 +110,7 @@ export function ExportModal({ onClose }: Props) {
     : null;
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
-  const tabIds: Tab[] = ['pigmint-tokens', 'colors', 'contrast-wcag', 'contrast-apca'];
+  const tabIds: Tab[] = ['pigmint-tokens', 'colors'];
   const [activeTab, setActiveTab] = useState<Tab>('pigmint-tokens');
   const [copied, setCopied] = useState(false);
 
@@ -119,8 +118,6 @@ export function ExportModal({ onClose }: Props) {
     key: string | null;
     pigmintTokens?: string;
     colors?: string;
-    wcag?: string;
-    apca?: string;
   }>({ key: null });
 
   const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${engineCompliance}|${JSON.stringify(engineResolver)}|${vocabEntries?.length ?? 0}`;
@@ -150,26 +147,14 @@ export function ExportModal({ onClose }: Props) {
         }
         return cache.pigmintTokens;
       }
-      if (t === 'colors') {
-        if (cache.colors === undefined) cache.colors = exportToJSON(ramps);
-        return cache.colors;
-      }
-      if (t === 'contrast-wcag') {
-        if (cache.wcag === undefined) cache.wcag = exportWcagContrastMapJSON(ramps);
-        return cache.wcag;
-      }
-      if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
-      return cache.apca;
+      if (cache.colors === undefined) cache.colors = exportToJSON(ramps);
+      return cache.colors;
     },
     [cacheKey, scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabCtx, ramps],
   );
 
   const json = getJson(activeTab);
-  const downloadName =
-    activeTab === 'pigmint-tokens' ? 'tokens.json'
-    : activeTab === 'colors' ? 'colors.json'
-    : activeTab === 'contrast-wcag' ? 'contrast-map-wcag.json'
-    : 'contrast-map-apca.json';
+  const downloadName = activeTab === 'pigmint-tokens' ? 'tokens.json' : 'colors.json';
 
   function handleCopy() {
     navigator.clipboard.writeText(json).then(() => {
@@ -250,11 +235,7 @@ export function ExportModal({ onClose }: Props) {
             }}
           >
             {tabIds.map((tab) => {
-              const label =
-                tab === 'pigmint-tokens' ? 'Tokens (resolved)'
-                : tab === 'colors' ? 'Colors (primitives)'
-                : tab === 'contrast-wcag' ? 'Contrast — WCAG'
-                : 'Contrast — APCA';
+              const label = tab === 'pigmint-tokens' ? 'Tokens (resolved)' : 'Colors (primitives)';
               return (
                 <Tabs.Tab
                   key={tab}
@@ -319,42 +300,6 @@ export function ExportModal({ onClose }: Props) {
           >
             Download {downloadName}
           </button>
-          {(activeTab === 'pigmint-tokens' || activeTab === 'colors') && (
-            <>
-              <button
-                type="button"
-                onClick={() => downloadJSON(exportWcagContrastMapJSON(ramps), 'contrast-map-wcag.json')}
-                className="focus-visible-ring"
-                style={{
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  background: 'var(--p-bg-subtle)',
-                  border: '1px solid var(--p-border)',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  color: 'var(--p-text-secondary)',
-                }}
-              >
-                + WCAG Map
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadJSON(exportApcaContrastMapJSON(ramps), 'contrast-map-apca.json')}
-                className="focus-visible-ring"
-                style={{
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  background: 'var(--p-bg-subtle)',
-                  border: '1px solid var(--p-border)',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  color: 'var(--p-text-secondary)',
-                }}
-              >
-                + APCA Map
-              </button>
-            </>
-          )}
           <button
             type="button"
             onClick={onClose}
