@@ -75,10 +75,6 @@ output:
 
 defaults:
   vocabulary: ./tokens.yaml
-
-audit:
-  report: ./audit.json
-  profile: wcag-srgb
 ```
 
 Replace `{PRIMARY_HEX}` and `{NEUTRAL_HEX}` with actual values. Omit ramps the user doesn't need.

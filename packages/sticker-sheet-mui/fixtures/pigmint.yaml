@@ -34,6 +34,3 @@ adapters:
       - hex
 output:
   dtcg: ../src/generated/tokens.json
-audit:
-  report: ../src/generated/audit.json
-  profile: wcag-srgb

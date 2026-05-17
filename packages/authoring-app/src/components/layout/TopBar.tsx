@@ -125,7 +125,7 @@ function PaletteSelector() {
   );
 }
 
-type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens' | 'audit';
+type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -320,7 +320,6 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
           { value: 'preview', label: 'Preview' },
           { value: 'combos', label: 'Combos' },
           { value: 'tokens', label: 'Tokens' },
-{ value: 'audit', label: 'Audit' },
         ] as const).map((m) => ({ value: m.value, label: m.label }))}
       />
 

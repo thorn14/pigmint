@@ -16,10 +16,6 @@ Human opens authoring app, reviews/tunes curves and tokens
 Export pigmint.yaml  (curve data is now preserved)
         ↓
 pigmint build  →  updated tokens.json
-        ↓
-pigmint audit  →  audit.json
-        ↓
-Agent reads audit.json, refines tokens.yaml, repeats
 ```
 
 ---
@@ -58,10 +54,6 @@ output:
 
 defaults:
   vocabulary: ./tokens.yaml
-
-audit:
-  report: ./audit.json
-  profile: wcag-srgb
 ```
 
 **Required keys:** `engine` (compliance, target, modes), `ramps` (≥1 entry with name + source or fromFile), `output` (dtcg or primitives).
@@ -257,7 +249,7 @@ pigmint build --config ./path/to/pigmint.yaml
 #   Any adapter outputs declared in adapters:
 ```
 
-The build exits non-zero on hard failures (missing ramps, resolver errors). Contrast misses are warnings, not errors — they appear in the audit report.
+The build exits non-zero on hard failures (missing ramps, resolver errors). Contrast misses are recorded as warnings on each token's receipt.
 
 ---
 
@@ -277,57 +269,7 @@ After the initial build, open the authoring app for visual refinement:
 
 ---
 
-## 6. Audit
-
-```bash
-pigmint audit
-pigmint audit --config ./pigmint.yaml
-
-# Reads:  tokens.json (from output.dtcg)
-# Writes: audit.json  (from audit.report)
-# Exits non-zero if any error-severity violations found
-```
-
-### Reading `audit.json`
-
-The report is `audit-report@0.1` format:
-
-```json
-{
-  "artifactVersion": "audit-report@0.1",
-  "violations": [
-    {
-      "tokenPath": "color.foreground.subtle",
-      "mode": "light",
-      "severity": "warning",
-      "type": "intent-refinement",
-      "actual": 3.2,
-      "suggestions": [
-        {
-          "channel": "intent-refinement",
-          "change": { "field": "defaultIntent.preference", "to": "highest-contrast" }
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Acting on suggestions
-
-For `intent-refinement` suggestions, add an override to `pigmint.yaml`:
-
-```yaml
-intents:
-  color.foreground.subtle:
-    preference: highest-contrast
-```
-
-Then rebuild. The intent override takes precedence over `tokens.yaml` defaults.
-
----
-
-## 7. Examples
+## 6. Examples
 
 ### Minimal — 2 ramps, default curves
 
@@ -372,7 +314,7 @@ nonText:
     preference: lowest-passing
 ```
 
-### Full — brand + feedback palette with audit wired
+### Full — brand + feedback palette
 
 ```yaml
 # pigmint.yaml
@@ -409,10 +351,6 @@ output:
 
 defaults:
   vocabulary: ./tokens.yaml
-
-audit:
-  report: ./audit.json
-  profile: wcag-srgb
 ```
 
 ```yaml

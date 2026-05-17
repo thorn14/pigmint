@@ -26,7 +26,6 @@
   "dependencies": {
     "@pigmint/adapter-mui": "workspace:*",
     "@pigmint/adapter-tailwind": "workspace:*",
-    "@pigmint/audit": "workspace:*",
     "@pigmint/core": "workspace:*",
     "yaml": "^2.5.0"
   },

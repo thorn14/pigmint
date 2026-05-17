@@ -7,7 +7,6 @@ import { PalettePreview } from './components/preview/PalettePreview';
 import { AccessibleCombos } from './components/accessibility/AccessibleCombos';
 import { TokensPanel } from './components/tokens/TokensPanel';
 
-import { AuditIntegrator } from './components/audit/AuditIntegrator';
 import { ExportModal } from './components/export/ExportModal';
 import { ImportModal } from './components/export/ImportModal';
 import { ExportPigmintYamlModal } from './components/export/ExportPigmintYamlModal';
@@ -20,10 +19,10 @@ import { initVocabStore, useVocabStore } from './store/vocabStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens' | 'audit';
+type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens';
 type AppTheme = 'dark' | 'light';
 
-const APP_MODES = new Set<AppMode>(['primitives', 'preview', 'combos', 'tokens', 'audit']);
+const APP_MODES = new Set<AppMode>(['primitives', 'preview', 'combos', 'tokens']);
 
 function readModeFromSearch(search: string): AppMode | null {
   const raw = new URLSearchParams(search).get('mode');
@@ -264,7 +263,6 @@ export default function App() {
         )}
         {mode === 'combos' && <AccessibleCombos />}
         {mode === 'tokens' && <TokensPanel />}
-{mode === 'audit' && <AuditIntegrator />}
       </main>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}

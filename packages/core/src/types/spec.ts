@@ -175,9 +175,9 @@ export interface VocabularyEntry {
   removed?: boolean;
   /**
    * Marks an otherwise-resolvable token (foreground/nonText/alpha) as decorative — the
-   * resolver picks a step normally, but the compliance receipt is forced to `'exempt'`
-   * and audit checkers skip the contrast bar. Distinct from `usage: 'decorative'`
-   * (which carries no surface/preference and just emits a fixed step).
+   * resolver picks a step normally but the compliance receipt is forced to `'exempt'`.
+   * Distinct from `usage: 'decorative'` (which carries no surface/preference and just
+   * emits a fixed step).
    */
   decorative?: boolean;
 }
@@ -266,12 +266,6 @@ export interface OutputConfig {
   receiptsSidecar?: boolean;
 }
 
-export interface AuditConfig {
-  input?: string;
-  report?: string;
-  profile?: 'wcag-srgb' | 'apca-srgb' | 'wcag-p3';
-}
-
 export type IntentOverride = Partial<FormalIntent>;
 
 export interface ProjectConfig {
@@ -281,7 +275,6 @@ export interface ProjectConfig {
   ramps: RampConfig[];
   adapters?: AdapterConfig[];
   output: OutputConfig;
-  audit?: AuditConfig;
   intents?: Record<string, IntentOverride>;
 }
 

@@ -40,30 +40,11 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)
 
-  packages/audit:
-    dependencies:
-      '@pigmint/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.39
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)
-
   packages/authoring-app:
     dependencies:
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@pigmint/audit':
-        specifier: workspace:*
-        version: link:../audit
       '@pigmint/core':
         specifier: workspace:*
         version: link:../core
@@ -128,9 +109,6 @@ importers:
       '@pigmint/adapter-tailwind':
         specifier: workspace:*
         version: link:../adapter-tailwind
-      '@pigmint/audit':
-        specifier: workspace:*
-        version: link:../audit
       '@pigmint/core':
         specifier: workspace:*
         version: link:../core

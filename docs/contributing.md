@@ -21,8 +21,7 @@ pnpm --filter @pigmint/cli build   # build the CLI before running generate:token
 ```
 packages/
   core/               Resolver engine, DTCG emitter, adapter contract
-  cli/                CLI binary (build, audit commands) + adapter registry
-  audit/              Framework-agnostic audit tool
+  cli/                CLI binary (build command) + adapter registry
   adapter-<name>/     One package per target framework
   sticker-sheet-<name>/  Verification app for a given adapter
   authoring-app/      Visual editor for ramps and token intent
@@ -313,7 +312,6 @@ packages/sticker-sheet-<name>/
     cvd.tsx             Copy from sticker-sheet-tailwind (no changes needed)
     generated/          Populated by "generate:tokens" — commit these files
       tokens.json
-      audit.json
       <adapter-specific output>
     index.css
     main.tsx
@@ -335,7 +333,6 @@ packages/sticker-sheet-<name>/
   "type": "module",
   "scripts": {
     "generate:tokens": "cd fixtures && node ../../cli/dist/bin.js build",
-    "audit": "cd fixtures && node ../../cli/dist/bin.js audit",
     "predev": "pnpm run generate:tokens",
     "prebuild": "pnpm run generate:tokens",
     "dev": "vite",
@@ -378,9 +375,6 @@ adapters:
       - hex
 output:
   dtcg: ../src/generated/tokens.json
-audit:
-  report: ../src/generated/audit.json
-  profile: wcag-srgb
 defaults:
   vocabulary: ./tokens.yaml
 ```
@@ -423,7 +417,7 @@ These rules keep every package runnable in isolation and reviewable without setu
 
 **`"private": true` on every package.** Nothing in this repo is published to npm. The field prevents accidental publish.
 
-**Build before depending.** The CLI and adapters must be built before sticker sheets can run `generate:tokens`. The dependency order is: `core` → `audit` → `adapters` → `cli` → sticker sheets. If you add a new library package, build it explicitly before packages that depend on it.
+**Build before depending.** The CLI and adapters must be built before sticker sheets can run `generate:tokens`. The dependency order is: `core` → `adapters` → `cli` → sticker sheets. If you add a new library package, build it explicitly before packages that depend on it.
 
 **No side effects in library packages.** Packages under `adapter-*` and `core` must have no top-level side effects. This keeps them tree-shakeable and safe to import in tests without additional setup.
 

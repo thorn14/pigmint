@@ -12,7 +12,6 @@ import {
   PortableVocabularyError,
   type PortableVocabularyArtifacts,
 } from '@pigmint/core';
-import type { AuditReport, Suggestion } from '@pigmint/audit';
 import { loadProjectConfig } from '../config.js';
 import { generateAllRamps, generateAllScales } from '../ramps.js';
 import { resolveAdapter } from '../adapters.js';
@@ -35,13 +34,6 @@ export interface BuildResult {
   modeCount: number;
   tokenCount: number;
   adapters: AdapterEmission[];
-  priorAudit?: PriorAuditFeedback;
-}
-
-export interface PriorAuditFeedback {
-  reportPath: string;
-  runId: string;
-  suggestions: Suggestion[];
 }
 
 const MODE_SCHEMES: Record<string, 'light' | 'dark'> = {
@@ -189,8 +181,6 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     });
   }
 
-  const priorAudit = await loadPriorAudit(configPath, config.audit?.report);
-
   return {
     ...(primitivesPath ? { primitivesPath } : {}),
     outputPath,
@@ -198,31 +188,5 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     modeCount: config.engine.modes.length,
     tokenCount: tokens.length,
     adapters: adapterEmissions,
-    ...(priorAudit ? { priorAudit } : {}),
   };
-}
-
-async function loadPriorAudit(
-  configPath: string,
-  reportPath: string | undefined,
-): Promise<PriorAuditFeedback | null> {
-  if (!reportPath) return null;
-  const absPath = resolve(dirname(configPath), reportPath);
-  let raw: string;
-  try {
-    raw = await readFile(absPath, 'utf8');
-  } catch {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as AuditReport;
-    if (parsed.artifactVersion !== 'audit-report@0.1') return null;
-    return {
-      reportPath: absPath,
-      runId: parsed.run.id,
-      suggestions: parsed.suggestions ?? [],
-    };
-  } catch {
-    return null;
-  }
 }

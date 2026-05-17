@@ -7,7 +7,6 @@
   "type": "module",
   "scripts": {
     "generate:tokens": "cd fixtures && node ../../cli/dist/bin.js build",
-    "audit": "cd fixtures && node ../../cli/dist/bin.js audit",
     "predev": "pnpm run generate:tokens",
     "prebuild": "pnpm run generate:tokens",
     "dev": "vite",

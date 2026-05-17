@@ -80,14 +80,6 @@
         "dtcg": { "type": "string" },
         "receiptsSidecar": { "type": "boolean" }
       }
-    },
-    "audit": {
-      "type": "object",
-      "properties": {
-        "input": { "type": "string" },
-        "report": { "type": "string" },
-        "profile": { "enum": ["wcag-srgb", "apca-srgb", "wcag-p3"] }
-      }
     }
   }
 }

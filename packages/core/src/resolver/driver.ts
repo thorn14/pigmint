@@ -61,7 +61,7 @@ const SURFACE_ROLES = new Set<SurfaceRole>(['main', 'elevated', 'subtle', 'inver
 /**
  * When the entry carries `decorative: true`, the resolver still picks a step
  * (so the color matches the declared preference/surface), but compliance is
- * recorded as `'exempt'` so the audit checker and UI skip a11y enforcement.
+ * recorded as `'exempt'` so downstream consumers skip a11y enforcement.
  */
 function applyDecorativeExemption(entry: VocabularyEntry, token: ResolvedToken): ResolvedToken {
   if (!entry.decorative || !token.compliance) return token;

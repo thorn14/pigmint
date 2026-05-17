@@ -6,7 +6,6 @@ Given a set of source hex colors and a vocabulary file describing semantic inten
 - Derives OKLCH ramps for each color
 - Resolves every semantic token against WCAG 2.1 or APCA contrast targets, per mode
 - Emits a DTCG-format `tokens.json` plus optional adapter-specific output (Tailwind CSS vars, MUI theme)
-- Produces a machine-readable audit report of contrast violations
 
 ## Requirements
 
@@ -27,15 +26,12 @@ pigmint <command> [options]
 
 Commands:
   build   Generate output files described in pigmint.yaml
-  audit   Audit the emitted tokens file for contract violations
 
 Options:
   -c, --config <path>   Path to pigmint.yaml (default: ./pigmint.yaml)
 ```
 
-**build** reads `pigmint.yaml`, resolves all tokens across every mode, and writes output files. It prints a summary of what it emitted and surfaces any suggestions from a prior audit run.
-
-**audit** reads the previously-built `tokens.json` (path from `output.dtcg`) and writes a structured `pigmint-audit.json` report. Exits non-zero if there are error-level violations.
+**build** reads `pigmint.yaml`, resolves all tokens across every mode, and writes output files. It prints a summary of what it emitted.
 
 ### Quick start
 
@@ -54,13 +50,12 @@ A visual editor for ramps, intent, and `pigmint.yaml` round-trip.
 pnpm start       # launches authoring app at http://localhost:5173
 ```
 
-The app has five tabs:
+The app has four tabs:
 
 - **Primitives** — inspect and tune L/C/H curves for each ramp. Edits here are written back to `pigmint.yaml` on export.
 - **Preview** — visualise all ramp steps across every mode and CVD simulation.
 - **Combos** — full contrast matrix showing every foreground/background pair.
 - **Tokens** — author and edit semantic tokens (surfaces, foreground, non-text, decorative, alpha) and see live resolution.
-- **Audit** — load a `pigmint-audit.json` report, inspect violations, and apply suggestions directly in the UI.
 
 To import an existing config: **Import → Import pigmint.yaml**. After tuning, use **Export → Export pigmint.yaml** to persist curve data, then re-run `pigmint build`.
 
@@ -75,7 +70,6 @@ See **[`docs/agent-usage.md`](./docs/agent-usage.md)** for the complete agent au
 - Bootstrapping `pigmint.yaml` and `tokens.yaml` from scratch
 - Full ramp curve field reference (lightness, chroma, hue, smoothing, hue shifts)
 - Vocabulary authoring (surfaces, foreground, non-text, decorative, alpha tokens)
-- The build → human-review → audit → refine loop
 - End-to-end examples (minimal and full brand palette)
 
 ### Claude Code skill
@@ -127,11 +121,6 @@ adapters:
   - name: mui
     output: ./dist/mui-theme
     formats: [hex]
-
-# Optional audit config
-audit:
-  report: ./pigmint-audit.json
-  profile: wcag-srgb              # "wcag-srgb" | "apca-srgb"
 ```
 
 ### Output modes
@@ -225,9 +214,8 @@ New directories under `examples/` are gitignored by default — drop your own sc
 
 | Package | Purpose |
 |---|---|
-| `packages/cli` | CLI entry point (`pigmint build`, `pigmint audit`) |
+| `packages/cli` | CLI entry point (`pigmint build`) |
 | `packages/core` | Resolver, OKLCH ramp math, DTCG emitter |
-| `packages/audit` | Contrast audit engine and report schema |
 | `packages/adapter-tailwind` | Tailwind CSS adapter |
 | `packages/adapter-mui` | MUI v6 adapter |
 | `packages/authoring-app` | Visual authoring UI (Vite + React) |

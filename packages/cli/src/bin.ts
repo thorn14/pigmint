@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { audit } from './commands/audit.js';
 import { build } from './commands/build.js';
 import { ConfigError } from './config.js';
 
@@ -26,7 +25,6 @@ function printUsage(): void {
       '',
       'Commands:',
       '  build   Generate output files described in pigmint.yaml',
-      '  audit   Audit the emitted tokens file for contract violations',
       '',
       'Options:',
       '  -c, --config <path>   Path to pigmint.yaml (default: ./pigmint.yaml)',
@@ -63,22 +61,13 @@ async function main(): Promise<number> {
     return command ? 0 : 1;
   }
 
-  if (command !== 'build' && command !== 'audit') {
+  if (command !== 'build') {
     process.stderr.write(`unknown command: ${command}\n`);
     printUsage();
     return 1;
   }
 
   try {
-    if (command === 'audit') {
-      const result = await audit({ configPath });
-      const { error, warning, info } = result.report.summary.violations;
-      process.stdout.write(
-        `audit → ${result.reportPath} (${error} error(s), ${warning} warning(s), ${info} info)\n`,
-      );
-      return error > 0 ? 1 : 0;
-    }
-
     const result = await build({ configPath });
     if (result.primitivesPath) {
       process.stdout.write(`emitted primitives → ${result.primitivesPath} (${result.rampCount} ramps)\n`);
@@ -94,14 +83,6 @@ async function main(): Promise<number> {
       }
       for (const warning of adapter.warnings) {
         process.stderr.write(`${adapter.name} warning: ${warning}\n`);
-      }
-    }
-    if (result.priorAudit && result.priorAudit.suggestions.length > 0) {
-      process.stdout.write(
-        `\nPrior audit (${result.priorAudit.runId}) — ${result.priorAudit.suggestions.length} suggestion(s):\n`,
-      );
-      for (const s of result.priorAudit.suggestions) {
-        process.stdout.write(`  · [${s.channel}] ${s.target} — ${s.rationale}\n`);
       }
     }
     return 0;

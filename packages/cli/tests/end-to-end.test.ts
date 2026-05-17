@@ -2,15 +2,12 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, it, expect, afterAll } from 'vitest';
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
 import {
   emitDtcg,
   hexToOklch,
   resolveToken,
 } from '@pigmint/core';
 import type { FormalIntent } from '@pigmint/core';
-import { audit } from '../src/commands/audit.js';
 import { build } from '../src/commands/build.js';
 import { generateAllRamps } from '../src/ramps.js';
 import { loadProjectConfig } from '../src/config.js';
@@ -18,30 +15,6 @@ import { loadProjectConfig } from '../src/config.js';
 const repoRoot = resolve(__dirname, '..', '..', '..');
 const fixtureDir = resolve(repoRoot, 'examples', 'basic');
 const fixtureConfig = resolve(fixtureDir, 'pigmint.yaml');
-
-const schemaDir = resolve(repoRoot, 'spec', 'schema');
-
-async function loadSchema(name: string): Promise<Record<string, unknown>> {
-  const raw = await readFile(resolve(schemaDir, name), 'utf8');
-  return JSON.parse(raw) as Record<string, unknown>;
-}
-
-async function buildAjv(): Promise<Ajv2020> {
-  const ajv = new Ajv2020({ strict: false, allErrors: true });
-  addFormats.default(ajv);
-  for (const name of [
-    'dtcg-container.schema.json',
-    'mode-entry.schema.json',
-    'receipt.schema.json',
-    'intent.schema.json',
-    'vocabulary-token.schema.json',
-    'project-config.schema.json',
-    'audit-report.schema.json',
-  ]) {
-    ajv.addSchema(await loadSchema(name));
-  }
-  return ajv;
-}
 
 describe('end-to-end: primitives-only build via CLI', () => {
   const cleanups: string[] = [];
@@ -174,74 +147,6 @@ describe('end-to-end: light+dark DTCG → Tailwind CSS', () => {
     expect(css).toMatch(/--foreground:/);
     expect(css).toMatch(/--primary:/);
     expect(css).toMatch(/oklch\(/);
-  });
-});
-
-describe('end-to-end: audit against emitted DTCG', () => {
-  const cleanups: string[] = [];
-  afterAll(async () => {
-    for (const p of cleanups) await rm(p, { recursive: true, force: true });
-  });
-
-  it('emits a schema-valid report for a clean light+dark build', async () => {
-    const workDir = await mkdtemp(join(tmpdir(), 'pigmint-e2e-audit-'));
-    cleanups.push(workDir);
-
-    const baseConfig = await loadProjectConfig(fixtureConfig);
-    const config = {
-      ...baseConfig,
-      engine: { ...baseConfig.engine, modes: ['light', 'dark'] },
-      output: { dtcg: './tokens.json' },
-      audit: { report: './audit.json', profile: 'wcag-srgb' as const },
-    };
-    const tmpConfig = join(workDir, 'pigmint.yaml');
-    await writeFixtureConfig(tmpConfig, config);
-
-    await build({ configPath: tmpConfig });
-    const result = await audit({ configPath: tmpConfig });
-
-    const ajv = await buildAjv();
-    const validate = ajv.getSchema(
-      'https://pigmint.dev/schema/audit-report-0.1.json',
-    );
-    expect(validate).toBeDefined();
-    if (!validate) throw new Error('audit-report schema not registered');
-    const ok = validate(result.report);
-    if (!ok) {
-      throw new Error(`schema errors: ${JSON.stringify(validate.errors, null, 2)}`);
-    }
-    expect(ok).toBe(true);
-
-    expect(result.report.summary.violations.error).toBe(0);
-    expect(result.report.run.profile).toBe('wcag-srgb');
-    expect(result.report.summary.tokensAudited).toBeGreaterThan(0);
-  });
-
-  it('surfaces missing-mode violations when a token lacks a mode', async () => {
-    const workDir = await mkdtemp(join(tmpdir(), 'pigmint-e2e-audit-miss-'));
-    cleanups.push(workDir);
-
-    const baseConfig = await loadProjectConfig(fixtureConfig);
-    const lightOnly = {
-      ...baseConfig,
-      engine: { ...baseConfig.engine, modes: ['light'] },
-      output: { dtcg: './tokens.json' },
-    };
-    const buildConfig = join(workDir, 'build.yaml');
-    await writeFixtureConfig(buildConfig, lightOnly);
-    await build({ configPath: buildConfig });
-
-    const lightPlusDark = {
-      ...lightOnly,
-      engine: { ...lightOnly.engine, modes: ['light', 'dark'] },
-    };
-    const auditConfig = join(workDir, 'audit.yaml');
-    await writeFixtureConfig(auditConfig, lightPlusDark);
-
-    const result = await audit({ configPath: auditConfig });
-    const missing = result.report.violations.filter((v) => v.type === 'missing-mode');
-    expect(missing.length).toBeGreaterThan(0);
-    expect(missing.every((v) => v.mode === 'dark')).toBe(true);
   });
 });
 
@@ -389,37 +294,3 @@ describe('end-to-end: intent overrides in pigmint.yaml change resolution', () =>
   });
 });
 
-describe('end-to-end: feedback loop — build surfaces prior audit suggestions', () => {
-  const cleanups: string[] = [];
-  afterAll(async () => {
-    for (const p of cleanups) await rm(p, { recursive: true, force: true });
-  });
-
-  it('loads the prior audit report and exposes suggestions on rebuild', async () => {
-    const workDir = await mkdtemp(join(tmpdir(), 'pigmint-e2e-fb-'));
-    cleanups.push(workDir);
-
-    const baseConfig = await loadProjectConfig(fixtureConfig);
-    const strictConfig = {
-      ...baseConfig,
-      engine: { ...baseConfig.engine, target: 'AAA' as const, modes: ['light'] },
-      output: { dtcg: './tokens.json' },
-      audit: { report: './audit.json', profile: 'wcag-srgb' as const },
-    };
-    const tmpConfig = join(workDir, 'pigmint.yaml');
-    await writeFixtureConfig(tmpConfig, strictConfig);
-
-    const firstBuild = await build({ configPath: tmpConfig });
-    expect(firstBuild.priorAudit).toBeUndefined();
-
-    const auditResult = await audit({ configPath: tmpConfig });
-    expect(auditResult.report.suggestions.length).toBeGreaterThan(0);
-
-    const secondBuild = await build({ configPath: tmpConfig });
-    expect(secondBuild.priorAudit).toBeDefined();
-    expect(secondBuild.priorAudit!.runId).toBe(auditResult.report.run.id);
-    expect(secondBuild.priorAudit!.suggestions.length).toBe(
-      auditResult.report.suggestions.length,
-    );
-  });
-});
