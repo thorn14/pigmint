@@ -201,7 +201,6 @@ export function buildScaleLinearGradientCss(
   opts: { gamut?: GamutTarget; samples?: number } = {},
 ): string {
   const gamut: GamutTarget = opts.gamut ?? 'p3';
-  const samples = opts.samples ?? SCALE_GRADIENT_SAMPLES;
   const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
   const cRaw = smoothCurveValues(scale.curves.chroma.values, scale.curves.chroma.smoothing ?? 0);
   const hRaw = smoothCurveValues(scale.curves.hue.values, scale.curves.hue.smoothing ?? 0);
@@ -210,10 +209,23 @@ export function buildScaleLinearGradientCss(
   const cAt = buildMonotoneCubicInterpolant(xs, cRaw);
   const hAt = buildMonotoneCubicInterpolant(xs, hRaw);
   const alpha = scale.sourceAlpha ?? 1;
+  const n = lRaw.length;
+  // Column-center alignment: the curve overlay places step `i` at (i + 0.5)/n
+  // of the track width, so map the sampled curve range [0, n-1] into
+  // [0.5/n, 1 - 0.5/n] and hold the edge color across the outer half-column.
+  const halfCol = n > 0 ? 50 / n : 0;
+  // Pick a sample count that *always hits every integer step position* so the
+  // gradient color at each column center is the curve's exact value there
+  // (no off-step linear interpolation muting peaks). subdivisions = samples per
+  // segment between adjacent steps; total stops = subdivisions*(n-1) + 1.
+  const segments = Math.max(1, n - 1);
+  const target = opts.samples ?? SCALE_GRADIENT_SAMPLES;
+  const subdivisions = Math.max(2, Math.ceil((target - 1) / segments));
+  const samples = subdivisions * segments + 1;
   const stops: string[] = [];
   for (let s = 0; s < samples; s++) {
     const t = s / (samples - 1);
-    const x = t * (lRaw.length - 1);
+    const x = t * (n - 1);
     const l = lAt(x);
     const c = cAt(x);
     const baseDeltaH = hAt(x);
@@ -225,7 +237,11 @@ export function buildScaleLinearGradientCss(
     );
     const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
     const cClamped = Math.min(c, maxChromaFor(l, h, gamut));
-    stops.push(`${oklchStop(l, cClamped, h, alpha)} ${(t * 100).toFixed(2)}%`);
+    const color = oklchStop(l, cClamped, h, alpha);
+    const pos = halfCol + t * (100 - 2 * halfCol);
+    if (s === 0) stops.push(`${color} 0%`);
+    stops.push(`${color} ${pos.toFixed(2)}%`);
+    if (s === samples - 1) stops.push(`${color} 100%`);
   }
   return `linear-gradient(in oklch shorter hue to right, ${stops.join(', ')})`;
 }

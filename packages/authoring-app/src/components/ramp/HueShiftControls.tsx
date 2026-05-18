@@ -36,7 +36,6 @@ export function HueShiftControls({ scale }: Props) {
           min={0}
           max={100}
           step={1}
-          thumbColor="var(--p-accent)"
           onValueChange={(v) => updateHueShift(scale.id, 'lightEndAdjust', Math.round(v))}
           onPointerDown={() => beginCurveEdit(scale.id)}
           onValueCommitted={() => commitCurveEdit()}
@@ -54,7 +53,6 @@ export function HueShiftControls({ scale }: Props) {
           min={0}
           max={100}
           step={1}
-          thumbColor="var(--p-accent)"
           onValueChange={(v) => updateHueShift(scale.id, 'darkEndAdjust', Math.round(v))}
           onPointerDown={() => beginCurveEdit(scale.id)}
           onValueCommitted={() => commitCurveEdit()}

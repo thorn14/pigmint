@@ -28,7 +28,6 @@ export function CurveTrack({ label, values, min, max, step = 0.001, previewColor
               min={min}
               max={max}
               step={step}
-              thumbColor="var(--p-accent)"
               onValueChange={(v) => onChange(i, v)}
               style={{ height: 80 }}
               aria-label={`${label} step ${i + 1}`}

@@ -380,12 +380,12 @@ input[type="submit"]:not(:disabled):active {
 }
 
 .app-slider-thumb {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--app-slider-thumb);
-  border: 2px solid var(--p-bg);
-  box-shadow: 0 0 0 1px var(--p-border-muted);
+  border: none;
+  box-shadow: 0 0 0 1px var(--p-bg), 0 0 0 2px var(--app-slider-thumb);
   box-sizing: border-box;
 }
 

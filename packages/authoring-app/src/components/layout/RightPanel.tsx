@@ -270,7 +270,6 @@ export function RightPanel({ scale, activeStep }: Props) {
               min={0}
               max={0.4}
               step={0.001}
-              thumbColor="var(--p-accent)"
               onValueChange={(v) => updateChromaLow(scale.id, v)}
               onPointerDown={() => beginCurveEdit(scale.id)}
               onValueCommitted={() => commitCurveEdit()}
@@ -309,7 +308,6 @@ export function RightPanel({ scale, activeStep }: Props) {
               min={0}
               max={0.4}
               step={0.001}
-              thumbColor="var(--p-accent)"
               onValueChange={(v) => updateChromaPeak(scale.id, v)}
               onPointerDown={() => beginCurveEdit(scale.id)}
               onValueCommitted={() => commitCurveEdit()}
@@ -348,7 +346,6 @@ export function RightPanel({ scale, activeStep }: Props) {
               min={0}
               max={0.4}
               step={0.001}
-              thumbColor="var(--p-accent)"
               onValueChange={(v) => updateChromaHigh(scale.id, v)}
               onPointerDown={() => beginCurveEdit(scale.id)}
               onValueCommitted={() => commitCurveEdit()}
@@ -447,18 +444,17 @@ export function RightPanel({ scale, activeStep }: Props) {
         </p>
         {(
           [
-            { key: 'lightness' as const, label: 'Lightness', color: '#d97706' },
-            { key: 'chroma'    as const, label: 'Chroma',    color: '#059669' },
-            { key: 'hue'       as const, label: 'Hue',       color: '#7c3aed' },
+            { key: 'lightness' as const, label: 'Lightness' },
+            { key: 'chroma'    as const, label: 'Chroma' },
+            { key: 'hue'       as const, label: 'Hue' },
           ]
-        ).map(({ key, label, color }) => {
+        ).map(({ key, label }) => {
           const value = scale.curves[key].smoothing ?? 0;
           const smoothId = `${idBase}-smooth-${key}`;
           return (
             <div key={key} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <label htmlFor={smoothId} style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0 }} />
+                <label htmlFor={smoothId} style={{ fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
                   {label}
                 </label>
                 <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
@@ -471,7 +467,6 @@ export function RightPanel({ scale, activeStep }: Props) {
                 min={0}
                 max={1}
                 step={0.01}
-                thumbColor={color}
                 onValueChange={(v) => updateCurveSmoothing(scale.id, key, v)}
                 onPointerDown={() => beginCurveEdit(scale.id)}
                 onValueCommitted={() => commitCurveEdit()}

@@ -57,7 +57,7 @@ export function AppSlider({
       className={rootClass}
       style={
         {
-          ['--app-slider-thumb' as string]: thumbColor ?? 'var(--p-text-secondary)',
+          ['--app-slider-thumb' as string]: thumbColor ?? 'var(--p-text)',
           flex: orientation === 'horizontal' ? 1 : undefined,
           minWidth: orientation === 'horizontal' ? 0 : undefined,
           width: orientation === 'vertical' ? '100%' : undefined,
