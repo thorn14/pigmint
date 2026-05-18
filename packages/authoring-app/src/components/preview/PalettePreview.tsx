@@ -7,7 +7,7 @@ import { buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 
 type ViewMode = 'curves' | 'gradient';
-const VIEW_MODES: readonly ViewMode[] = ['curves', 'gradient'];
+const VIEW_MODES: readonly ViewMode[] = ['gradient', 'curves'];
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -275,8 +275,8 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
   const scales = usePaletteStore((s) => s.scales);
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const isContinuous = engineResolver.mode === 'continuous';
-  const [viewMode, setViewMode] = useState<ViewMode>('curves');
-  const effectiveViewMode: ViewMode = isContinuous ? 'gradient' : viewMode;
+  const [viewMode, setViewMode] = useState<ViewMode>('gradient');
+  const effectiveViewMode: ViewMode = isContinuous ? viewMode : 'curves';
   const firstScale = scales[0];
 
   if (!firstScale) {
@@ -307,7 +307,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
       style={{ background: 'var(--p-bg)' }}
     >
-      {!isContinuous && (
+      {isContinuous && (
         <div
           className="flex shrink-0 items-center gap-2 border-b px-2"
           style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
@@ -346,7 +346,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
                   }}
                   className="focus-visible-ring"
                 >
-                  {m}
+                  {m === 'curves' ? 'Steps' : 'Gradient'}
                 </button>
               );
             })}

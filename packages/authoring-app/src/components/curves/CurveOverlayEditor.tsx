@@ -5,6 +5,7 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
+import { ScaleDiagnosticsRow } from '../diagnostics/RampDiagnosticsView';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -55,8 +56,13 @@ const SHORTCUTS = [
   { key: 'Escape',            desc: 'Cancel drag'                 },
 ];
 
-type ViewMode = 'curves' | 'gradient';
-const VIEW_MODES: readonly ViewMode[] = ['curves', 'gradient'];
+type ViewMode = 'gradient' | 'curves' | 'diagnostic';
+const VIEW_MODES: readonly ViewMode[] = ['gradient', 'curves', 'diagnostic'];
+const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+  gradient: 'Gradient',
+  curves: 'Steps',
+  diagnostic: 'Diagnostic',
+};
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
@@ -79,9 +85,9 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const [preCancel, setPreCancel]   = useState<{ key: CurveKey; values: number[] } | null>(null);
   const [size, setSize]             = useState({ width: 800, height: 400 });
   const [showHelp, setShowHelp]     = useState(false);
-  const [viewMode, setViewMode]     = useState<ViewMode>('curves');
+  const [viewMode, setViewMode]     = useState<ViewMode>('gradient');
   const isContinuous = engineResolver.mode === 'continuous';
-  const effectiveBackground: ViewMode = isContinuous ? 'gradient' : viewMode;
+  const effectiveBackground: ViewMode = isContinuous ? viewMode : 'curves';
   const n = ramp.steps.length;
   const PAD = 18;
 
@@ -94,12 +100,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    setSize({ width: el.clientWidth, height: el.clientHeight });
     const ro = new ResizeObserver(([entry]) => {
       setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [effectiveBackground]);
 
   // ─── Pointer move ─────────────────────────────────────────────────────────
   const handlePointerMove = useCallback((e: PointerEvent) => {
@@ -209,13 +216,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ background: 'var(--p-bg)' }}>
 
-      {/* Toolbar: view-mode toggle + engine-mode selector */}
+      {/* Toolbar: view-mode toggle + engine-mode selector (continuous only) */}
+      {isContinuous && (
       <div
         className="flex shrink-0 items-center gap-2 border-b px-2"
         style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
       >
-        {!isContinuous && (
-          <div
+        <div
             role="radiogroup"
             aria-label="Canvas view"
             style={{
@@ -248,12 +255,11 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                     cursor: 'pointer',
                   }}
                 >
-                  {m}
+                  {VIEW_MODE_LABELS[m]}
                 </button>
               );
             })}
           </div>
-        )}
 
         {effectiveBackground === 'gradient' && (() => {
           const hcVariant = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
@@ -279,7 +285,14 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           );
         })()}
       </div>
+      )}
 
+      {effectiveBackground === 'diagnostic' ? (
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <ScaleDiagnosticsRow scale={scale} ramp={ramp} />
+        </div>
+      ) : (
+      <>
       {/* Step name headers + gamut indicators */}
       <div
         className="flex shrink-0 border-b"
@@ -700,6 +713,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }

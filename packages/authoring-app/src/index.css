@@ -388,3 +388,13 @@ input[type="submit"]:not(:disabled):active {
   box-shadow: 0 0 0 1px var(--p-border-muted);
   box-sizing: border-box;
 }
+
+/* P3 gradient layer — only shown on Display-P3 capable displays. */
+.pigmint-p3-layer {
+  display: none;
+}
+@media (color-gamut: p3) {
+  .pigmint-p3-layer {
+    display: block;
+  }
+}

@@ -9,6 +9,7 @@ export {
   sourceWithChromaToHex,
 } from './math/oklch.js';
 export { checkGamut, maxP3Chroma, maxSrgbChroma } from './math/gamut.js';
+export { deltaEOklch } from './math/deltaE.js';
 export {
   getRelativeLuminance,
   getWcagContrast,

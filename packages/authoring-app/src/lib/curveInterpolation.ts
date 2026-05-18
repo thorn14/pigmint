@@ -1,6 +1,12 @@
-import type { ColorScale } from '../types/palette';
+import type { ColorScale, GeneratedRamp } from '../types/palette';
 import { formatCss } from 'culori';
-import { computeHueShift, maxP3Chroma, oklchToHex, smoothCurveValues } from './colorMath';
+import {
+  computeHueShift,
+  deltaEOklch,
+  maxP3Chroma,
+  maxSrgbChroma,
+  smoothCurveValues,
+} from './colorMath';
 
 // Linear interpolation
 export function lerp(a: number, b: number, t: number): number {
@@ -169,13 +175,33 @@ export function buildMonotoneCubicInterpolant(xs: number[], ys: number[]): (x: n
   };
 }
 
-const SCALE_GRADIENT_SAMPLES = 64;
+const SCALE_GRADIENT_SAMPLES = 16;
+
+export type GamutTarget = 'srgb' | 'p3';
+
+function maxChromaFor(l: number, h: number, gamut: GamutTarget): number {
+  return gamut === 'srgb' ? maxSrgbChroma(l, h) : maxP3Chroma(l, h);
+}
+
+function oklchStop(l: number, c: number, h: number, alpha: number): string {
+  return (
+    formatCss({ mode: 'oklch', l, c, h, alpha }) ??
+    `oklch(${l.toFixed(4)} ${c.toFixed(4)} ${h.toFixed(2)}${alpha < 1 ? ` / ${alpha}` : ''})`
+  );
+}
 
 /**
- * CSS `background` value: `linear-gradient(to right, …)` through the scale’s
- * smooth L/C/H curves — same as the “gradient” canvas in the curve editor.
+ * CSS `background` value: `linear-gradient(in oklch shorter hue to right, …)`
+ * through the scale's smooth L/C/H curves. Interpolation happens in OKLCH so
+ * midpoints stay perceptually accurate; the chroma is clamped to the requested
+ * gamut so out-of-gamut compression doesn't distort the ramp.
  */
-export function buildScaleLinearGradientCss(scale: ColorScale): string {
+export function buildScaleLinearGradientCss(
+  scale: ColorScale,
+  opts: { gamut?: GamutTarget; samples?: number } = {},
+): string {
+  const gamut: GamutTarget = opts.gamut ?? 'p3';
+  const samples = opts.samples ?? SCALE_GRADIENT_SAMPLES;
   const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
   const cRaw = smoothCurveValues(scale.curves.chroma.values, scale.curves.chroma.smoothing ?? 0);
   const hRaw = smoothCurveValues(scale.curves.hue.values, scale.curves.hue.smoothing ?? 0);
@@ -183,9 +209,10 @@ export function buildScaleLinearGradientCss(scale: ColorScale): string {
   const lAt = buildMonotoneCubicInterpolant(xs, lRaw);
   const cAt = buildMonotoneCubicInterpolant(xs, cRaw);
   const hAt = buildMonotoneCubicInterpolant(xs, hRaw);
+  const alpha = scale.sourceAlpha ?? 1;
   const stops: string[] = [];
-  for (let s = 0; s < SCALE_GRADIENT_SAMPLES; s++) {
-    const t = s / (SCALE_GRADIENT_SAMPLES - 1);
+  for (let s = 0; s < samples; s++) {
+    const t = s / (samples - 1);
     const x = t * (lRaw.length - 1);
     const l = lAt(x);
     const c = cAt(x);
@@ -197,12 +224,82 @@ export function buildScaleLinearGradientCss(scale: ColorScale): string {
       scale.hueShift.darkEndAdjust,
     );
     const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
-    const cClamped = Math.min(c, maxP3Chroma(l, h));
-    const alpha = scale.sourceAlpha ?? 1;
-    const stop = alpha < 1
-      ? (formatCss({ mode: 'oklch', l, c: cClamped, h, alpha }) ?? oklchToHex({ l, c: cClamped, h }))
-      : oklchToHex({ l, c: cClamped, h });
-    stops.push(`${stop} ${(t * 100).toFixed(2)}%`);
+    const cClamped = Math.min(c, maxChromaFor(l, h, gamut));
+    stops.push(`${oklchStop(l, cClamped, h, alpha)} ${(t * 100).toFixed(2)}%`);
   }
-  return `linear-gradient(to right, ${stops.join(', ')})`;
+  return `linear-gradient(in oklch shorter hue to right, ${stops.join(', ')})`;
+}
+
+/**
+ * Mid-step OKLCH for the scale: holds two axes constant while one varies.
+ * Sampled at t = 0.5 along the smoothed curves.
+ */
+function midStepOklch(scale: ColorScale): { l: number; c: number; h: number } {
+  const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
+  const cRaw = smoothCurveValues(scale.curves.chroma.values, scale.curves.chroma.smoothing ?? 0);
+  const hRaw = smoothCurveValues(scale.curves.hue.values, scale.curves.hue.smoothing ?? 0);
+  const xs = lRaw.map((_, i) => i);
+  const lAt = buildMonotoneCubicInterpolant(xs, lRaw);
+  const cAt = buildMonotoneCubicInterpolant(xs, cRaw);
+  const hAt = buildMonotoneCubicInterpolant(xs, hRaw);
+  const mid = (lRaw.length - 1) / 2;
+  const baseDeltaH = hAt(mid);
+  const shift = computeHueShift(
+    scale.sourceOklch.h,
+    0.5,
+    scale.hueShift.lightEndAdjust,
+    scale.hueShift.darkEndAdjust,
+  );
+  const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
+  return { l: lAt(mid), c: cAt(mid), h };
+}
+
+/**
+ * Single-axis gradient: varies exactly one of {lightness, chroma}; holds the
+ * other two at their mid-step values. Used in the diagnostics panel to show
+ * what each axis contributes to the main gradient.
+ */
+export function buildScaleAxisGradientCss(
+  scale: ColorScale,
+  axis: 'lightness' | 'chroma',
+  opts: { gamut?: GamutTarget; samples?: number } = {},
+): string {
+  const gamut: GamutTarget = opts.gamut ?? 'p3';
+  const samples = opts.samples ?? SCALE_GRADIENT_SAMPLES;
+  const alpha = scale.sourceAlpha ?? 1;
+  const mid = midStepOklch(scale);
+  const stops: string[] = [];
+
+  if (axis === 'lightness') {
+    const lRaw = smoothCurveValues(scale.curves.lightness.values, scale.curves.lightness.smoothing ?? 0);
+    const xs = lRaw.map((_, i) => i);
+    const lAt = buildMonotoneCubicInterpolant(xs, lRaw);
+    for (let s = 0; s < samples; s++) {
+      const t = s / (samples - 1);
+      const l = lAt(t * (lRaw.length - 1));
+      const cClamped = Math.min(mid.c, maxChromaFor(l, mid.h, gamut));
+      stops.push(`${oklchStop(l, cClamped, mid.h, alpha)} ${(t * 100).toFixed(2)}%`);
+    }
+  } else {
+    const maxC = maxChromaFor(mid.l, mid.h, gamut);
+    for (let s = 0; s < samples; s++) {
+      const t = s / (samples - 1);
+      const c = t * maxC;
+      stops.push(`${oklchStop(mid.l, c, mid.h, alpha)} ${(t * 100).toFixed(2)}%`);
+    }
+  }
+  return `linear-gradient(in oklch shorter hue to right, ${stops.join(', ')})`;
+}
+
+/**
+ * ΔE (OKLab Euclidean distance) between each adjacent pair of generated steps.
+ * Returns ramp.steps.length - 1 values. Uniform values across the array mean
+ * the ramp is perceptually even regardless of how the gradient looks visually.
+ */
+export function computeAdjacentDeltaE(ramp: GeneratedRamp): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < ramp.steps.length - 1; i++) {
+    out.push(deltaEOklch(ramp.steps[i].oklch, ramp.steps[i + 1].oklch));
+  }
+  return out;
 }

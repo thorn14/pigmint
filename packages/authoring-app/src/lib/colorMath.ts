@@ -9,6 +9,7 @@ export {
   checkGamut,
   maxSrgbChroma,
   maxP3Chroma,
+  deltaEOklch,
   buildChromaCurve,
   buildDefaultCurves,
   smoothCurveValues,

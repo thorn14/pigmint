@@ -37,7 +37,8 @@ function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
     return () => ro.disconnect();
   }, []);
 
-  const gradientCss = useMemo(() => buildScaleLinearGradientCss(scale), [scale]);
+  const srgbGradient = useMemo(() => buildScaleLinearGradientCss(scale, { gamut: 'srgb' }), [scale]);
+  const p3Gradient = useMemo(() => buildScaleLinearGradientCss(scale, { gamut: 'p3' }), [scale]);
   const n = ramp.steps.length;
 
   const tokens = tokenData.status === 'ok' ? tokenData.tokens : [];
@@ -99,10 +100,15 @@ function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
         style={{
           position: 'relative',
           height: ROW_HEIGHT,
-          background: gradientCss,
+          background: srgbGradient,
         }}
         aria-label={`${scale.name} continuous gradient with tokens`}
       >
+        <div
+          className="pigmint-p3-layer"
+          style={{ position: 'absolute', inset: 0, background: p3Gradient }}
+          aria-hidden
+        />
         <svg
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
