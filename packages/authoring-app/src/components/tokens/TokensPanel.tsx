@@ -5,6 +5,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
+import { TokensGradientView } from './TokensGradientView';
 import {
   alphaCompositeHex,
   parseStepRef,
@@ -1130,7 +1131,7 @@ export function TokensPanel() {
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [view, setView] = useState<'edit' | 'preview'>('edit');
+  const [view, setView] = useState<'edit' | 'preview' | 'gradient'>('edit');
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -1180,7 +1181,7 @@ export function TokensPanel() {
           padding: 2,
           gap: 2,
         }}>
-          {(['edit', 'preview'] as const).map((v) => {
+          {(['edit', 'preview', 'gradient'] as const).map((v) => {
             const active = view === v;
             return (
               <button key={v} onClick={() => setView(v)} style={{
@@ -1257,6 +1258,9 @@ export function TokensPanel() {
 
       {/* Preview view */}
       {view === 'preview' && <TokensPreview />}
+
+      {/* Gradient view — tokens over per-scale gradients */}
+      {view === 'gradient' && <TokensGradientView />}
 
       {/* Edit view — sections */}
       {view === 'edit' && (

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { formatCss } from 'culori';
 import { usePaletteStore } from '../../store/paletteStore';
+import { useIntentStore } from '../../store/intentStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
@@ -272,7 +273,10 @@ interface PalettePreviewProps {
 
 export function PalettePreview({ onEditScale }: PalettePreviewProps) {
   const scales = usePaletteStore((s) => s.scales);
+  const engineResolver = useIntentStore((s) => s.engineResolver);
+  const isContinuous = engineResolver.mode === 'continuous';
   const [viewMode, setViewMode] = useState<ViewMode>('curves');
+  const effectiveViewMode: ViewMode = isContinuous ? 'gradient' : viewMode;
   const firstScale = scales[0];
 
   if (!firstScale) {
@@ -294,7 +298,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
 
   const colCount = firstScale.stepCount;
   const gridColumns =
-    viewMode === 'curves'
+    effectiveViewMode === 'curves'
       ? `minmax(120px, 120px) repeat(${colCount}, minmax(0, 1fr))`
       : `minmax(120px, 120px) minmax(0, 1fr)`;
 
@@ -303,50 +307,52 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
       style={{ background: 'var(--p-bg)' }}
     >
-      <div
-        className="flex shrink-0 items-center gap-2 border-b px-2"
-        style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
-      >
+      {!isContinuous && (
         <div
-          role="radiogroup"
-          aria-label="Canvas view"
-          style={{
-            display: 'inline-flex',
-            borderRadius: 6,
-            background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
-            padding: 2,
-            gap: 2,
-          }}
+          className="flex shrink-0 items-center gap-2 border-b px-2"
+          style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
         >
-          {VIEW_MODES.map((m) => {
-            const active = viewMode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setViewMode(m)}
-                style={{
-                  border: 'none',
-                  background: active ? 'var(--p-text)' : 'transparent',
-                  color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  padding: '3px 10px',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-                className="focus-visible-ring"
-              >
-                {m}
-              </button>
-            );
-          })}
+          <div
+            role="radiogroup"
+            aria-label="Canvas view"
+            style={{
+              display: 'inline-flex',
+              borderRadius: 6,
+              background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+              padding: 2,
+              gap: 2,
+            }}
+          >
+            {VIEW_MODES.map((m) => {
+              const active = viewMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setViewMode(m)}
+                  style={{
+                    border: 'none',
+                    background: active ? 'var(--p-text)' : 'transparent',
+                    color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    padding: '3px 10px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                  className="focus-visible-ring"
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {/* Header + body */}
@@ -381,7 +387,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
               </div>
               <HeaderRow
                 scale={firstScale}
-                viewMode={viewMode}
+                viewMode={effectiveViewMode}
                 colCount={colCount}
               />
             </div>
@@ -416,7 +422,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
                 >
                   {scale.name}
                 </div>
-                {viewMode === 'curves' ? (
+                {effectiveViewMode === 'curves' ? (
                   <PreviewRow scale={scale} colCount={colCount} onEditScale={onEditScale} />
                 ) : (
                   <GradientPreviewRow scale={scale} onEditScale={onEditScale} />

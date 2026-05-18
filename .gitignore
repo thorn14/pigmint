@@ -16,6 +16,16 @@ packages/sticker-sheet-*/src/generated/
 # Personal toolchain pin (asdf / mise).
 .tool-versions
 
+# Playwright MCP snapshots and ad-hoc browser screenshots.
+.playwright-mcp/
+*.playwright.png
+test-results/
+playwright-report/
+
+# Ad-hoc local screenshots (one-off verification captures).
+/curves-restyle*.png
+/tokens-gradient*.png
+
 # Personal scratch palettes — keep the bundled examples below tracked, but
 # any new example directory is local-only by default.
 examples/*/

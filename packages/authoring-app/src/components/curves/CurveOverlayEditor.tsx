@@ -1,14 +1,10 @@
-import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { formatCss } from 'culori';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
-import type { ResolvedToken } from '@pigmint/core';
 import { usePaletteStore } from '../../store/paletteStore';
-import { useIntentStore, useEffectiveMode, type EngineCompliance } from '../../store/intentStore';
+import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
-import { runResolve } from '../../lib/resolveState';
-import { useVocabStore } from '../../store/vocabStore';
-import { IntentMarkerPopover, type IntentMarkerDetail } from './IntentMarkerPopover';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -68,34 +64,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
-  const scales = usePaletteStore((s) => s.scales);
-  const engineModes    = useIntentStore((s) => s.engineModes);
-  const engineTarget   = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
   const appTheme       = useIntentStore((s) => s.appTheme);
   const highContrast   = useIntentStore((s) => s.highContrast);
   const setHighContrast = useIntentStore((s) => s.setHighContrast);
-  const activeMarkerMode = useEffectiveMode();
+  const engineModes    = useIntentStore((s) => s.engineModes);
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const engineResolver = useIntentStore((s) => s.engineResolver);
-  const vocabEntries     = useVocabStore((s) => s.entries);
-  const vocabRaw         = useVocabStore((s) => s.raw);
-  const vocabSurfacePaths = useVocabStore((s) => s.surfacePaths);
-  const vocabSurfaceSteps = useVocabStore((s) => s.surfaceSteps);
-  const vocabCtxForMarkers = useMemo(() => {
-    if (!vocabEntries) return null;
-    return {
-      vocabulary: vocabEntries,
-      tokenRamp: vocabRaw
-        ? Object.fromEntries(
-            Object.entries({ ...vocabRaw.surfaces, ...vocabRaw.foreground, ...vocabRaw.nonText, ...(vocabRaw.decorative ?? {}) })
-              .map(([n, e]) => [n, (e as { ramp: string }).ramp])
-          )
-        : {},
-      surfacePaths: vocabSurfacePaths ?? undefined,
-      surfaceSteps: vocabSurfaceSteps ?? undefined,
-    };
-  }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps]);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -105,45 +80,15 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const [size, setSize]             = useState({ width: 800, height: 400 });
   const [showHelp, setShowHelp]     = useState(false);
   const [viewMode, setViewMode]     = useState<ViewMode>('curves');
+  const isContinuous = engineResolver.mode === 'continuous';
+  const effectiveBackground: ViewMode = isContinuous ? 'gradient' : viewMode;
   const n = ramp.steps.length;
   const PAD = 18;
 
   const gradientCss = useMemo(() => {
-    if (viewMode !== 'gradient') return '';
+    if (effectiveBackground !== 'gradient') return '';
     return buildScaleLinearGradientCss(scale);
-  }, [viewMode, scale]);
-
-  type IntentMarkerData =
-    | { status: 'skipped' }
-    | { status: 'ok'; tokens: ResolvedToken[] }
-    | { status: 'error'; error: string };
-
-  const intentMarkerData = useMemo((): IntentMarkerData => {
-    if (viewMode !== 'gradient') return { status: 'skipped' };
-    const state = runResolve(
-      scales,
-      engineModes,
-      engineTarget,
-      engineCompliance,
-      vocabCtxForMarkers,
-      engineResolver.mode === 'continuous'
-        ? engineResolver
-        : {
-            mode: 'continuous',
-            ...(engineResolver.fallbackSteps !== undefined
-              ? { fallbackSteps: engineResolver.fallbackSteps }
-              : {}),
-          },
-    );
-    if (!state.ok) return { status: 'error', error: state.error };
-    return {
-      status: 'ok',
-      tokens: state.tokens.filter(
-        (t) => t.source.ramp === scale.name && t.mode === activeMarkerMode,
-      ),
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabCtxForMarkers, scale.name, activeMarkerMode]);
+  }, [effectiveBackground, scale]);
 
 
   useEffect(() => {
@@ -269,46 +214,48 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
         className="flex shrink-0 items-center gap-2 border-b px-2"
         style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
       >
-        <div
-          role="radiogroup"
-          aria-label="Canvas view"
-          style={{
-            display: 'inline-flex',
-            borderRadius: 6,
-            background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
-            padding: 2,
-            gap: 2,
-          }}
-        >
-          {VIEW_MODES.map((m) => {
-            const active = viewMode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setViewMode(m)}
-                style={{
-                  border: 'none',
-                  background: active ? 'var(--p-text)' : 'transparent',
-                  color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  padding: '3px 10px',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-              >
-                {m}
-              </button>
-            );
-          })}
-        </div>
+        {!isContinuous && (
+          <div
+            role="radiogroup"
+            aria-label="Canvas view"
+            style={{
+              display: 'inline-flex',
+              borderRadius: 6,
+              background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+              padding: 2,
+              gap: 2,
+            }}
+          >
+            {VIEW_MODES.map((m) => {
+              const active = viewMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setViewMode(m)}
+                  style={{
+                    border: 'none',
+                    background: active ? 'var(--p-text)' : 'transparent',
+                    color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    padding: '3px 10px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {viewMode === 'gradient' && (() => {
+        {effectiveBackground === 'gradient' && (() => {
           const hcVariant = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
           const hcAvailable = engineModes.includes(hcVariant);
           return (
@@ -375,7 +322,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
         ref={containerRef}
         className="relative flex-1 min-h-0 flex select-none"
       >
-        {viewMode === 'gradient' ? (
+        {effectiveBackground === 'gradient' ? (
           <div
             className="flex-1 relative"
             style={{ background: gradientCss }}
@@ -404,8 +351,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* P3 threshold lines (curves view only) */}
-          {viewMode === 'curves' && ramp.steps.map((step, i) => {
+          {/* P3 threshold lines */}
+          {ramp.steps.map((step, i) => {
             const chromaMeta = CURVES.find((c) => c.key === 'chroma')!;
             const pt = getPoint(step.maxSrgbC, i, chromaMeta.min, chromaMeta.max);
             const colW = size.width / n;
@@ -423,7 +370,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             );
           })}
 
-          {viewMode === 'curves' && CURVES.map((curve) => {
+          {CURVES.map((curve) => {
             const rawValues = scale.curves[curve.key].values;
             const smoothing = scale.curves[curve.key].smoothing ?? 0;
             const nodeTypes = scale.curves[curve.key].nodeTypes;
@@ -461,15 +408,18 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
 
             return (
               <g key={curve.key}>
-                {/* Label on left edge */}
+                {/* Label on left edge: white fill with #444 stroke outline for legibility */}
                 {nodePoints[0] && (
                   <text
                     x={8}
                     y={nodePoints[0].y}
                     dy={4}
-                    fontSize={11}
+                    fontSize={12}
                     fontWeight={700}
-                    fill={curve.color}
+                    fill="white"
+                    stroke="#444"
+                    strokeWidth={2.5}
+                    paintOrder="stroke"
                     style={{ fontFamily: 'monospace', pointerEvents: 'none' }}
                   >
                     {curve.label}
@@ -498,12 +448,20 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                   }}
                 />
 
-                {/* Visible curve path */}
+                {/* Visible curve path: 3px white with 1px black outline */}
                 <path
                   d={pathD}
                   fill="none"
-                  stroke={curve.color}
-                  strokeWidth={isGroupDragging ? 2.5 : 1.5}
+                  stroke="#444"
+                  strokeWidth={5}
+                  opacity={isGroupDragging ? 1 : 0.9}
+                  style={{ pointerEvents: 'none' }}
+                />
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="white"
+                  strokeWidth={3}
                   opacity={isGroupDragging ? 1 : 0.9}
                   style={{ pointerEvents: 'none' }}
                 />
@@ -512,7 +470,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                 {nodePoints.map((pt, i) => {
                   const isCorner = resolvedNodeTypes[i] === 'corner';
                   const isActive = isAnyDragging && dragState?.stepIndex === i && dragState?.mode === 'node';
-                  const r = isActive ? 6 : 4.5;
+                  const r = isActive ? 8 : 6;
+                  const stepHex = ramp.steps[i]?.hex ?? 'transparent';
 
                   return (
                     <g
@@ -541,29 +500,53 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                       }}
                     >
                       {isCorner ? (
-                        // Diamond shape for corner nodes
-                        <rect
-                          x={pt.x - r * 0.75}
-                          y={pt.y - r * 0.75}
-                          width={r * 1.5}
-                          height={r * 1.5}
-                          transform={`rotate(45 ${pt.x} ${pt.y})`}
-                          fill="white"
-                          stroke={curve.color}
-                          strokeWidth={2}
-                          style={{ cursor: 'ns-resize' }}
-                        />
+                        // Diamond shape for corner nodes: 3px white ring + 1px black outline, step-color fill
+                        <>
+                          <rect
+                            x={pt.x - r * 0.75}
+                            y={pt.y - r * 0.75}
+                            width={r * 1.5}
+                            height={r * 1.5}
+                            transform={`rotate(45 ${pt.x} ${pt.y})`}
+                            fill={stepHex}
+                            stroke="black"
+                            strokeWidth={5}
+                            style={{ cursor: 'ns-resize' }}
+                          />
+                          <rect
+                            x={pt.x - r * 0.75}
+                            y={pt.y - r * 0.75}
+                            width={r * 1.5}
+                            height={r * 1.5}
+                            transform={`rotate(45 ${pt.x} ${pt.y})`}
+                            fill={stepHex}
+                            stroke="white"
+                            strokeWidth={3}
+                            style={{ cursor: 'ns-resize' }}
+                          />
+                        </>
                       ) : (
-                        // Circle for smooth nodes
-                        <circle
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={r}
-                          fill="white"
-                          stroke={curve.color}
-                          strokeWidth={2}
-                          style={{ cursor: 'ns-resize' }}
-                        />
+                        // Circle for smooth nodes: 3px white ring + 1px black outline, step-color fill
+                        <>
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={r}
+                            fill={stepHex}
+                            stroke="black"
+                            strokeWidth={5}
+                            style={{ cursor: 'ns-resize' }}
+                          />
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={r}
+                            fill={stepHex}
+                            stroke="white"
+                            strokeWidth={3}
+                            style={{ cursor: 'ns-resize' }}
+                          />
+                        </>
                       )}
                     </g>
                   );
@@ -571,19 +554,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               </g>
             );
           })}
-
-          {/* Intent-resolved markers (gradient view) */}
-          {viewMode === 'gradient' && (
-            <IntentMarkers
-              tokens={intentMarkerData.status === 'ok' ? intentMarkerData.tokens : []}
-              resolveError={intentMarkerData.status === 'error' ? intentMarkerData.error : undefined}
-              ramp={ramp}
-              n={n}
-              width={size.width}
-              height={size.height}
-              pad={PAD}
-            />
-          )}
 
           {/* Help button */}
           <foreignObject
@@ -731,346 +701,5 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
         })}
       </div>
     </div>
-  );
-}
-
-function continuousStepLabel(position: number, ramp: GeneratedRamp): string | null {
-  if (ramp.steps.length < 2) return null;
-  const fIdx = Math.max(0, Math.min(ramp.steps.length - 1, position * (ramp.steps.length - 1)));
-  const lo = Math.floor(fIdx);
-  const hi = Math.min(lo + 1, ramp.steps.length - 1);
-  const frac = fIdx - lo;
-  const loName = ramp.steps[lo]?.name ?? '';
-  const hiName = ramp.steps[hi]?.name ?? '';
-  const loNum = Number(loName);
-  const hiNum = Number(hiName);
-  if (Number.isFinite(loNum) && Number.isFinite(hiNum)) {
-    return `${ramp.scaleName} ${Math.round(loNum + (hiNum - loNum) * frac)}`;
-  }
-  return `${ramp.scaleName}.${loName}`;
-}
-
-function groupKeyForToken(
-  hex: string,
-  stepLabel: string | null,
-  position: number,
-): string {
-  if (stepLabel) {
-    return `${hex}§${stepLabel}`;
-  }
-  const q = Math.round(position * 200) / 200;
-  return `${hex}§${q.toFixed(3)}`;
-}
-
-function IntentMarkers({
-  tokens,
-  resolveError,
-  ramp,
-  n,
-  width,
-  height,
-  pad,
-}: {
-  tokens: ResolvedToken[];
-  resolveError?: string;
-  ramp: GeneratedRamp;
-  n: number;
-  width: number;
-  height: number;
-  pad: number;
-}) {
-  const [markerDetail, setMarkerDetail] = useState<IntentMarkerDetail | null>(null);
-  const [hoverGkey, setHoverGkey] = useState<string | null>(null);
-  const hitCircleRefs = useRef(new Map<string, SVGCircleElement>());
-  const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearHoverOpenTimer = () => {
-    if (hoverOpenTimerRef.current != null) {
-      clearTimeout(hoverOpenTimerRef.current);
-      hoverOpenTimerRef.current = null;
-    }
-  };
-
-  const clearHoverCloseTimer = () => {
-    if (hoverCloseTimerRef.current != null) {
-      clearTimeout(hoverCloseTimerRef.current);
-      hoverCloseTimerRef.current = null;
-    }
-  };
-
-  const clearAllMarkerHoverTimers = () => {
-    clearHoverOpenTimer();
-    clearHoverCloseTimer();
-  };
-
-  useEffect(() => () => clearAllMarkerHoverTimers(), []);
-
-  const schedulePopoverClose = (gkey: string) => {
-    clearHoverCloseTimer();
-    hoverCloseTimerRef.current = setTimeout(() => {
-      hoverCloseTimerRef.current = null;
-      setMarkerDetail((prev) => (prev?.key === gkey ? null : prev));
-    }, 240);
-  };
-
-  if (tokens.length === 0) {
-    const foW = 300;
-    const foH = resolveError ? 132 : 96;
-    const label = resolveError
-      ? resolveError
-      : 'No vocabulary tokens resolved to this ramp.';
-    const isError = Boolean(resolveError);
-    return (
-      <foreignObject
-        x={width / 2 - foW / 2}
-        y={height / 2 - foH / 2}
-        width={foW}
-        height={foH}
-        overflow="visible"
-      >
-        <div
-          style={{
-            boxSizing: 'border-box',
-            width: '100%',
-            minHeight: '100%',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'rgba(255,255,255,0.95)',
-            background: isError ? 'rgba(88,28,28,0.88)' : 'rgba(0,0,0,0.58)',
-            fontSize: isError ? 11 : 12,
-            padding: '12px 14px',
-            borderRadius: 8,
-            textAlign: 'center',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            lineHeight: 1.4,
-            wordBreak: 'break-word',
-            border: isError ? '1px solid rgba(252,165,165,0.45)' : '1px solid rgba(255,255,255,0.14)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            overflow: 'auto',
-          }}
-        >
-          {label}
-        </div>
-      </foreignObject>
-    );
-  }
-
-  const placed = tokens
-    .map((t) => {
-      const px = (((t.source.position * (n - 1) + 0.5) / n) * width);
-      const py = pad + (1 - t.oklch.l) * (height - pad * 2);
-      const stepLabel = continuousStepLabel(t.source.position, ramp);
-      const gkey = groupKeyForToken(t.hex, stepLabel, t.source.position);
-      return { t, px, py, stepLabel, gkey };
-    })
-    .sort((a, b) => a.px - b.px);
-
-  const groupAcc = new Map<
-    string,
-    { sumX: number; sumY: number; n: number; tokens: ResolvedToken[]; stepLabel: string | null; hex: string; oklch: ResolvedToken['oklch'] }
-  >();
-  for (const p of placed) {
-    let g = groupAcc.get(p.gkey);
-    if (!g) {
-      g = {
-        sumX: 0,
-        sumY: 0,
-        n: 0,
-        tokens: [],
-        stepLabel: p.stepLabel,
-        hex: p.t.hex,
-        oklch: p.t.oklch,
-      };
-      groupAcc.set(p.gkey, g);
-    }
-    g.sumX += p.px;
-    g.sumY += p.py;
-    g.n += 1;
-    g.tokens.push(p.t);
-    if (p.stepLabel) g.stepLabel = p.stepLabel;
-  }
-
-  const groupCenters = new Map<
-    string,
-    { cx: number; cy: number; tokens: ResolvedToken[]; stepLabel: string | null; hex: string; oklch: ResolvedToken['oklch'] }
-  >();
-  for (const [gk, g] of groupAcc) {
-    groupCenters.set(gk, {
-      cx: g.sumX / g.n,
-      cy: g.sumY / g.n,
-      tokens: g.tokens,
-      stepLabel: g.stepLabel,
-      hex: g.hex,
-      oklch: g.oklch,
-    });
-  }
-
-  const lineStroke = 'rgba(255,255,255,0.7)';
-  const markerRadius = 7;
-
-  const pointerTargetIsInsideIntentPopover = (target: EventTarget | null): boolean => {
-    if (!(target instanceof Element)) return false;
-    return target.closest('[data-intent-marker-popover]') != null;
-  };
-
-  const openPopoverForGroup = (gkey: string) => {
-    const el = hitCircleRefs.current.get(gkey);
-    const g = groupCenters.get(gkey);
-    if (!el || !g) return;
-    setMarkerDetail({
-      key: gkey,
-      rect: el.getBoundingClientRect(),
-      hex: g.hex,
-      oklch: g.oklch,
-      stepLabel: g.stepLabel,
-      tokens: g.tokens,
-    });
-  };
-
-  return (
-    <Fragment>
-      <g>
-        {Array.from(groupCenters.entries()).map(([gkey, g]) => {
-          const isHover = hoverGkey === gkey;
-          return (
-            <g
-              key={gkey}
-              pointerEvents="all"
-              onPointerEnter={() => {
-                setHoverGkey(gkey);
-                clearHoverCloseTimer();
-                clearHoverOpenTimer();
-                hoverOpenTimerRef.current = setTimeout(() => {
-                  hoverOpenTimerRef.current = null;
-                  openPopoverForGroup(gkey);
-                }, 140);
-              }}
-              onPointerLeave={(e) => {
-                setHoverGkey(null);
-                clearHoverOpenTimer();
-                // Opening the portaled popover can sit under the cursor and fire a bogus leave
-                // (relatedTarget often null). Defer one frame and skip close if we're over the popover.
-                if (pointerTargetIsInsideIntentPopover(e.relatedTarget)) return;
-                requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    const at = document.elementFromPoint(e.clientX, e.clientY);
-                    if (pointerTargetIsInsideIntentPopover(at)) return;
-                    schedulePopoverClose(gkey);
-                  });
-                });
-              }}
-              style={{ cursor: 'pointer' }}
-            >
-              <line
-                x1={g.cx}
-                y1={g.cy}
-                x2={g.cx}
-                y2={height - pad}
-                stroke={lineStroke}
-                strokeWidth={isHover ? 1.75 : 1.5}
-                strokeDasharray="2 3"
-                opacity={isHover ? 0.9 : 0.6}
-                style={{ transition: 'opacity 0.16s ease-out, stroke-width 0.16s ease-out' }}
-              />
-              <g
-                style={{
-                  transform: `translate(${g.cx}px, ${g.cy}px) scale(${isHover ? 1.08 : 1}) translate(${-g.cx}px, ${-g.cy}px)`,
-                  transition: 'transform 0.16s ease-out, filter 0.16s ease-out',
-                  filter: isHover ? 'drop-shadow(0 0 5px rgba(255,255,255,0.4))' : 'none',
-                }}
-              >
-                <circle
-                  cx={g.cx}
-                  cy={g.cy}
-                  r={markerRadius + 3}
-                  fill="none"
-                  stroke="rgba(0,0,0,0.9)"
-                  strokeWidth={isHover ? 2.8 : 2.5}
-                  style={{ transition: 'stroke-width 0.16s ease-out' }}
-                />
-                <circle
-                  cx={g.cx}
-                  cy={g.cy}
-                  r={markerRadius + 1}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.98)"
-                  strokeWidth={isHover ? 2.4 : 2}
-                  style={{ transition: 'stroke-width 0.16s ease-out' }}
-                />
-                <circle
-                  cx={g.cx}
-                  cy={g.cy}
-                  r={markerRadius}
-                  fill={g.hex}
-                  stroke="rgba(0,0,0,0.3)"
-                  strokeWidth={0.75}
-                />
-                <circle
-                  data-intent-marker-hit
-                  cx={g.cx}
-                  cy={g.cy}
-                  r={markerRadius + 5}
-                  fill="transparent"
-                  stroke="none"
-                  ref={(node) => {
-                    if (node) hitCircleRefs.current.set(gkey, node);
-                    else hitCircleRefs.current.delete(gkey);
-                  }}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    clearAllMarkerHoverTimers();
-                    try {
-                      (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
-                    } catch {
-                      /* unsupported or already captured */
-                    }
-                    openPopoverForGroup(gkey);
-                  }}
-                  onPointerUp={(e) => {
-                    try {
-                      const el = e.currentTarget as SVGCircleElement;
-                      if (el.hasPointerCapture?.(e.pointerId)) {
-                        el.releasePointerCapture(e.pointerId);
-                      }
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                  onPointerCancel={(e) => {
-                    try {
-                      const el = e.currentTarget as SVGCircleElement;
-                      if (el.hasPointerCapture?.(e.pointerId)) {
-                        el.releasePointerCapture(e.pointerId);
-                      }
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                />
-              </g>
-            </g>
-          );
-        })}
-
-      </g>
-      <IntentMarkerPopover
-        detail={markerDetail}
-        onClose={() => {
-          clearAllMarkerHoverTimers();
-          setMarkerDetail(null);
-        }}
-        onPopoverPointerEnter={clearHoverCloseTimer}
-        onPopoverPointerLeave={() => {
-          const k = markerDetail?.key;
-          if (k) schedulePopoverClose(k);
-        }}
-        rampName={ramp.scaleName}
-      />
-    </Fragment>
   );
 }
