@@ -31,8 +31,10 @@ export interface BuildResult {
   primitivesPath?: string;
   outputPath?: string;
   rampCount: number;
+  modes: string[];
   modeCount: number;
   tokenCount: number;
+  failedTokens: number;
   adapters: AdapterEmission[];
 }
 
@@ -126,8 +128,10 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     return {
       ...(primitivesPath ? { primitivesPath } : {}),
       rampCount: ramps.length,
+      modes: config.engine.modes,
       modeCount: config.engine.modes.length,
       tokenCount: 0,
+      failedTokens: 0,
       adapters: [],
     };
   }
@@ -181,12 +185,16 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     });
   }
 
+  const failedTokens = tokens.filter((t) => t.compliance?.level === 'fail').length;
+
   return {
     ...(primitivesPath ? { primitivesPath } : {}),
     outputPath,
     rampCount: ramps.length,
+    modes: config.engine.modes,
     modeCount: config.engine.modes.length,
     tokenCount: tokens.length,
+    failedTokens,
     adapters: adapterEmissions,
   };
 }

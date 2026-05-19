@@ -24,6 +24,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@clack/prompts": "^0.9.0",
     "@pigmint/adapter-mui": "workspace:*",
     "@pigmint/adapter-tailwind": "workspace:*",
     "@pigmint/core": "workspace:*",

@@ -422,7 +422,99 @@ decorative:
 
 ---
 
-## Claude Code skill
+## Scaffold via CLI
+
+Use `pigmint scaffold` to generate `pigmint.yaml` and `tokens.yaml` in one command rather than writing them from scratch. This is the recommended approach for agents.
+
+### Flag-based (agent-friendly, no prompts)
+
+```bash
+pigmint scaffold \
+  --brand "#2563eb" \
+  --neutral "#6b7280" \
+  --modes light dark \
+  --compliance wcag21 --target AA \
+  --out ./design-tokens
+```
+
+Additional options:
+
+```bash
+# With a framework adapter
+pigmint scaffold \
+  --brand "#2563eb" --neutral "#6b7280" \
+  --modes light dark light-high-contrast \
+  --adapter tailwind --preset shadcn \
+  --out ./tokens
+
+# With continuous resolver and CVD simulation
+pigmint scaffold \
+  --brand "#2563eb" --neutral "#6b7280" \
+  --modes light dark \
+  --resolver continuous \
+  --cvd deuteranopia protanopia \
+  --out ./tokens
+
+# Three ramps: brand, neutral, accent
+pigmint scaffold \
+  --ramp blue "#2563eb" \
+  --ramp slate "#64748b" \
+  --ramp red "#dc2626" \
+  --modes light dark
+```
+
+After scaffold, run `pigmint build` as usual. Overwrite existing files with `--force`.
+
+### Machine-readable build output (`--json`)
+
+Use `pigmint build --json` to capture structured build results rather than parsing human-readable text:
+
+```bash
+pigmint build --config ./tokens/pigmint.yaml --json
+```
+
+Success:
+```json
+{
+  "success": true,
+  "artifacts": {
+    "primitives": "/abs/path/primitives.json",
+    "dtcg": "/abs/path/tokens.json",
+    "adapters": [{ "name": "tailwind", "files": ["/abs/path/tokens.css"] }]
+  },
+  "warnings": [],
+  "stats": {
+    "ramps": 2,
+    "modes": ["light", "dark"],
+    "tokenCount": 50,
+    "failedTokens": 0
+  }
+}
+```
+
+Error:
+```json
+{ "success": false, "errors": ["path: message"] }
+```
+
+Exit code 0 on success, 1 on failure. Errors go to stdout (not stderr) in JSON mode, so agents can always parse stdout regardless of outcome.
+
+**Agent workflow with JSON output:**
+
+```bash
+# 1. Scaffold
+pigmint scaffold --brand "#2563eb" --neutral "#6b7280" --modes light dark --out ./tokens
+
+# 2. Build and check
+RESULT=$(pigmint build --config ./tokens/pigmint.yaml --json)
+FAILED=$(echo "$RESULT" | jq -r '.stats.failedTokens')
+if [ "$FAILED" -gt "0" ]; then
+  # Edit pigmint.yaml or tokens.yaml to relax constraints, then rebuild
+  echo "Failed tokens: $FAILED"
+fi
+```
+
+### Claude Code skill
 
 From within a project, use `/pigmint-palette` to scaffold a full palette interactively:
 
