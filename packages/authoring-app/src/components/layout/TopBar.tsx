@@ -1,126 +1,52 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Menu } from '@base-ui/react/menu';
-import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
+import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
-import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
-import type { StepNamingPreset } from '../../types/palette';
 import { AppStringSelect, AppToolbarSegmented } from '../base-ui';
+import { ManagePalettesModal } from '../palette/ManagePalettesModal';
+
+const NEW_PALETTE_SENTINEL = '__new__';
+const MANAGE_PALETTE_SENTINEL = '__manage__';
 
 function PaletteSelector() {
   const savedPalettes = usePaletteStore((s) => s.savedPalettes);
   const activePaletteId = usePaletteStore((s) => s.activePaletteId);
-  const currentPaletteName = usePaletteStore((s) => s.currentPaletteName);
   const switchPalette = usePaletteStore((s) => s.switchPalette);
   const createPalette = usePaletteStore((s) => s.createPalette);
-  const deletePalette = usePaletteStore((s) => s.deletePalette);
-  const renamePalette = usePaletteStore((s) => s.renamePalette);
+  const [showManage, setShowManage] = useState(false);
 
-  const [nameValue, setNameValue] = useState(currentPaletteName);
-  useEffect(() => { setNameValue(currentPaletteName); }, [currentPaletteName]);
+  const options = [
+    ...savedPalettes.map((p) => ({ value: p.id, label: p.name })),
+    { value: NEW_PALETTE_SENTINEL, label: '+ New palette' },
+    { value: MANAGE_PALETTE_SENTINEL, label: 'Manage palettes…' },
+  ];
 
-  function commitRename() {
-    const trimmed = nameValue.trim();
-    if (activePaletteId && trimmed) {
-      renamePalette(activePaletteId, trimmed);
-    } else {
-      setNameValue(currentPaletteName);
+  function handleValueChange(value: string) {
+    if (value === NEW_PALETTE_SENTINEL) {
+      createPalette(`Palette ${savedPalettes.length + 1}`);
+      return;
     }
-  }
-
-  function handleCreatePalette() {
-    const name = `Palette ${savedPalettes.length + 1}`;
-    createPalette(name);
+    if (value === MANAGE_PALETTE_SENTINEL) {
+      setShowManage(true);
+      return;
+    }
+    switchPalette(value);
   }
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, minWidth: 0 }}>
-      <input
-        aria-label="Palette name"
-        name="palette-name"
-        value={nameValue}
-        onChange={(e) => setNameValue(e.target.value)}
-        onBlur={commitRename}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { commitRename(); (e.target as HTMLInputElement).blur(); }
-          if (e.key === 'Escape') { setNameValue(currentPaletteName); (e.target as HTMLInputElement).blur(); }
-        }}
+      <AppStringSelect
+        aria-label="Palette"
+        id="palette-select"
+        name="palette-select"
+        value={activePaletteId ?? ''}
+        onValueChange={handleValueChange}
+        size="compact"
         className="focus-visible-ring"
-        style={{
-          width: 110,
-          minWidth: 0,
-          flexShrink: 1,
-          padding: '3px 6px',
-          fontSize: 12,
-          fontWeight: 500,
-          background: 'var(--p-bg)',
-          border: '1px solid var(--p-border)',
-          borderRadius: 5,
-          color: 'var(--p-text)',
-          outline: 'none',
-          boxSizing: 'border-box',
-        }}
+        style={{ width: 160, maxWidth: 200, flexShrink: 0 }}
+        options={options}
       />
-      {savedPalettes.length > 1 && (
-        <AppStringSelect
-          aria-label="Switch palette"
-          id="switch-palette"
-          name="switch-palette"
-          value={activePaletteId ?? ''}
-          onValueChange={switchPalette}
-          size="compact"
-          className="focus-visible-ring"
-          style={{ width: 120, flexShrink: 0 }}
-          options={savedPalettes.map((p) => ({ value: p.id, label: p.name }))}
-        />
-      )}
-      <button
-        onClick={handleCreatePalette}
-        title="New palette"
-        aria-label="New palette"
-        className="focus-visible-ring"
-        style={{
-          width: 24,
-          height: 24,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--p-bg)',
-          border: '1px solid var(--p-border)',
-          borderRadius: 5,
-          cursor: 'pointer',
-          color: 'var(--p-text-secondary)',
-          fontSize: 16,
-          lineHeight: 1,
-          flexShrink: 0,
-        }}
-      >
-        +
-      </button>
-      {savedPalettes.length > 1 && activePaletteId && (
-        <button
-          onClick={() => deletePalette(activePaletteId)}
-          title="Delete palette"
-          aria-label="Delete current palette"
-          className="focus-visible-ring"
-          style={{
-            width: 24,
-            height: 24,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 5,
-            cursor: 'pointer',
-            color: 'var(--p-text-tertiary)',
-            flexShrink: 0,
-          }}
-        >
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M2 3h8M5 3V2h2v1M4.5 3v6.5h3V3" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      )}
+      {showManage && <ManagePalettesModal onClose={() => setShowManage(false)} />}
     </div>
   );
 }
@@ -134,8 +60,6 @@ interface Props {
   onExportPigmint: () => void;
   onImportPigmint: () => void;
   onSave: () => void;
-  onEditSteps: () => void;
-  onEditLightness: () => void;
   mode: AppMode;
   onModeChange: (mode: AppMode) => void;
   theme: AppTheme;
@@ -148,27 +72,6 @@ interface Props {
 const divider = (
   <div style={{ width: 1, height: 20, background: 'var(--p-border)', flexShrink: 0 }} />
 );
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: 'var(--p-text-tertiary)',
-  whiteSpace: 'nowrap',
-};
-
-const linkBtnStyle: React.CSSProperties = {
-  padding: 0,
-  fontSize: 12,
-  background: 'none',
-  border: 'none',
-  color: 'var(--p-text-secondary)',
-  cursor: 'pointer',
-  textDecoration: 'underline',
-  textUnderlineOffset: 2,
-};
-
 
 const saveMenuItemStyle: React.CSSProperties = {
   padding: '8px 12px',
@@ -370,11 +273,8 @@ function ViewMenu({ theme, onThemeChange, srgbPreview, onToggleSrgbPreview }: Vi
   );
 }
 
-export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
+export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, onSave, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
   const saveSplitRef = useRef<HTMLDivElement>(null);
-  const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
-  const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
-  const scale = usePaletteStore(selectActiveScale);
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
@@ -417,62 +317,6 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
 
       {/* Palette selector */}
       <PaletteSelector />
-
-      {divider}
-
-      {/* Steps — applies to all scales */}
-      {scale && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <label htmlFor="steps-preset" style={labelStyle}>Steps</label>
-          <AppStringSelect
-            id="steps-preset"
-            name="steps-preset"
-            value={scale.naming.preset}
-            onValueChange={(v) => {
-              const preset = v as StepNamingPreset;
-              updateStepNamingAll({ preset });
-              if (preset === 'custom') onEditSteps();
-            }}
-            className="focus-visible-ring"
-            options={[
-              { value: 'tailwind', label: 'Tailwind' },
-              { value: 'numeric', label: 'Numeric' },
-              { value: 'custom', label: 'Custom…' },
-            ]}
-          />
-          {scale.naming.preset === 'custom' && (
-            <button onClick={onEditSteps} style={linkBtnStyle} className="focus-visible-ring">edit</button>
-          )}
-        </div>
-      )}
-
-      {divider}
-
-      {/* Lightness — applies to active scale */}
-      {scale && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <label htmlFor="lightness-preset" style={labelStyle}>Lightness</label>
-          <AppStringSelect
-            id="lightness-preset"
-            name="lightness-preset"
-            value={scale.lightnessPreset}
-            onValueChange={(v) => {
-              const preset = v as LightnessPreset;
-              if (preset === 'custom') {
-                applyLightnessPreset(scale.id, 'custom');
-                onEditLightness();
-              } else {
-                applyLightnessPreset(scale.id, preset);
-              }
-            }}
-            className="focus-visible-ring"
-            options={LIGHTNESS_PRESET_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
-          />
-          {scale.lightnessPreset === 'custom' && (
-            <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
-          )}
-        </div>
-      )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

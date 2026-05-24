@@ -1,8 +1,31 @@
 import { useState } from 'react';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
-import type { ColorScale } from '../../types/palette';
+import type { ColorScale, StepNamingPreset } from '../../types/palette';
+import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
+import { AppStringSelect } from '../base-ui';
 import { LockIcon } from '../icons/LockIcon';
+
+const linkBtnStyle: React.CSSProperties = {
+  padding: 0,
+  fontSize: 11,
+  background: 'none',
+  border: 'none',
+  color: 'var(--p-text-secondary)',
+  cursor: 'pointer',
+  textDecoration: 'underline',
+  textUnderlineOffset: 2,
+};
+
+const presetLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color: 'var(--p-text-tertiary)',
+  width: 56,
+  flexShrink: 0,
+};
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -232,7 +255,13 @@ function ScaleItem({
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  onEditSteps: () => void;
+  onEditLightness: () => void;
+  onCollapse?: () => void;
+}
+
+export function Sidebar({ onEditSteps, onEditLightness, onCollapse }: SidebarProps) {
   const scales = usePaletteStore((s) => s.scales);
   const activeScaleId = usePaletteStore((s) => s.activeScaleId);
   const selectedScaleIds = usePaletteStore((s) => s.selectedScaleIds);
@@ -245,6 +274,9 @@ export function Sidebar() {
   const clearSelection = usePaletteStore((s) => s.clearSelection);
   const removeSelectedScales = usePaletteStore((s) => s.removeSelectedScales);
   const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
+  const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
+  const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
+  const activeScale = usePaletteStore(selectActiveScale);
   const [newHex, setNewHex] = useState('#6366f1');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -277,28 +309,119 @@ export function Sidebar() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 6,
         }}
       >
         <span>Scales</span>
-        {scales.length > 0 && (
-          <button
-            onClick={hasSelection ? clearSelection : selectAllScales}
-            style={{
-              padding: 0,
-              fontSize: 10,
-              background: 'none',
-              border: 'none',
-              color: 'var(--p-text-tertiary)',
-              cursor: 'pointer',
-              textTransform: 'none',
-              letterSpacing: 'normal',
-              fontWeight: 400,
-            }}
-          >
-            {hasSelection ? 'None' : 'All'}
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {scales.length > 0 && (
+            <button
+              onClick={hasSelection ? clearSelection : selectAllScales}
+              style={{
+                padding: 0,
+                fontSize: 10,
+                background: 'none',
+                border: 'none',
+                color: 'var(--p-text-tertiary)',
+                cursor: 'pointer',
+                textTransform: 'none',
+                letterSpacing: 'normal',
+                fontWeight: 400,
+              }}
+            >
+              {hasSelection ? 'None' : 'All'}
+            </button>
+          )}
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              title="Collapse panel"
+              aria-label="Collapse panel"
+              className="focus-visible-ring"
+              style={{
+                padding: 0,
+                width: 18,
+                height: 18,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'none',
+                border: 'none',
+                color: 'var(--p-text-tertiary)',
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M7.5 2.5 4 6l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Steps / Lightness presets — affect the active scale */}
+      {activeScale && (
+        <div
+          style={{
+            padding: '10px 12px',
+            borderBottom: '1px solid var(--p-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <label htmlFor="sidebar-steps-preset" style={presetLabelStyle}>Steps</label>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <AppStringSelect
+                id="sidebar-steps-preset"
+                name="sidebar-steps-preset"
+                size="compact"
+                value={activeScale.naming.preset}
+                onValueChange={(v) => {
+                  const preset = v as StepNamingPreset;
+                  updateStepNamingAll({ preset });
+                  if (preset === 'custom') onEditSteps();
+                }}
+                className="focus-visible-ring"
+                options={[
+                  { value: 'tailwind', label: 'Tailwind' },
+                  { value: 'numeric', label: 'Numeric' },
+                  { value: 'custom', label: 'Custom…' },
+                ]}
+              />
+            </div>
+            {activeScale.naming.preset === 'custom' && (
+              <button onClick={onEditSteps} style={linkBtnStyle} className="focus-visible-ring">edit</button>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <label htmlFor="sidebar-lightness-preset" style={presetLabelStyle}>Lightness</label>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <AppStringSelect
+                id="sidebar-lightness-preset"
+                name="sidebar-lightness-preset"
+                size="compact"
+                value={activeScale.lightnessPreset}
+                onValueChange={(v) => {
+                  const preset = v as LightnessPreset;
+                  if (preset === 'custom') {
+                    applyLightnessPreset(activeScale.id, 'custom');
+                    onEditLightness();
+                  } else {
+                    applyLightnessPreset(activeScale.id, preset);
+                  }
+                }}
+                className="focus-visible-ring"
+                options={LIGHTNESS_PRESET_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
+              />
+            </div>
+            {activeScale.lightnessPreset === 'custom' && (
+              <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {hasSelection && (

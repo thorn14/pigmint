@@ -90,6 +90,14 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>(() =>
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
   );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('pigmint:sidebar-collapsed') === '1';
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('pigmint:sidebar-collapsed', sidebarCollapsed ? '1' : '0');
+  }, [sidebarCollapsed]);
   const lastSavedFingerprint = useRef<string | null>(null);
   const activePaletteId = usePaletteStore((s) => s.activePaletteId);
   const scale = usePaletteStore(selectActiveScale);
@@ -222,8 +230,6 @@ export default function App() {
         onExportPigmint={() => setShowExportPigmint(true)}
         onImportPigmint={() => setShowImportPigmint(true)}
         onSave={handleSave}
-        onEditSteps={() => setShowSteps(true)}
-        onEditLightness={() => setShowLightness(true)}
         mode={mode}
         onModeChange={setMode}
         theme={theme}
@@ -250,7 +256,50 @@ export default function App() {
         >
           Pigmint color authoring
         </h1>
-        {mode === 'primitives' && scales.length > 0 && <Sidebar />}
+        {mode === 'primitives' && scales.length > 0 && (
+          sidebarCollapsed ? (
+            <aside
+              style={{
+                width: 28,
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingTop: 10,
+                background: 'var(--p-bg-subtle)',
+                borderRight: '1px solid var(--p-border)',
+              }}
+            >
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                title="Expand panel"
+                aria-label="Expand panel"
+                className="focus-visible-ring"
+                style={{
+                  width: 22,
+                  height: 22,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--p-text-tertiary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </aside>
+          ) : (
+            <Sidebar
+              onEditSteps={() => setShowSteps(true)}
+              onEditLightness={() => setShowLightness(true)}
+              onCollapse={() => setSidebarCollapsed(true)}
+            />
+          )
+        )}
 
         {mode === 'primitives' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
         {mode === 'preview' && (

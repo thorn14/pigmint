@@ -71,10 +71,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
-  const appTheme       = useIntentStore((s) => s.appTheme);
-  const highContrast   = useIntentStore((s) => s.highContrast);
-  const setHighContrast = useIntentStore((s) => s.setHighContrast);
-  const engineModes    = useIntentStore((s) => s.engineModes);
   const contrastMode = engineCompliance === 'apca' ? 'apca' : 'wcag';
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -261,29 +257,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             })}
           </div>
 
-        {effectiveBackground === 'gradient' && (() => {
-          const hcVariant = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
-          const hcAvailable = engineModes.includes(hcVariant);
-          return (
-            <label style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
-              color: 'var(--p-text-secondary)',
-              cursor: hcAvailable ? 'pointer' : 'default',
-              opacity: hcAvailable ? 1 : 0.4,
-              userSelect: 'none',
-            }}>
-              <input
-                type="checkbox"
-                checked={highContrast && hcAvailable}
-                disabled={!hcAvailable}
-                onChange={(e) => setHighContrast(e.target.checked)}
-                style={{ cursor: hcAvailable ? 'pointer' : 'default', accentColor: 'var(--p-accent)' }}
-              />
-              HC
-            </label>
-          );
-        })()}
       </div>
       )}
 
