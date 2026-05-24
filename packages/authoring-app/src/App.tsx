@@ -3,8 +3,6 @@ import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
-import { PalettePreview } from './components/preview/PalettePreview';
-import { AccessibleCombos } from './components/accessibility/AccessibleCombos';
 import { TokensPanel } from './components/tokens/TokensPanel';
 
 import { ExportModal } from './components/export/ExportModal';
@@ -13,16 +11,18 @@ import { ExportPigmintYamlModal } from './components/export/ExportPigmintYamlMod
 import { ImportPigmintYamlModal } from './components/export/ImportPigmintYamlModal';
 import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
+import { PalettePreviewModal } from './components/preview/PalettePreviewModal';
+import { ImportTokensYamlModal } from './components/tokens/ImportTokensYamlModal';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useIntentStore } from './store/intentStore';
 import { initVocabStore, useVocabStore } from './store/vocabStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens';
+type AppMode = 'primitives' | 'tokens';
 type AppTheme = 'dark' | 'light';
 
-const APP_MODES = new Set<AppMode>(['primitives', 'preview', 'combos', 'tokens']);
+const APP_MODES = new Set<AppMode>(['primitives', 'tokens']);
 
 function readModeFromSearch(search: string): AppMode | null {
   const raw = new URLSearchParams(search).get('mode');
@@ -54,7 +54,17 @@ function authoringFingerprint(): string {
   return JSON.stringify({ palettePart, intentPart });
 }
 
-function EditPanel({ scale }: { scale: ColorScale }) {
+function EditPanel({
+  scale,
+  panelsCollapsed,
+  onTogglePanels,
+  onShowPreview,
+}: {
+  scale: ColorScale;
+  panelsCollapsed: boolean;
+  onTogglePanels: () => void;
+  onShowPreview: () => void;
+}) {
   const ramp = useGeneratedRamp(scale);
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const activeStep = activeStepIndex !== null ? (ramp.steps[activeStepIndex] ?? null) : null;
@@ -70,8 +80,13 @@ function EditPanel({ scale }: { scale: ColorScale }) {
         ramp={ramp}
         activeStepIndex={activeStepIndex}
         onStepClick={handleStepClick}
+        panelsCollapsed={panelsCollapsed}
+        onTogglePanels={onTogglePanels}
+        onShowPreview={onShowPreview}
       />
-      <RightPanel key={scale.id} scale={scale} activeStep={activeStep} />
+      {!panelsCollapsed && (
+        <RightPanel key={scale.id} scale={scale} activeStep={activeStep} />
+      )}
     </div>
   );
 }
@@ -81,6 +96,7 @@ export default function App() {
   const [showImport, setShowImport] = useState(false);
   const [showExportPigmint, setShowExportPigmint] = useState(false);
   const [showImportPigmint, setShowImportPigmint] = useState(false);
+  const [showImportTokens, setShowImportTokens] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -90,22 +106,21 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>(() =>
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
   );
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+  const [panelsCollapsed, setPanelsCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem('pigmint:sidebar-collapsed') === '1';
+    return window.localStorage.getItem('pigmint:panels-collapsed') === '1';
   });
+  const [showPreview, setShowPreview] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('pigmint:sidebar-collapsed', sidebarCollapsed ? '1' : '0');
-  }, [sidebarCollapsed]);
+    window.localStorage.setItem('pigmint:panels-collapsed', panelsCollapsed ? '1' : '0');
+  }, [panelsCollapsed]);
   const lastSavedFingerprint = useRef<string | null>(null);
   const activePaletteId = usePaletteStore((s) => s.activePaletteId);
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const toggleSrgbPreview = usePaletteStore((s) => s.toggleSrgbPreview);
-  const undo = usePaletteStore((s) => s.undo);
-  const redo = usePaletteStore((s) => s.redo);
 
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null): boolean {
@@ -130,21 +145,33 @@ export default function App() {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
+      if (isEditableTarget(e.target)) return;
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod || isEditableTarget(e.target)) return;
-
       const key = e.key.toLowerCase();
-      if (key === 'z' && !e.shiftKey) {
+
+      if (mod) {
+        if (key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          usePaletteStore.getState().undo();
+        } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          usePaletteStore.getState().redo();
+        } else if (key === '/') {
+          e.preventDefault();
+          setPanelsCollapsed((v) => !v);
+        }
+        return;
+      }
+
+      if (e.altKey || e.shiftKey) return;
+      if (key === 'p') {
         e.preventDefault();
-        undo();
-      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
-        e.preventDefault();
-        redo();
+        setShowPreview((v) => !v);
       }
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, []);
 
   useEffect(() => {
     const is = useIntentStore.getState();
@@ -194,6 +221,18 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
+  const handleExportTokens = useCallback(() => {
+    const yaml = useVocabStore.getState().exportYaml();
+    if (!yaml) return;
+    const blob = new Blob([yaml], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tokens.yaml';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   const handleSave = useCallback(() => {
     setSaveStatus('saving');
     try {
@@ -229,6 +268,8 @@ export default function App() {
         onImport={() => setShowImport(true)}
         onExportPigmint={() => setShowExportPigmint(true)}
         onImportPigmint={() => setShowImportPigmint(true)}
+        onExportTokens={handleExportTokens}
+        onImportTokens={() => setShowImportTokens(true)}
         onSave={handleSave}
         mode={mode}
         onModeChange={setMode}
@@ -256,68 +297,40 @@ export default function App() {
         >
           Pigmint color authoring
         </h1>
-        {mode === 'primitives' && scales.length > 0 && (
-          sidebarCollapsed ? (
-            <aside
-              style={{
-                width: 28,
-                flexShrink: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                paddingTop: 10,
-                background: 'var(--p-bg-subtle)',
-                borderRight: '1px solid var(--p-border)',
-              }}
-            >
-              <button
-                onClick={() => setSidebarCollapsed(false)}
-                title="Expand panel"
-                aria-label="Expand panel"
-                className="focus-visible-ring"
-                style={{
-                  width: 22,
-                  height: 22,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--p-text-tertiary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </aside>
-          ) : (
-            <Sidebar
-              onEditSteps={() => setShowSteps(true)}
-              onEditLightness={() => setShowLightness(true)}
-              onCollapse={() => setSidebarCollapsed(true)}
-            />
-          )
-        )}
-
-        {mode === 'primitives' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
-        {mode === 'preview' && (
-          <PalettePreview
-            onEditScale={(scaleId) => {
-              usePaletteStore.getState().setActiveScale(scaleId);
-              setMode('primitives');
-            }}
+        {mode === 'primitives' && scales.length > 0 && !panelsCollapsed && (
+          <Sidebar
+            onEditSteps={() => setShowSteps(true)}
+            onEditLightness={() => setShowLightness(true)}
           />
         )}
-        {mode === 'combos' && <AccessibleCombos />}
+
+        {mode === 'primitives' && (scale ? (
+          <EditPanel
+            scale={scale}
+            panelsCollapsed={panelsCollapsed}
+            onTogglePanels={() => setPanelsCollapsed((v) => !v)}
+            onShowPreview={() => setShowPreview(true)}
+          />
+        ) : (
+          <BulkCreatePanel />
+        ))}
         {mode === 'tokens' && <TokensPanel />}
       </main>
 
+      {showPreview && (
+        <PalettePreviewModal
+          onClose={() => setShowPreview(false)}
+          onEditScale={(scaleId) => {
+            usePaletteStore.getState().setActiveScale(scaleId);
+            setShowPreview(false);
+          }}
+        />
+      )}
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {showExportPigmint && <ExportPigmintYamlModal onClose={() => setShowExportPigmint(false)} />}
       {showImportPigmint && <ImportPigmintYamlModal onClose={() => setShowImportPigmint(false)} />}
+      {showImportTokens && <ImportTokensYamlModal onClose={() => setShowImportTokens(false)} />}
       {showSteps && scale && <StepListModal scale={scale} mode="names" applyToAll onClose={() => setShowSteps(false)} />}
       {showLightness && scale && <StepListModal scale={scale} mode="lightness" onClose={() => setShowLightness(false)} />}
     </div>

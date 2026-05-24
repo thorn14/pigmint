@@ -258,10 +258,9 @@ function ScaleItem({
 interface SidebarProps {
   onEditSteps: () => void;
   onEditLightness: () => void;
-  onCollapse?: () => void;
 }
 
-export function Sidebar({ onEditSteps, onEditLightness, onCollapse }: SidebarProps) {
+export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
   const scales = usePaletteStore((s) => s.scales);
   const activeScaleId = usePaletteStore((s) => s.activeScaleId);
   const selectedScaleIds = usePaletteStore((s) => s.selectedScaleIds);
@@ -313,50 +312,6 @@ export function Sidebar({ onEditSteps, onEditLightness, onCollapse }: SidebarPro
         }}
       >
         <span>Scales</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {scales.length > 0 && (
-            <button
-              onClick={hasSelection ? clearSelection : selectAllScales}
-              style={{
-                padding: 0,
-                fontSize: 10,
-                background: 'none',
-                border: 'none',
-                color: 'var(--p-text-tertiary)',
-                cursor: 'pointer',
-                textTransform: 'none',
-                letterSpacing: 'normal',
-                fontWeight: 400,
-              }}
-            >
-              {hasSelection ? 'None' : 'All'}
-            </button>
-          )}
-          {onCollapse && (
-            <button
-              onClick={onCollapse}
-              title="Collapse panel"
-              aria-label="Collapse panel"
-              className="focus-visible-ring"
-              style={{
-                padding: 0,
-                width: 18,
-                height: 18,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'none',
-                border: 'none',
-                color: 'var(--p-text-tertiary)',
-                cursor: 'pointer',
-              }}
-            >
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M7.5 2.5 4 6l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Steps / Lightness presets — affect the active scale */}
@@ -458,6 +413,34 @@ export function Sidebar({ onEditSteps, onEditLightness, onCollapse }: SidebarPro
 
       {/* Scale list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+        {scales.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: '0 4px 6px',
+            }}
+          >
+            <button
+              onClick={hasSelection ? clearSelection : selectAllScales}
+              className="focus-visible-ring"
+              style={{
+                padding: 0,
+                fontSize: 10,
+                background: 'none',
+                border: 'none',
+                color: 'var(--p-text-tertiary)',
+                cursor: 'pointer',
+                textTransform: 'none',
+                letterSpacing: 'normal',
+                fontWeight: 400,
+              }}
+            >
+              {hasSelection ? 'None' : 'All'}
+            </button>
+          </div>
+        )}
         <div
           style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
           onDragOver={(e) => {

@@ -5,7 +5,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
-import { TokensGradientView } from './TokensGradientView';
+import { AccessibleCombosModal } from '../accessibility/AccessibleCombosModal';
 import {
   alphaCompositeHex,
   parseStepRef,
@@ -1086,7 +1086,6 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
 export function TokensPanel() {
   const raw = useVocabStore((s) => s.raw);
   const error = useVocabStore((s) => s.error);
-  const loadFromText = useVocabStore((s) => s.loadFromText);
   const addSurface = useVocabStore((s) => s.addSurface);
   const updateSurface = useVocabStore((s) => s.updateSurface);
   const removeSurface = useVocabStore((s) => s.removeSurface);
@@ -1103,7 +1102,6 @@ export function TokensPanel() {
   const renameAlpha = useVocabStore((s) => s.renameAlpha);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const compliance: 'wcag21' | 'apca' = engineCompliance === 'apca' ? 'apca' : 'wcag21';
-  const exportYaml = useVocabStore((s) => s.exportYaml);
   const clear = useVocabStore((s) => s.clear);
 
   const scales = usePaletteStore((s) => s.scales);
@@ -1127,41 +1125,10 @@ export function TokensPanel() {
     return map;
   }, [scales]);
 
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [showPaste, setShowPaste] = useState(false);
-  const [pasteText, setPasteText] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [view, setView] = useState<'edit' | 'preview' | 'gradient'>('edit');
-
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      loadFromText(reader.result as string, ec());
-      setShowPaste(false);
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }
-
-  function handleApplyPaste() {
-    if (pasteText.trim()) {
-      loadFromText(pasteText, ec());
-      setPasteText('');
-      setShowPaste(false);
-    }
-  }
-
-  function handleExport() {
-    const yaml = exportYaml();
-    if (!yaml) return;
-    const blob = new Blob([yaml], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'tokens.yaml'; a.click();
-    URL.revokeObjectURL(url);
-  }
+  const [showCombos, setShowCombos] = useState(false);
+  const [view, setView] = useState<'edit' | 'preview'>('edit');
+  const VIEW_LABELS: Record<'edit' | 'preview', string> = { edit: 'Create', preview: 'Preview' };
 
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -1181,7 +1148,7 @@ export function TokensPanel() {
           padding: 2,
           gap: 2,
         }}>
-          {(['edit', 'preview', 'gradient'] as const).map((v) => {
+          {(['edit', 'preview'] as const).map((v) => {
             const active = view === v;
             return (
               <button key={v} onClick={() => setView(v)} style={{
@@ -1192,62 +1159,43 @@ export function TokensPanel() {
                 textTransform: 'uppercase' as const, letterSpacing: '0.04em',
                 padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
               }}>
-                {v}
+                {VIEW_LABELS[v]}
               </button>
             );
           })}
         </div>
 
         {view === 'edit' && rampNames.length > 0 && (
-          <button
-            style={{
-              ...btn,
-              background: 'var(--p-accent, #6366f1)',
-              borderColor: 'var(--p-accent, #6366f1)',
-              color: '#fff',
-              fontWeight: 600,
-              padding: '3px 12px',
-            }}
-            onClick={() => setShowAddModal(true)}
-          >
-            + Add
-          </button>
+          <>
+            <button
+              style={{
+                ...btn,
+                background: 'var(--p-accent, #6366f1)',
+                borderColor: 'var(--p-accent, #6366f1)',
+                color: '#fff',
+                fontWeight: 600,
+                padding: '3px 12px',
+              }}
+              onClick={() => setShowAddModal(true)}
+            >
+              + Add
+            </button>
+            <button
+              style={btn}
+              onClick={() => setShowCombos(true)}
+              title="Open accessible color combos"
+            >
+              Combos
+            </button>
+          </>
         )}
         <div style={{ flex: 1 }} />
-        <button style={btn} onClick={() => setShowPaste((v) => !v)}>
-          {showPaste ? 'Cancel paste' : 'Paste YAML'}
-        </button>
-        <input ref={fileRef} type="file" accept=".yaml,.yml,.json" onChange={handleFileUpload} style={{ display: 'none' }} />
-        <button style={btn} onClick={() => fileRef.current?.click()}>Upload</button>
         {raw && (
-          <>
-            <button style={btn} onClick={handleExport}>Export</button>
-            <button style={{ ...btn, color: 'var(--p-text-secondary)' }} onClick={clear}>Clear</button>
-          </>
+          <button style={{ ...btn, color: 'var(--p-text-secondary)' }} onClick={clear}>Clear</button>
         )}
         {error && <span style={{ fontSize: 12, color: '#e55' }}>{error}</span>}
       </div>
 
-      {/* Paste area */}
-      {showPaste && (
-        <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--p-border)', background: 'var(--p-bg-subtle)', flexShrink: 0 }}>
-          <textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder="Paste tokens.yaml content here…"
-            style={{
-              width: '100%', minHeight: 120, padding: 8, fontSize: 12,
-              fontFamily: 'monospace', background: 'var(--p-bg)',
-              border: '1px solid var(--p-border)', borderRadius: 6,
-              color: 'var(--p-text-secondary)', resize: 'vertical' as const,
-              boxSizing: 'border-box' as const,
-            }}
-          />
-          <button style={{ ...btn, marginTop: 6, borderColor: 'var(--p-accent)', color: 'var(--p-accent)' }} onClick={handleApplyPaste}>
-            Apply
-          </button>
-        </div>
-      )}
 
       {/* No ramps hint (edit only) */}
       {view === 'edit' && rampNames.length === 0 && (
@@ -1259,8 +1207,7 @@ export function TokensPanel() {
       {/* Preview view */}
       {view === 'preview' && <TokensPreview />}
 
-      {/* Gradient view — tokens over per-scale gradients */}
-      {view === 'gradient' && <TokensGradientView />}
+      {showCombos && <AccessibleCombosModal onClose={() => setShowCombos(false)} />}
 
       {/* Edit view — sections */}
       {view === 'edit' && (

@@ -43,7 +43,20 @@ function PaletteSelector() {
         onValueChange={handleValueChange}
         size="compact"
         className="focus-visible-ring"
-        style={{ width: 160, maxWidth: 200, flexShrink: 0 }}
+        style={{
+          width: 160,
+          maxWidth: 200,
+          flexShrink: 0,
+          height: 30,
+          padding: '0 12px',
+          borderRadius: 6,
+          color: 'var(--p-text)',
+          fontSize: 12,
+          fontFamily: 'inherit',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
         options={options}
       />
       {showManage && <ManagePalettesModal onClose={() => setShowManage(false)} />}
@@ -51,7 +64,7 @@ function PaletteSelector() {
   );
 }
 
-type AppMode = 'primitives' | 'preview' | 'combos' | 'tokens';
+type AppMode = 'primitives' | 'tokens';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -59,6 +72,8 @@ interface Props {
   onImport: () => void;
   onExportPigmint: () => void;
   onImportPigmint: () => void;
+  onExportTokens: () => void;
+  onImportTokens: () => void;
   onSave: () => void;
   mode: AppMode;
   onModeChange: (mode: AppMode) => void;
@@ -181,7 +196,7 @@ function ViewMenu({ theme, onThemeChange, srgbPreview, onToggleSrgbPreview }: Vi
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
-          padding: '4px 10px',
+          padding: '0 12px',
           height: 30,
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -191,6 +206,7 @@ function ViewMenu({ theme, onThemeChange, srgbPreview, onToggleSrgbPreview }: Vi
           color: 'var(--p-text)',
           cursor: 'pointer',
           flexShrink: 0,
+          boxSizing: 'border-box',
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -273,7 +289,7 @@ function ViewMenu({ theme, onThemeChange, srgbPreview, onToggleSrgbPreview }: Vi
   );
 }
 
-export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, onSave, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
+export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, onExportTokens, onImportTokens, onSave, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
   const saveSplitRef = useRef<HTMLDivElement>(null);
 
   const saveLabel =
@@ -328,8 +344,6 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
         size="comfortable"
         options={([
           { value: 'primitives', label: 'Primitives' },
-          { value: 'preview', label: 'Preview' },
-          { value: 'combos', label: 'Combos' },
           { value: 'tokens', label: 'Tokens' },
         ] as const).map((m) => ({ value: m.value, label: m.label }))}
       />
@@ -350,12 +364,15 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
             ref={saveSplitRef}
             style={{
               display: 'inline-flex',
+              alignItems: 'stretch',
               position: 'relative',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
               overflow: 'visible',
               background: 'var(--p-bg)',
               fontSize: 12,
+              height: 30,
+              boxSizing: 'border-box',
             }}
           >
             <button
@@ -364,10 +381,13 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
               disabled={saveStatus === 'saving'}
               className="focus-visible-ring"
               style={{
-                padding: '4px 14px',
+                padding: '0 14px',
                 fontWeight: 500,
                 background: 'var(--p-bg)',
                 border: 'none',
+                borderRadius: '5px 0 0 5px',
+                display: 'inline-flex',
+                alignItems: 'center',
                 color:
                   saveStatus === 'error'
                     ? 'var(--p-danger)'
@@ -408,12 +428,14 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
               aria-label="More save and export options"
               className="focus-visible-ring"
               style={{
-                padding: '4px 10px',
+                padding: '0 10px',
                 borderLeft: '1px solid var(--p-border)',
                 background: 'var(--p-bg)',
+                color: 'var(--p-text)',
                 borderTop: 'none',
                 borderRight: 'none',
                 borderBottom: 'none',
+                borderRadius: '0 5px 5px 0',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -456,36 +478,32 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
                 >
                   Save
                 </Menu.Item>
-                <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import" onClick={onImport}>
-                  Import
-                </Menu.Item>
-                <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export" onClick={onExport}>
-                  Export
-                </Menu.Item>
-                <Menu.Separator
-                  style={{
-                    margin: '4px 0',
-                    height: 1,
-                    background: 'var(--p-border)',
-                    border: 'none',
-                  }}
-                />
-                <Menu.Item
-                  className="app-menu-item focus-visible-ring"
-                  style={saveMenuItemStyle}
-                  label="Import pigmint yaml"
-                  onClick={onImportPigmint}
-                >
-                  Import pigmint.yaml
-                </Menu.Item>
-                <Menu.Item
-                  className="app-menu-item focus-visible-ring"
-                  style={saveMenuItemStyle}
-                  label="Export pigmint yaml"
-                  onClick={onExportPigmint}
-                >
-                  Export pigmint.yaml
-                </Menu.Item>
+                <Menu.Separator style={viewMenuSeparatorStyle} />
+                <Menu.Group>
+                  <Menu.GroupLabel style={viewMenuGroupLabelStyle}>Import</Menu.GroupLabel>
+                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import colors" onClick={onImport}>
+                    Colors
+                  </Menu.Item>
+                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import tokens" onClick={onImportTokens}>
+                    Tokens
+                  </Menu.Item>
+                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import pigmint yaml" onClick={onImportPigmint}>
+                    Pigmint
+                  </Menu.Item>
+                </Menu.Group>
+                <Menu.Separator style={viewMenuSeparatorStyle} />
+                <Menu.Group>
+                  <Menu.GroupLabel style={viewMenuGroupLabelStyle}>Export</Menu.GroupLabel>
+                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export colors" onClick={onExport}>
+                    Colors
+                  </Menu.Item>
+                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export tokens" onClick={onExportTokens}>
+                    Tokens
+                  </Menu.Item>
+                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export pigmint yaml" onClick={onExportPigmint}>
+                    Pigmint
+                  </Menu.Item>
+                </Menu.Group>
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>

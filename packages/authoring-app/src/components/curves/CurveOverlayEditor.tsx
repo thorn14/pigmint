@@ -6,6 +6,7 @@ import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { ScaleDiagnosticsRow } from '../diagnostics/RampDiagnosticsView';
+import { PanelLeftIcon } from '../icons/PanelIcons';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -45,6 +46,9 @@ interface Props {
   ramp: GeneratedRamp;
   activeStepIndex: number | null;
   onStepClick: (idx: number) => void;
+  panelsCollapsed: boolean;
+  onTogglePanels: () => void;
+  onShowPreview: () => void;
 }
 
 // Keyboard shortcut descriptions shown in the help tooltip
@@ -63,7 +67,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   curves: 'Steps',
   diagnostic: 'Diagnostic',
 };
-export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
+export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, panelsCollapsed, onTogglePanels, onShowPreview }: Props) {
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
@@ -212,13 +216,13 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ background: 'var(--p-bg)' }}>
 
-      {/* Toolbar: view-mode toggle + engine-mode selector (continuous only) */}
-      {isContinuous && (
+      {/* Toolbar: view-mode toggle (continuous only) + global panel/preview controls */}
       <div
         className="flex shrink-0 items-center gap-2 border-b px-2"
         style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
       >
-        <div
+        {isContinuous && (
+          <div
             role="radiogroup"
             aria-label="Canvas view"
             style={{
@@ -256,9 +260,71 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               );
             })}
           </div>
+        )}
 
+        <div style={{ flex: 1 }} />
+
+        <button
+          type="button"
+          onClick={onShowPreview}
+          title="Open palette preview (P)"
+          aria-label="Open palette preview"
+          className="focus-visible-ring"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '0 10px',
+            height: 24,
+            background: 'transparent',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'var(--p-text-secondary)',
+            cursor: 'pointer',
+            boxSizing: 'border-box',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 6V3h3" />
+            <path d="M13 6V3h-3" />
+            <path d="M3 10v3h3" />
+            <path d="M13 10v3h-3" />
+          </svg>
+          Preview
+          <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7, textTransform: 'none', letterSpacing: 0 }}>P</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onTogglePanels}
+          title={`${panelsCollapsed ? 'Show' : 'Hide'} panels (⌘/)`}
+          aria-label={`${panelsCollapsed ? 'Show' : 'Hide'} panels`}
+          aria-pressed={panelsCollapsed}
+          className="focus-visible-ring"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '0 8px',
+            height: 24,
+            background: 'transparent',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 600,
+            color: 'var(--p-text-secondary)',
+            cursor: 'pointer',
+            boxSizing: 'border-box',
+          }}
+        >
+          <PanelLeftIcon size={12} />
+          <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7 }}>⌘/</span>
+        </button>
       </div>
-      )}
 
       {effectiveBackground === 'diagnostic' ? (
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
