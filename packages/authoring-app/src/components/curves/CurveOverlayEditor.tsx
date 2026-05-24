@@ -198,90 +198,101 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
   }
 
 
+  const floatingPillBase: React.CSSProperties = {
+    background: 'rgba(20, 20, 22, 0.78)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    borderRadius: 8,
+    color: '#fff',
+  };
+
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ background: 'var(--p-bg)' }}>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative" style={{ background: 'var(--p-bg)' }}>
 
-      {/* Toolbar: view-mode toggle (continuous only) + global panel/preview controls */}
+      {/* Floating top-right controls: view-mode toggle (continuous only) + preview + panels */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b px-2"
-        style={{ height: 32, borderColor: 'var(--p-border)', background: 'var(--p-bg-raised, var(--p-bg))' }}
+        className="absolute flex items-center gap-2 pointer-events-none"
+        style={{ top: 8, right: 8, zIndex: 20 }}
       >
-        {isContinuous && (
-          <div
-            role="radiogroup"
-            aria-label="Canvas view"
-            style={{
-              display: 'inline-flex',
-              borderRadius: 6,
-              background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
-              padding: 2,
-              gap: 2,
-            }}
-          >
-            {VIEW_MODES.map((m) => {
-              const active = viewMode === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setViewMode(m)}
-                  style={{
-                    border: 'none',
-                    background: active ? 'var(--p-text)' : 'transparent',
-                    color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    padding: '3px 10px',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {VIEW_MODE_LABELS[m]}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <div style={{ flex: 1 }} />
-
-        <button
-          type="button"
-          onClick={onShowPreview}
-          title="Open palette preview (P)"
-          aria-label="Open palette preview"
-          className="focus-visible-ring"
+        <div
+          className="pointer-events-auto"
           style={{
+            ...floatingPillBase,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '0 10px',
-            height: 24,
-            background: 'transparent',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            fontSize: 10,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            color: 'var(--p-text-secondary)',
-            cursor: 'pointer',
-            boxSizing: 'border-box',
+            padding: 2,
+            gap: 2,
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 6V3h3" />
-            <path d="M13 6V3h-3" />
-            <path d="M3 10v3h3" />
-            <path d="M13 10v3h-3" />
-          </svg>
-          Preview
-          <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7, textTransform: 'none', letterSpacing: 0 }}>P</span>
-        </button>
+          {isContinuous && (
+            <div role="radiogroup" aria-label="Canvas view" style={{ display: 'inline-flex', gap: 2 }}>
+              {VIEW_MODES.map((m) => {
+                const active = viewMode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setViewMode(m)}
+                    style={{
+                      border: 'none',
+                      background: active ? 'rgba(255,255,255,0.95)' : 'transparent',
+                      color: active ? '#000' : 'rgba(255,255,255,0.7)',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      padding: '3px 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {VIEW_MODE_LABELS[m]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {isContinuous && (
+            <div style={{ width: 1, alignSelf: 'stretch', margin: '4px 2px', background: 'rgba(255,255,255,0.12)' }} aria-hidden="true" />
+          )}
+
+          <button
+            type="button"
+            onClick={onShowPreview}
+            title="Open palette preview (P)"
+            aria-label="Open palette preview"
+            className="focus-visible-ring"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '3px 10px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 10,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: 'rgba(255,255,255,0.7)',
+              cursor: 'pointer',
+              boxSizing: 'border-box',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6V3h3" />
+              <path d="M13 6V3h-3" />
+              <path d="M3 10v3h3" />
+              <path d="M13 10v3h-3" />
+            </svg>
+            Preview
+            <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7, textTransform: 'none', letterSpacing: 0 }}>P</span>
+          </button>
+        </div>
 
         <button
           type="button"
@@ -289,19 +300,16 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           title={`${panelsCollapsed ? 'Show' : 'Hide'} panels (⌘/)`}
           aria-label={`${panelsCollapsed ? 'Show' : 'Hide'} panels`}
           aria-pressed={panelsCollapsed}
-          className="focus-visible-ring"
+          className="focus-visible-ring pointer-events-auto"
           style={{
+            ...floatingPillBase,
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            padding: '0 8px',
-            height: 24,
-            background: 'transparent',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
+            padding: '4px 8px',
+            border: 'none',
             fontSize: 10,
             fontWeight: 600,
-            color: 'var(--p-text-secondary)',
             cursor: 'pointer',
             boxSizing: 'border-box',
           }}
@@ -571,8 +579,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
 
           {/* Help button */}
           <foreignObject
-            x={size.width - 28}
-            y={4}
+            x={8}
+            y={size.height - 32}
             width={24}
             height={24}
             style={{ pointerEvents: 'all' }}
@@ -605,7 +613,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
 
           {/* Shortcut tooltip */}
           {showHelp && (
-            <foreignObject x={size.width - 240} y={32} width={232} height={SHORTCUTS.length * 24 + 16} style={{ pointerEvents: 'none' }}>
+            <foreignObject x={8} y={size.height - 32 - (SHORTCUTS.length * 24 + 16) - 8} width={232} height={SHORTCUTS.length * 24 + 16} style={{ pointerEvents: 'none' }}>
               <div
                 style={{
                   background: 'rgba(0,0,0,0.82)',

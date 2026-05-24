@@ -26,18 +26,34 @@ export function PalettePreviewModal({ onClose, onEditScale }: Props) {
 
   return createPortal(
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Palette preview"
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 100,
-        background: 'var(--p-bg)',
+        background: 'rgba(0, 0, 0, 0.8)',
+        padding: 32,
         display: 'flex',
-        flexDirection: 'column',
       }}
+      onClick={onClose}
     >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Palette preview"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          background: 'var(--p-bg)',
+          border: '1px solid var(--p-border)',
+          borderRadius: 12,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
       <div
         style={{
           height: 44,
@@ -89,6 +105,7 @@ export function PalettePreviewModal({ onClose, onEditScale }: Props) {
       </div>
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <PalettePreview onEditScale={onEditScale} />
+      </div>
       </div>
     </div>,
     document.body,

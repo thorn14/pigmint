@@ -117,9 +117,9 @@ function ScaleItem({
       className="focus-visible-ring sidebar-scale-item"
       style={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         gap: 4,
-        padding: '6px 6px 6px 4px',
+        padding: '6px 0 8px 0',
         borderRadius: 6,
         background: isSelected
           ? 'var(--p-accent-subtle, rgba(99,102,241,0.12))'
@@ -137,61 +137,141 @@ function ScaleItem({
         textAlign: 'left',
       }}
     >
-      {/* Checkbox */}
-      <div
-        onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleSelect();
-          }
-        }}
-        role="checkbox"
-        aria-checked={isSelected}
-        aria-label={`Select ${scale.name}`}
-        tabIndex={0}
-        style={{
-          flexShrink: 0,
-          width: 16,
-          height: 16,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: hovered || isSelected ? 1 : 0,
-          transition: 'opacity 0.1s',
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" style={{ display: 'block' }}>
-          <rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="none" stroke="var(--p-text-tertiary)" strokeWidth="1" />
-          {isSelected && (
-            <path d="M2.5 6L5 8.5L9.5 3.5" fill="none" stroke="var(--p-accent, #6366f1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          )}
-        </svg>
-      </div>
+      {/* Top row: checkbox, grip, title, duplicate, lock — all aligned top */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 4, paddingRight: 0 }}>
+        {/* Checkbox */}
+        <div
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleSelect();
+            }
+          }}
+          role="checkbox"
+          aria-checked={isSelected}
+          aria-label={`Select ${scale.name}`}
+          tabIndex={0}
+          style={{
+            flexShrink: 0,
+            width: 16,
+            height: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: hovered || isSelected ? 1 : 0,
+            transition: 'opacity 0.1s',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" style={{ display: 'block' }}>
+            <rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="none" stroke="var(--p-text-tertiary)" strokeWidth="1" />
+            {isSelected && (
+              <path d="M2.5 6L5 8.5L9.5 3.5" fill="none" stroke="var(--p-accent, #6366f1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+        </div>
 
-      {/* Grip handle */}
-      <div style={{ color: 'var(--p-text-tertiary)', flexShrink: 0, padding: '0 2px', lineHeight: 0 }}>
-        <GripIcon />
-      </div>
-
-      {/* Name + mini ramp */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Name */}
         <span
           style={{
+            flex: 1,
+            minWidth: 0,
             fontSize: 12,
             fontWeight: isActive ? 600 : 400,
             color: isActive ? 'var(--p-text)' : 'var(--p-text-secondary)',
-            marginBottom: 5,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            display: 'block',
           }}
         >
           {scale.name}
         </span>
-        <div style={{ display: 'flex', height: 16, borderRadius: 3, overflow: 'hidden' }}>
+
+        {/* Duplicate button */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+          title="Duplicate scale"
+          aria-label="Duplicate scale"
+          style={{
+            flexShrink: 0,
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'none',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+            color: hovered ? 'var(--p-text)' : 'var(--p-text-tertiary)',
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.1s, color 0.1s',
+            padding: 0,
+          }}
+        >
+          <DuplicateIcon />
+        </button>
+
+        {/* Lock toggle */}
+        <button
+          type="button"
+          aria-label={scale.lockedFromOverrides ? 'Unlock from overrides' : 'Lock from overrides'}
+          title={scale.lockedFromOverrides ? 'Locked — click to unlock' : 'Click to lock from global overrides'}
+          onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
+          className="focus-visible-ring"
+          style={{
+            flexShrink: 0,
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-tertiary)',
+            opacity: scale.lockedFromOverrides ? 1 : (hovered ? 1 : 0),
+            transition: 'opacity 0.1s, color 0.1s',
+            cursor: 'pointer',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+          }}
+        >
+          <LockIcon locked={scale.lockedFromOverrides} />
+        </button>
+      </div>
+
+      {/* Ramp row: grip on the left (hover-only), ramp fills to right edge */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          paddingLeft: 4,
+          paddingRight: 0,
+        }}
+      >
+        {/* Grip handle — show on hover */}
+        <div
+          style={{
+            color: 'var(--p-text-tertiary)',
+            flexShrink: 0,
+            width: 16,
+            height: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 0,
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.1s',
+            cursor: 'grab',
+          }}
+        >
+          <GripIcon />
+        </div>
+
+        {/* Ramp */}
+        <div style={{ flex: 1, display: 'flex', height: 8, overflow: 'hidden' }}>
           {ramp.steps.map((step) => (
             <div
               key={step.name}
@@ -200,57 +280,6 @@ function ScaleItem({
           ))}
         </div>
       </div>
-
-      {/* Duplicate button */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
-        title="Duplicate scale"
-        aria-label="Duplicate scale"
-        style={{
-          flexShrink: 0,
-          width: 22,
-          height: 22,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'none',
-          border: 'none',
-          borderRadius: 4,
-          cursor: 'pointer',
-          color: hovered ? 'var(--p-text)' : 'var(--p-text-tertiary)',
-          opacity: hovered ? 1 : 0,
-          transition: 'opacity 0.1s, color 0.1s',
-          padding: 0,
-        }}
-      >
-        <DuplicateIcon />
-      </button>
-
-      {/* Lock toggle */}
-      <button
-        type="button"
-        aria-label={scale.lockedFromOverrides ? 'Unlock from overrides' : 'Lock from overrides'}
-        title={scale.lockedFromOverrides ? 'Locked — click to unlock' : 'Click to lock from global overrides'}
-        onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
-        className="focus-visible-ring"
-        style={{
-          flexShrink: 0,
-          width: 22,
-          height: 22,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-tertiary)',
-          opacity: scale.lockedFromOverrides ? 1 : 0.45,
-          cursor: 'pointer',
-          background: 'none',
-          border: 'none',
-          padding: 0,
-        }}
-      >
-        <LockIcon locked={scale.lockedFromOverrides} />
-      </button>
     </div>
   );
 }
