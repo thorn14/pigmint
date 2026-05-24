@@ -11,7 +11,7 @@ import type { GeneratedRamp } from '@pigmint/core';
 
 type WcagLevel = 'aaa' | 'aa' | 'aa-large';
 type ApcaLevel = 'lc75' | 'lc60' | 'lc45';
-type Polarity = 'all' | 'light' | 'dark';
+type Polarity = 'light' | 'dark';
 
 const WCAG_LEVELS: { key: WcagLevel; label: string; sub: string }[] = [
   { key: 'aaa', label: 'AAA', sub: '≥ 7:1' },
@@ -37,7 +37,6 @@ function hexLuminance(hex: string): number {
 }
 
 function matchesPolarity(fg: ContrastMapColorRef, bg: ContrastMapColorRef, polarity: Polarity): boolean {
-  if (polarity === 'all') return true;
   const fgL = hexLuminance(fg.hex);
   const bgL = hexLuminance(bg.hex);
   if (polarity === 'light') return bgL > fgL;
@@ -162,8 +161,6 @@ const selectStyle: React.CSSProperties = {
 function FilterBar({
   search,
   setSearch,
-  polarity,
-  setPolarity,
   wcagLevel,
   setWcagLevel,
   apcaLevel,
@@ -174,8 +171,6 @@ function FilterBar({
 }: {
   search: string;
   setSearch: (s: string) => void;
-  polarity: Polarity;
-  setPolarity: (p: Polarity) => void;
   wcagLevel: WcagLevel;
   setWcagLevel: (l: WcagLevel) => void;
   apcaLevel: ApcaLevel;
@@ -196,23 +191,6 @@ function FilterBar({
         className="focus-visible-ring"
         style={{ ...selectStyle, width: 180, cursor: 'text' }}
       />
-
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <label htmlFor="combos-polarity" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Background:</label>
-        <AppStringSelect
-          id="combos-polarity"
-          name="combos-polarity"
-          value={polarity}
-          onValueChange={(v) => setPolarity(v as Polarity)}
-          style={selectStyle}
-          className="focus-visible-ring"
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-          ]}
-        />
-      </div>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <label htmlFor="combos-level" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Level:</label>
@@ -263,18 +241,14 @@ export function AccessibleCombos() {
   const useWcag = useIntentStore((s) => s.engineCompliance === 'wcag21');
 
   const appTheme = useIntentStore((s) => s.appTheme);
+  const polarity: Polarity = appTheme === 'dark' ? 'dark' : 'light';
 
   const [search, setSearch] = useState('');
-  const [polarity, setPolarity] = useState<Polarity>(appTheme === 'dark' ? 'dark' : 'light');
   const [wcagLevel, setWcagLevel] = useState<WcagLevel>('aa');
   const [apcaLevel, setApcaLevel] = useState<ApcaLevel>('lc60');
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<WcagMapEntry | ApcaMapEntry | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setPolarity(appTheme === 'dark' ? 'dark' : 'light');
-  }, [appTheme]);
 
   const rampMap = useMemo(() => {
     const map = new Map<string, GeneratedRamp>();
@@ -381,8 +355,6 @@ export function AccessibleCombos() {
         <FilterBar
           search={search}
           setSearch={setSearch}
-          polarity={polarity}
-          setPolarity={setPolarity}
           wcagLevel={wcagLevel}
           setWcagLevel={setWcagLevel}
           apcaLevel={apcaLevel}

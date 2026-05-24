@@ -18,21 +18,6 @@ const CURVES: { key: CurveKey; label: string; color: string; min: number; max: n
   { key: 'hue',       label: 'H', color: '#7c3aed', min: -180, max: 180 },
 ];
 
-const WCAG_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  AAA:        { bg: 'var(--badge-aaa-bg)',  text: 'var(--badge-aaa-text)',  label: '7:1'  },
-  AA:         { bg: 'var(--badge-aa-bg)',   text: 'var(--badge-aa-text)',   label: '4.5:1'},
-  'AA-large': { bg: 'var(--badge-aal-bg)',  text: 'var(--badge-aal-text)',  label: '3:1'  },
-  fail:       { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail' },
-};
-
-function getApcaBadge(lc: number): { bg: string; text: string; label: string } {
-  const absLc = Math.abs(lc);
-  if (absLc >= 75) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 75+' };
-  if (absLc >= 60) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 60+' };
-  if (absLc >= 45) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 45+' };
-  return { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail' };
-}
-
 interface DragState {
   curveKey: CurveKey;
   stepIndex: number;          // -1 for group drag
@@ -332,43 +317,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
         </div>
       ) : (
       <>
-      {/* Step name headers + gamut indicators */}
-      <div
-        className="flex shrink-0 border-b"
-        style={{ height: 40, borderColor: 'var(--p-border)' }}
-      >
-        {ramp.steps.map((step) => {
-          const gamutLabel = step.gamut === 'p3' ? { text: 'P3', color: '#7c3aed' } : null;
-          return (
-            <div
-              key={step.name}
-              className="flex-1 flex flex-col items-center justify-center border-r last:border-r-0 gap-1"
-              style={{ borderColor: 'var(--p-border)' }}
-            >
-              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-secondary)' }}>
-                {step.name}
-              </span>
-              {gamutLabel ? (
-                <span style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  lineHeight: 1,
-                  padding: '1px 4px',
-                  borderRadius: 3,
-                  backgroundColor: gamutLabel.color,
-                  color: '#fff',
-                }}>
-                  {gamutLabel.text}
-                </span>
-              ) : (
-                <span style={{ fontSize: 9, lineHeight: 1 }}>&nbsp;</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
       {/* Color columns + SVG curve overlay */}
       <div
         ref={containerRef}
@@ -386,12 +334,12 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
               key={step.name}
               onClick={() => onStepClick(i)}
               aria-label={`${step.name}: ${step.hex}`}
-              className="flex-1 relative border-r last:border-r-0 cursor-pointer"
+              className="flex-1 relative cursor-pointer"
               style={{
                 backgroundColor: step.oklch.alpha != null && step.oklch.alpha < 1
                   ? (formatCss({ mode: 'oklch', ...step.oklch }) ?? step.hex)
                   : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex),
-                borderColor: 'rgba(0,0,0,0.07)',
+                border: 'none',
                 boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
               }}
             />
@@ -403,10 +351,24 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* P3 threshold lines */}
+          {/* P3 threshold lines — drawn in raw-chroma space so handle ↔ line
+              comparison matches the gamut decision (which uses smoothed chroma). */}
           {ramp.steps.map((step, i) => {
             const chromaMeta = CURVES.find((c) => c.key === 'chroma')!;
-            const pt = getPoint(step.maxSrgbC, i, chromaMeta.min, chromaMeta.max);
+            const chromaSmoothing = scale.curves.chroma.smoothing ?? 0;
+            const rawC = scale.curves.chroma.values;
+            const isInterior = i > 0 && i < n - 1;
+            const t = Math.min(1, Math.max(0, chromaSmoothing));
+            let lineValue = step.maxSrgbC;
+            if (t > 0 && isInterior) {
+              const prev = rawC[i - 1] ?? step.maxSrgbC;
+              const next = rawC[i + 1] ?? step.maxSrgbC;
+              const k = 1 - 0.5 * t;
+              if (k > 1e-4) {
+                lineValue = (step.maxSrgbC - (prev + next) * 0.25 * t) / k;
+              }
+            }
+            const pt = getPoint(lineValue, i, chromaMeta.min, chromaMeta.max);
             const colW = size.width / n;
             const x1 = i * colW;
             const x2 = x1 + colW;
@@ -673,84 +635,78 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           )}
         </svg>
 
-      </div>
+        {/* Floating step badges: P3 (if present), contrast (if fails), step name */}
+        <div
+          className="absolute inset-x-0 bottom-0 flex pointer-events-none"
+          style={{ padding: '0 0 12px 0' }}
+        >
+          {ramp.steps.map((step, i) => {
+            const activeHex =
+              activeStepIndex !== null ? ramp.steps[activeStepIndex]?.hex : null;
+            const hasP3 = step.gamut === 'p3';
 
-      {/* Contrast badges row */}
-      <div
-        className="flex shrink-0 border-t"
-        style={{ height: 34, borderColor: 'var(--p-border)' }}
-      >
-        {ramp.steps.map((step, i) => {
-          const activeHex =
-            activeStepIndex !== null ? ramp.steps[activeStepIndex]?.hex : null;
+            let contrastFails = false;
+            let contrastTitle: string | undefined;
 
-          let badge: { bg: string; text: string; label: string } | null = null;
-          let title: string | undefined;
-
-          if (contrastMode === 'apca') {
-            if (activeHex !== null && i !== activeStepIndex) {
-              const lc = getApcaContrast(step.hex, activeHex);
-              badge = getApcaBadge(lc);
-              title = `APCA Lc: ${lc.toFixed(1)}`;
-            } else if (activeStepIndex === null) {
-              const lcWhite = getApcaContrast('#ffffff', step.hex);
-              const lcBlack = getApcaContrast('#000000', step.hex);
-              const bestLc = Math.abs(lcBlack) >= Math.abs(lcWhite) ? lcBlack : lcWhite;
-              badge = getApcaBadge(bestLc);
-              title = `APCA Lc: ${bestLc.toFixed(1)}`;
-            }
-          } else {
-            let result;
-            if (activeHex !== null && i !== activeStepIndex) {
-              result = getContrast(step.hex, activeHex);
-            } else if (activeStepIndex === null) {
-              const cw = getContrast(step.hex, '#ffffff');
-              const cb = getContrast(step.hex, '#000000');
-              result = cw.ratio > cb.ratio ? cw : cb;
+            if (contrastMode === 'apca') {
+              let lc: number | null = null;
+              if (activeHex !== null && i !== activeStepIndex) {
+                lc = getApcaContrast(step.hex, activeHex);
+              } else if (activeStepIndex === null) {
+                const lcWhite = getApcaContrast('#ffffff', step.hex);
+                const lcBlack = getApcaContrast('#000000', step.hex);
+                lc = Math.abs(lcBlack) >= Math.abs(lcWhite) ? lcBlack : lcWhite;
+              }
+              if (lc !== null) {
+                contrastFails = Math.abs(lc) < 45;
+                contrastTitle = `APCA Lc: ${lc.toFixed(1)}`;
+              }
             } else {
-              result = null;
+              let result;
+              if (activeHex !== null && i !== activeStepIndex) {
+                result = getContrast(step.hex, activeHex);
+              } else if (activeStepIndex === null) {
+                const cw = getContrast(step.hex, '#ffffff');
+                const cb = getContrast(step.hex, '#000000');
+                result = cw.ratio > cb.ratio ? cw : cb;
+              }
+              if (result) {
+                contrastFails = result.level === 'fail';
+                contrastTitle = `${result.ratio.toFixed(2)}:1`;
+              }
             }
-            if (result) {
-              badge = WCAG_STYLES[result.level] ?? WCAG_STYLES.fail;
-              title = `${result.ratio.toFixed(2)}:1`;
-            }
-          }
 
-          return (
-            <div
-              key={step.name}
-              className="flex-1 flex items-center justify-center border-r last:border-r-0"
-              style={{ borderColor: 'var(--p-border)' }}
-            >
-              {badge ? (
-                <span
-                  title={title}
+            return (
+              <div key={step.name} className="flex-1 flex justify-center">
+                <div
+                  title={contrastTitle}
                   style={{
-                    backgroundColor: badge.bg,
-                    color: badge.text,
+                    display: 'flex',
+                    flexDirection: 'column-reverse',
+                    alignItems: 'center',
+                    gap: 2,
+                    padding: '4px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(20, 20, 22, 0.78)',
+                    color: '#fff',
                     fontSize: 10,
-                    fontWeight: 600,
-                    padding: '2px 5px',
-                    borderRadius: 3,
-                    cursor: 'default',
+                    fontFamily: 'monospace',
+                    lineHeight: 1.1,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
                   }}
                 >
-                  {badge.label}
-                </span>
-              ) : (
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--p-border)',
-                    display: 'block',
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+                  <span style={{ fontWeight: 600 }}>{step.name}</span>
+                  {contrastFails && (
+                    <span style={{ color: 'var(--p-danger, #ff5d5d)', fontWeight: 700 }}>FAIL</span>
+                  )}
+                  {hasP3 && <span style={{ opacity: 0.85 }}>P3</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
       </>
       )}
