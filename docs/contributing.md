@@ -108,6 +108,8 @@ If your adapter has a runtime validator, add a second export:
 
 Declares the constraints the adapter enforces. The CLI validates the project config against this before invoking `emit`.
 
+> **Keep `adapter.yaml` and `src/manifest.ts` in sync.** `manifest.ts` is the runtime source-of-truth that `emit` imports; `adapter.yaml` is read by the CLI for project-config validation. Drift between the two means the CLI accepts (or rejects) configs that the runtime would disagree with. The Tailwind adapter has historically drifted on `supportedModes` — when you edit one file, update the other in the same commit.
+
 ```yaml
 name: <name>
 version: 0.0.0
@@ -211,8 +213,12 @@ Key fields on `AdapterInvocation`:
 | Field | Type | Notes |
 |---|---|---|
 | `container` | `DtcgContainer` | Resolved token tree. Walk it to find semantic tokens. |
-| `adapterConfig` | `{ output: string; preset?: string; formats?: string[] }` | From the adapter's block in `pigmint.yaml`. |
+| `adapterConfig` | `{ output: string; preset?: string; formats?: string[]; alpha?: { enabled?: boolean; referenceSurface?: string } }` | From the adapter's block in `pigmint.yaml`. |
 | `projectConfig` | `ProjectConfig` | Engine modes, ramps, compliance target. |
+
+#### Sidecar files
+
+`AdapterResult.files` may contain more than one entry. The MUI adapter, for example, emits a `theme.ts` plus a `receipts.json` sidecar that maps DTCG paths to MUI palette paths so downstream consumers can audit the binding without re-running the resolver. See `packages/adapter-mui/src/emit.ts` for the pattern.
 
 ### 6. `src/index.ts`
 

@@ -4,6 +4,8 @@ enforcementMode: compile-time
 supportedModes:
   - light
   - dark
+  - light-high-contrast
+  - dark-high-contrast
 requiredRamps:
   minCount: 1
   neutralRequired: true

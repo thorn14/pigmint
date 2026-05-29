@@ -186,11 +186,15 @@ Tell the user:
 
 > **Next step: visual review in the authoring app**
 >
-> 1. `cd packages/authoring-app && pnpm dev` (or however you start the app)
+> 1. `pnpm start` (or `cd packages/authoring-app && pnpm dev`) and open http://localhost:5173
 > 2. Click **Import** → **Import pigmint.yaml** → select `{outputDir}/pigmint.yaml`
-> 3. Review ramps in **Primitives** mode — tune curves, hue shifts, and chroma if needed
-> 4. Review semantic tokens in **Surfaces** mode — confirm contrast levels look right
-> 5. When satisfied, click **Export** → **Export pigmint.yaml** to save your changes back
-> 6. Re-run `pigmint build` to regenerate tokens with your tuned curves
+> 3. Review ramps in **Primitives** mode — tune L/C/H curves, hue shifts, and chroma peak/floor as needed
+> 4. Switch to **Tokens** mode and use the panel toolbar:
+>    - **Edit** to author or adjust surfaces / foreground / nonText / decorative / alpha tokens
+>    - **Preview** to confirm resolution across every mode
+>    - **Create** to inspect the full contrast matrix and promote pairs to semantic tokens
+> 5. (Optional) Use **View** → Contrast, Resolver, or Gamut to flip between WCAG/APCA, stepped/continuous, and P3/sRGB while reviewing
+> 6. When satisfied, click **Export** → **Export pigmint.yaml** to save your changes back
+> 7. Re-run `pigmint build` to regenerate tokens with your tuned curves
 
 Curve data (lightness, chroma, hue arrays, hue shifts) is now preserved in the exported `pigmint.yaml`, so your UI edits survive the round-trip.

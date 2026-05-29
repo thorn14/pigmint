@@ -50,14 +50,24 @@ A visual editor for ramps, intent, and `pigmint.yaml` round-trip.
 pnpm start       # launches authoring app at http://localhost:5173
 ```
 
-The app has four tabs:
+The app has two top-level modes, selected from the toolbar:
 
-- **Primitives** — inspect and tune L/C/H curves for each ramp. Edits here are written back to `pigmint.yaml` on export.
-- **Preview** — visualise all ramp steps across every mode and CVD simulation.
-- **Combos** — full contrast matrix showing every foreground/background pair.
-- **Tokens** — author and edit semantic tokens (surfaces, foreground, non-text, decorative, alpha) and see live resolution.
+- **Primitives** — scale sidebar + curve overlay editor + step inspector. Tune L/C/H curves, hue shifts, and chroma peak/floor for every ramp. Edits round-trip into `pigmint.yaml` on export.
+- **Tokens** — three sub-views in the panel toolbar:
+  - **Edit** — author surfaces, foreground, nonText, decorative, and alpha tokens with inline ramp + step + preference + consistency + level controls.
+  - **Preview** — see resolved tokens across every mode (and CVD simulation, if enabled).
+  - **Create** — full contrast matrix showing every foreground/background pair. Filter by WCAG 2.1 or APCA threshold; click any pair to promote it into a semantic token.
 
-To import an existing config: **Import → Import pigmint.yaml**. After tuning, use **Export → Export pigmint.yaml** to persist curve data, then re-run `pigmint build`.
+The **View** menu in the top bar exposes app-wide toggles:
+
+| Group | Options |
+|---|---|
+| Theme | Light · Dark |
+| Resolver | Stepped · Continuous (matches `engine.resolver.mode`) |
+| Contrast | WCAG 2.1 · APCA (matches `engine.compliance`) |
+| Gamut | Display P3 · sRGB |
+
+To import an existing config: **Import → Import pigmint.yaml** (or **Import tokens.yaml** for the vocabulary alone). After tuning, use **Export → Export pigmint.yaml** to persist curve data, then re-run `pigmint build`.
 
 ## Contributing
 
@@ -131,6 +141,24 @@ adapters:
 | `output.dtcg` | `defaults.vocabulary` | Resolves all tokens across modes and writes DTCG file |
 | Both | `defaults.vocabulary` | Writes both; primitives file is used as reference |
 
+### Engine resolver
+
+`engine.resolver` controls how off-grid contrast targets are satisfied. Defaults are fine for most projects; override only when you want continuous-spline behaviour.
+
+```yaml
+engine:
+  # …
+  resolver:
+    mode: stepped                          # "stepped" (default) | "continuous"
+    fallbackSteps: 11                      # ≥ 2; only used when `mode: continuous`
+    materializeInterpolatedPrimitives: true # synthesize DTCG primitives for off-grid picks
+```
+
+- `stepped` snaps every token to a real ramp step (matches Tailwind/Figma scales).
+- `continuous` lets the resolver synthesize an off-grid OKLCH triplet when no step is a perfect fit. With `materializeInterpolatedPrimitives: true` (default), the off-grid picks are emitted as additional primitives in the DTCG output so downstream adapters can reference them by name.
+
+The View → Resolver toggle in the authoring app is bound to this field.
+
 ## `tokens.yaml` — vocabulary / intent file
 
 Declares the semantic tokens and their contrast intent. The engine resolves each token to the best-matching ramp step that satisfies the declared constraint.
@@ -183,20 +211,36 @@ nonText:
 - `median` — passing step at the median contrast ratio (biases toward whichever side of the ramp has more passing steps)
 - `level-up` — lowest step that passes ONE compliance tier above the configured target (AA → AAA). When HC mode is already active the bar coincides with `lowest-passing`; the receipt records this.
 - `highest-contrast` — most contrast against the declared surfaces
+- `preferred-contrast` — lowest step whose contrast against the surfaces meets a numeric target (`targetContrast: <WCAG ratio or APCA |Lc|>` is required on the token)
 - `matched-to-set` — match contrast level to another token in the set (requires `consistency: matched-across-ramps`)
 
-`midpoint`, `median`, and `level-up` are per-ramp pick strategies — they only pair with `consistency: independent` (or `anchored-to-reference`). Pairing any of them with `matched-across-ramps` is rejected by the validator; the authoring app disables the option in the dropdown.
+`midpoint`, `median`, `level-up`, and `preferred-contrast` are per-ramp pick strategies — they only pair with `consistency: independent` (or `anchored-to-reference`). Pairing any of them with `matched-across-ramps` is rejected by the validator; the authoring app disables the option in the dropdown.
+
+Any semantic token may set `decorative: true`. The resolver still picks a step using `preference`, but the compliance check is skipped and the receipt is marked exempt — handy for muted decorations that should track a ramp but don't owe a contrast guarantee.
 
 ## Adapters
 
 Adapters transform the resolved DTCG container into framework-specific output.
 
-| Adapter | `name` | Output |
-|---|---|---|
-| Tailwind | `tailwind` | CSS custom-property file and/or Tailwind v4 theme |
-| MUI | `mui` | MUI v6 theme object + optional runtime validator |
+| Adapter | `name` | Modes | Formats | Presets | Output |
+|---|---|---|---|---|---|
+| Tailwind | `tailwind` | light · dark · light-high-contrast · dark-high-contrast | `oklch` · `hex` | `generic` · `shadcn` | `tokens.css` — CSS custom properties with mode-specific selectors (`:root`, `.dark`, `.light-high-contrast`, `[data-mode]`). Inline comments record the source ramp step and contrast result. Supports `decorative` tokens. |
+| MUI | `mui` | light · dark | `hex` (default) · `oklch` | `mui-v6` | `theme.ts` — MUI v6 theme via `extendTheme()` with `colorSchemes` — plus a `receipts.json` sidecar mapping DTCG paths to MUI palette paths. Ships a runtime validator at `@pigmint/adapter-mui/runtime`. |
 
-Adapter config goes under `adapters:` in `pigmint.yaml`. Each adapter manifest (`adapter.yaml` in the package) declares what modes, formats, and categories it supports; the engine validates your project config against the manifest at build time.
+Adapter config goes under `adapters:` in `pigmint.yaml`. Each adapter ships an `adapter.yaml` (and a runtime-source-of-truth `manifest.ts`) declaring which modes, formats, categories, and presets it supports; the engine validates your project config against the manifest at build time and warns on unsupported modes or missing bindings.
+
+Per-adapter `alpha` opts a tokens.yaml-defined alpha set into the adapter output:
+
+```yaml
+adapters:
+  - name: tailwind
+    output: ./dist/tailwind
+    preset: generic
+    formats: [oklch]
+    alpha:
+      enabled: true
+      referenceSurface: bgMain   # surface to composite alpha tokens against
+```
 
 ## Examples
 

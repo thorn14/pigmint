@@ -5,7 +5,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
-import { AccessibleCombosModal } from '../accessibility/AccessibleCombosModal';
+import { AccessibleCombos } from '../accessibility/AccessibleCombos';
 import {
   alphaCompositeHex,
   parseStepRef,
@@ -55,7 +55,6 @@ const HEADER: React.CSSProperties = {
   color: 'var(--p-text-secondary)',
   fontWeight: 600,
   fontSize: 11,
-  textTransform: 'uppercase' as const,
   letterSpacing: '0.05em',
 };
 
@@ -64,7 +63,6 @@ const SECTION: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 700,
   color: 'var(--p-text-secondary)',
-  textTransform: 'uppercase' as const,
   letterSpacing: '0.07em',
   borderTop: '2px solid var(--p-border)',
   borderBottom: '1px solid var(--p-border)',
@@ -609,7 +607,6 @@ const label: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
   color: 'var(--p-text-secondary)',
-  textTransform: 'uppercase' as const,
   letterSpacing: '0.05em',
 };
 
@@ -1126,9 +1123,12 @@ export function TokensPanel() {
   }, [scales]);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showCombos, setShowCombos] = useState(false);
-  const [view, setView] = useState<'edit' | 'preview'>('edit');
-  const VIEW_LABELS: Record<'edit' | 'preview', string> = { edit: 'Create', preview: 'Preview' };
+  const [view, setView] = useState<'edit' | 'preview' | 'combos'>('edit');
+  const VIEW_LABELS: Record<'edit' | 'preview' | 'combos', string> = {
+    edit: 'Edit',
+    preview: 'Preview',
+    combos: 'Create',
+  };
 
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -1148,7 +1148,7 @@ export function TokensPanel() {
           padding: 2,
           gap: 2,
         }}>
-          {(['edit', 'preview'] as const).map((v) => {
+          {(['edit', 'preview', 'combos'] as const).map((v) => {
             const active = view === v;
             return (
               <button key={v} onClick={() => setView(v)} style={{
@@ -1156,7 +1156,7 @@ export function TokensPanel() {
                 background: active ? 'var(--p-text)' : 'transparent',
                 color: active ? 'var(--p-bg)' : 'var(--p-text-secondary)',
                 fontSize: 10, fontWeight: 600,
-                textTransform: 'uppercase' as const, letterSpacing: '0.04em',
+                letterSpacing: '0.04em',
                 padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
               }}>
                 {VIEW_LABELS[v]}
@@ -1166,28 +1166,19 @@ export function TokensPanel() {
         </div>
 
         {view === 'edit' && rampNames.length > 0 && (
-          <>
-            <button
-              style={{
-                ...btn,
-                background: 'var(--p-accent, #6366f1)',
-                borderColor: 'var(--p-accent, #6366f1)',
-                color: '#fff',
-                fontWeight: 600,
-                padding: '3px 12px',
-              }}
-              onClick={() => setShowAddModal(true)}
-            >
-              + Add
-            </button>
-            <button
-              style={btn}
-              onClick={() => setShowCombos(true)}
-              title="Open accessible color combos"
-            >
-              Combos
-            </button>
-          </>
+          <button
+            style={{
+              ...btn,
+              background: 'var(--p-accent, #6366f1)',
+              borderColor: 'var(--p-accent, #6366f1)',
+              color: '#fff',
+              fontWeight: 600,
+              padding: '3px 12px',
+            }}
+            onClick={() => setShowAddModal(true)}
+          >
+            + Add
+          </button>
         )}
         <div style={{ flex: 1 }} />
         {raw && (
@@ -1207,7 +1198,12 @@ export function TokensPanel() {
       {/* Preview view */}
       {view === 'preview' && <TokensPreview />}
 
-      {showCombos && <AccessibleCombosModal onClose={() => setShowCombos(false)} />}
+      {/* Combos / Create view */}
+      {view === 'combos' && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <AccessibleCombos />
+        </div>
+      )}
 
       {/* Edit view — sections */}
       {view === 'edit' && (
@@ -1216,7 +1212,7 @@ export function TokensPanel() {
           {/* Surfaces */}
           <div style={FIRST_SECTION}>Surfaces</div>
           <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW_SPLIT.gridTemplateColumns }}>
-            <span>name</span><span>ramp</span><span>light / all</span><span>dark</span><span />
+            <span>Name</span><span>Ramp</span><span>Light / All</span><span>Dark</span><span />
           </div>
           {Object.entries(surfaces).map(([name, token]) => (
             <SurfaceRow
@@ -1237,7 +1233,7 @@ export function TokensPanel() {
           {/* Foreground */}
           <div style={SECTION}>Foreground</div>
           <div style={HEADER}>
-            <span>name</span><span>ramp</span><span>surface</span><span>preference</span><span>consistency</span><span />
+            <span>Name</span><span>Ramp</span><span>Surface</span><span>Preference</span><span>Consistency</span><span />
           </div>
           {Object.entries(foreground).map(([name, token]) => (
             <SemanticRow
@@ -1263,7 +1259,7 @@ export function TokensPanel() {
           {/* NonText */}
           <div style={SECTION}>NonText</div>
           <div style={HEADER}>
-            <span>name</span><span>ramp</span><span>surface</span><span>preference</span><span>consistency</span><span />
+            <span>Name</span><span>Ramp</span><span>Surface</span><span>Preference</span><span>Consistency</span><span />
           </div>
           {Object.entries(nonText).map(([name, token]) => (
             <SemanticRow
@@ -1291,7 +1287,7 @@ export function TokensPanel() {
             <>
               <div style={SECTION}>Decorative</div>
               <div style={{ ...HEADER, gridTemplateColumns: SURFACE_ROW_SPLIT.gridTemplateColumns }}>
-                <span>name</span><span>ramp</span><span>step</span><span /><span />
+                <span>Name</span><span>Ramp</span><span>Step</span><span /><span />
               </div>
               {Object.entries(decorative).map(([name, token]) => {
                 const stepIdx = token.step ?? 0;
@@ -1323,7 +1319,7 @@ export function TokensPanel() {
             <>
               <div style={SECTION}>Alpha</div>
               <div style={{ ...HEADER, gridTemplateColumns: ALPHA_ROW.gridTemplateColumns }}>
-                <span>name</span><span>ramp</span><span>step / surface</span><span>α</span><span>ref / pref</span><span />
+                <span>Name</span><span>Ramp</span><span>Step / Surface</span><span>α</span><span>Ref / Pref</span><span />
               </div>
               {Object.entries(alpha).map(([name, token]) => (
                 <AlphaRow

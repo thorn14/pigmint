@@ -16,7 +16,16 @@
       }
     },
     "preference": {
-      "enum": ["lowest-passing", "highest-contrast", "matched-to-set", "anchored"]
+      "enum": [
+        "lowest-passing",
+        "highest-contrast",
+        "matched-to-set",
+        "anchored",
+        "midpoint",
+        "median",
+        "level-up",
+        "preferred-contrast"
+      ]
     },
     "consistency": {
       "enum": ["independent", "matched-across-ramps", "anchored-to-reference"]
@@ -33,6 +42,14 @@
             { "type": "number" },
             { "type": "string", "description": "Reference to another token's resolved contrast." }
           ]
+        },
+        "referenceRamp": {
+          "type": "string",
+          "description": "When consistency=anchored-to-reference, the ramp whose first resolved member defines the target contrast."
+        },
+        "targetContrast": {
+          "type": "number",
+          "description": "Required when preference=preferred-contrast. WCAG ratio (e.g. 5.5) or APCA |Lc| (e.g. 75)."
         },
         "minChroma": { "type": "number", "minimum": 0, "maximum": 0.4 },
         "avoidPositions": {
@@ -51,6 +68,15 @@
     {
       "if": { "properties": { "preference": { "const": "anchored" } } },
       "then": { "required": ["constraints"] }
+    },
+    {
+      "if": { "properties": { "preference": { "const": "preferred-contrast" } } },
+      "then": {
+        "required": ["constraints"],
+        "properties": {
+          "constraints": { "required": ["targetContrast"] }
+        }
+      }
     }
   ]
 }

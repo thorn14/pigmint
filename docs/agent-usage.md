@@ -39,6 +39,8 @@ engine:
     - deuteranopia
     - protanopia
     - tritanopia
+  resolver:                           # optional; see "Advanced engine knobs"
+    mode: stepped                     # "stepped" (default) | "continuous"
 
 ramps:
   - name: brand
@@ -57,6 +59,43 @@ defaults:
 ```
 
 **Required keys:** `engine` (compliance, target, modes), `ramps` (≥1 entry with name + source or fromFile), `output` (dtcg or primitives).
+
+#### Advanced engine knobs
+
+These keys are optional and only relevant when you need to override default resolver behaviour or wire in additional vocabulary layers:
+
+```yaml
+engine:
+  resolver:
+    mode: continuous                       # "stepped" (default) | "continuous"
+    fallbackSteps: 11                      # ≥ 2; used when mode: continuous
+    materializeInterpolatedPrimitives: true # emit synthesized off-grid primitives in DTCG
+
+defaults:
+  vocabulary: ./tokens.yaml
+  surfacePairs: ./surface-pairs.yaml       # optional: declare which surfaces pair under each mode
+
+overlays:
+  - ./overlays/states.yaml                 # additional vocabulary layers merged after defaults.vocabulary
+  - ./overlays/brand-extensions.yaml
+
+intents:                                   # per-token formal-intent overrides
+  color.foreground.brand:
+    preference: preferred-contrast
+    constraints:
+      targetContrast: 5.5
+
+adapters:
+  - name: tailwind
+    output: ./dist/tailwind
+    preset: generic
+    formats: [oklch]
+    alpha:                                 # opt-in per adapter; honoured only when adapter manifest allows it
+      enabled: true
+      referenceSurface: bgMain
+```
+
+`intents` keys are full DTCG paths (`color.<category>.<name>`) and each value is a partial `FormalIntent` (preference / consistency / threshold / surfaceContext / constraints). Use it sparingly — most behaviour belongs in `tokens.yaml`. The override is partial: omitted fields fall back to whatever the resolver derives from the portable token.
 
 ### `tokens.yaml` — semantic vocabulary
 
@@ -205,11 +244,33 @@ foreground:
   <name>:
     ramp: <ramp-name>
     surfaces: [<surface-name>, ...]   # surfaces this token must pass against
-    preference: lowest-passing        # lowest-passing | midpoint | median | level-up | highest-contrast | matched-to-set
+    preference: lowest-passing        # see "Preference values" below
     consistency: independent          # optional: independent | matched-across-ramps | anchored-to-reference
-    # midpoint / median / level-up only pair with `independent` (or `anchored-to-reference`)
     level: AA                         # optional: AA | AAA (overrides engine target)
+    decorative: false                 # optional: when true, resolver still picks a step but compliance is exempt
+    targetContrast: 5.5               # required only when preference: preferred-contrast
+    interactions:                     # optional: per-state step offsets
+      hover:  { offset: -1 }
+      active: { offset: -2 }
 ```
+
+**Preference values:**
+
+| Value | Picks |
+|---|---|
+| `lowest-passing` | least-prominent step that still passes the compliance target |
+| `midpoint` | index midway between lowest-passing and highest-contrast — good for the "main" slot of a Light/Main/Dark triplet |
+| `median` | passing step at the median contrast ratio |
+| `level-up` | lowest step that passes ONE tier above the configured target (AA → AAA) |
+| `highest-contrast` | most-prominent passing step against the declared surfaces |
+| `preferred-contrast` | lowest step whose contrast meets `targetContrast` (WCAG ratio or APCA \|Lc\|) |
+| `matched-to-set` | match contrast level to another token in the set (requires `consistency: matched-across-ramps`) |
+
+`midpoint`, `median`, `level-up`, and `preferred-contrast` are per-ramp picks — they only pair with `consistency: independent` (or `anchored-to-reference`). The validator rejects combining them with `matched-across-ramps`.
+
+`decorative: true` lets the resolver still pick a step from `preference` but skips the compliance enforcement and stamps the receipt as exempt. Useful for muted decoration that should track a ramp without owing a contrast guarantee.
+
+`interactions` declares per-state step offsets (relative to the resolved base step) for `hover`, `active`, `focus`, `disabled`. Adapters that understand interaction states (e.g. MUI) consume these.
 
 ### Non-text tokens (borders, backgrounds, icons)
 
@@ -226,12 +287,32 @@ decorative:
 
 ### Alpha tokens
 
+Two shapes are supported (spec/07, ADR-016).
+
+**Degenerate — fixed step composited at alpha.** No contrast check; always exempt.
+
 ```yaml
 alpha:
-  <name>:
-    base: neutral.900                 # fixed step reference (shorthand ramp.step)
+  scrim:
+    base: neutral.900                 # fixed step reference (shorthand ramp.step or full DTCG ref)
     value: 0.15                       # alpha [0, 1]
-    referenceSurface: bgMain          # surface to composite against (optional, defaults to bgMain/bgInverse)
+    referenceSurface: bgMain          # surface to composite against; defaults to bgMain/bgInverse per mode
+```
+
+**Path 1 — resolver walks the ramp.** Picks the step whose composited result satisfies the intent against the contrast surface.
+
+```yaml
+alpha:
+  focusRing:
+    baseRamp: brand                   # search this ramp; mutually exclusive with `base`
+    value: 0.35
+    referenceSurface: bgMain          # what we composite the alpha against
+    surfaces: [bgMain]                # contrast surfaces for the compliance check
+    preference: lowest-passing        # lowest-passing | highest-contrast | preferred-contrast
+    usage: nonText                    # "text" | "nonText"; defaults to nonText
+    level: AA                         # optional; defaults to engine target
+    targetContrast: 3.0               # required when preference: preferred-contrast
+    decorative: false                 # optional; same semantics as semantic tokens
 ```
 
 ---
@@ -257,13 +338,16 @@ The build exits non-zero on hard failures (missing ramps, resolver errors). Cont
 
 After the initial build, open the authoring app for visual refinement:
 
-1. Start the app: `cd packages/authoring-app && pnpm dev`
-2. Click **Import → Import pigmint.yaml** and select your file
-3. **Primitives mode** — adjust curves, hue shifts, chroma. Curve data is now written back to `pigmint.yaml` when you export.
-4. **Surfaces mode** — verify every token resolves with the expected compliance level
-5. **Combos mode** — check the contrast matrix for the full palette
-6. **Export → Export pigmint.yaml** — saves your tuned curves back to the file
-7. Re-run `pigmint build`
+1. Start the app: `pnpm start` (or `cd packages/authoring-app && pnpm dev`) and open http://localhost:5173.
+2. Click **Import → Import pigmint.yaml** (or **Import tokens.yaml**) and select your file.
+3. **Primitives mode** — adjust curves, hue shifts, chroma in the curve overlay editor. Curve data is written back to `pigmint.yaml` on export.
+4. Switch to **Tokens mode**, then use the panel toolbar:
+   - **Edit** — tune surfaces, foreground, nonText, decorative, and alpha tokens; verify every entry resolves with the expected compliance level.
+   - **Preview** — view resolved tokens across every mode (and CVD filter, if enabled).
+   - **Create** — scan the contrast matrix for the full palette; click any passing pair to promote it into a semantic token.
+5. Use the **View** menu to flip between WCAG 2.1 / APCA, stepped / continuous resolver, and Display P3 / sRGB gamut while reviewing.
+6. **Export → Export pigmint.yaml** — saves your tuned curves and intent back to the file.
+7. Re-run `pigmint build`.
 
 **Round-trip guarantee:** curve values (L/C/H arrays, hue shifts, chromaPeak) written by the UI are preserved in the exported `pigmint.yaml` and readable by the CLI. Agents can pick up where the human left off.
 

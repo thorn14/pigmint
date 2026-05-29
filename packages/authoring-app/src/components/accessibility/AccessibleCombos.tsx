@@ -65,6 +65,9 @@ function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () =>
         minWidth: 140,
         flexShrink: 0,
         cursor: 'pointer',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <div
@@ -74,13 +77,14 @@ function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () =>
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
+          flex: 1,
         }}
       >
         <span style={{ color: entry.fg.hex, fontSize: 20, fontWeight: 700, lineHeight: 1 }}>Aa</span>
-        <span style={{ color: entry.fg.hex, fontSize: 10, opacity: 0.85 }}>
+        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.85 }}>
           {entry.fg.ramp} {entry.fg.step}
         </span>
-        <span style={{ color: entry.fg.hex, fontSize: 10, opacity: 0.6 }}>
+        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.6 }}>
           on {entry.bg.ramp} {entry.bg.step}
         </span>
       </div>
@@ -88,14 +92,14 @@ function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () =>
         style={{
           padding: '5px 8px',
           background: 'var(--p-bg-subtle)',
-          fontSize: 10,
+          fontSize: 12,
           color: 'var(--p-text-secondary)',
           display: 'flex',
           justifyContent: 'space-between',
         }}
       >
         <span>{entry.ratio}:1</span>
-        <span style={{ fontFamily: 'monospace', fontSize: 9, opacity: 0.7 }}>{entry.fg.hex}</span>
+        <span style={{ fontFamily: 'monospace', fontSize: 12, opacity: 0.7 }}>{entry.fg.hex}</span>
       </div>
     </div>
   );
@@ -112,6 +116,9 @@ function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () =>
         minWidth: 140,
         flexShrink: 0,
         cursor: 'pointer',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <div
@@ -121,13 +128,14 @@ function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () =>
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
+          flex: 1,
         }}
       >
         <span style={{ color: entry.fg.hex, fontSize: 20, fontWeight: 700, lineHeight: 1 }}>Aa</span>
-        <span style={{ color: entry.fg.hex, fontSize: 10, opacity: 0.85 }}>
+        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.85 }}>
           {entry.fg.ramp} {entry.fg.step}
         </span>
-        <span style={{ color: entry.fg.hex, fontSize: 10, opacity: 0.6 }}>
+        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.6 }}>
           on {entry.bg.ramp} {entry.bg.step}
         </span>
       </div>
@@ -135,14 +143,14 @@ function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () =>
         style={{
           padding: '5px 8px',
           background: 'var(--p-bg-subtle)',
-          fontSize: 10,
+          fontSize: 12,
           color: 'var(--p-text-secondary)',
           display: 'flex',
           justifyContent: 'space-between',
         }}
       >
         <span>Lc {entry.lc.toFixed(1)}</span>
-        <span style={{ fontFamily: 'monospace', fontSize: 9, opacity: 0.7 }}>{entry.fg.hex}</span>
+        <span style={{ fontFamily: 'monospace', fontSize: 12, opacity: 0.7 }}>{entry.fg.hex}</span>
       </div>
     </div>
   );
@@ -193,7 +201,7 @@ function FilterBar({
       />
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <label htmlFor="combos-level" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Level:</label>
+        <label htmlFor="combos-level" style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>Level:</label>
         {useWcag ? (
           <AppStringSelect
             id="combos-level"
@@ -218,7 +226,7 @@ function FilterBar({
       </div>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <label htmlFor="combos-sort" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Sort:</label>
+        <label htmlFor="combos-sort" style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>Sort:</label>
         <AppStringSelect
           id="combos-sort"
           name="combos-sort"
@@ -368,11 +376,11 @@ export function AccessibleCombos() {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--p-text)' }}>
             {activeLevel.label}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>{activeLevel.sub}</span>
+          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>{activeLevel.sub}</span>
           <span
             style={{
               marginLeft: 'auto',
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--p-text-secondary)',
               background: 'var(--p-bg-subtle)',
               border: '1px solid var(--p-border)',

@@ -22,6 +22,15 @@
           "type": "array",
           "items": { "enum": ["deuteranopia", "protanopia", "tritanopia", "achromatopsia"] },
           "uniqueItems": true
+        },
+        "resolver": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": { "enum": ["stepped", "continuous"] },
+            "fallbackSteps": { "type": "integer", "minimum": 2 },
+            "materializeInterpolatedPrimitives": { "type": "boolean" }
+          }
         }
       }
     },
@@ -36,16 +45,48 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "intents": {
+      "type": "object",
+      "description": "Per-token formal-intent overrides keyed by full DTCG token path (e.g. color.foreground.brand). Each value is a partial FormalIntent — omitted fields fall back to whatever the resolver derives from the portable token.",
+      "additionalProperties": { "$ref": "intent.schema.json" }
+    },
     "ramps": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["name", "source"],
+        "required": ["name"],
+        "oneOf": [
+          { "required": ["source"] },
+          { "required": ["fromFile"] }
+        ],
         "properties": {
           "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-          "source": { "type": "string", "description": "Source hex or reference." },
-          "curve": { "type": "string", "description": "Curve reference or inline params." }
+          "source": { "type": "string", "description": "Source hex (e.g. #2563eb). Mutually exclusive with fromFile." },
+          "fromFile": { "type": "string", "description": "Path to a pre-computed primitives.json. Mutually exclusive with source." },
+          "curve": { "type": "string", "description": "Named curve preset reference." },
+          "stepCount": { "type": "integer", "minimum": 2, "maximum": 24 },
+          "naming": { "enum": ["tailwind", "numeric"] },
+          "curves": {
+            "type": "object",
+            "description": "Inline L/C/H override. Each array length must equal stepCount (default 11).",
+            "properties": {
+              "lightness": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } },
+              "chroma": { "type": "array", "items": { "type": "number", "minimum": 0 } },
+              "hue": { "type": "array", "items": { "type": "number" } },
+              "smoothing": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "hueShift": {
+            "type": "object",
+            "properties": {
+              "lightEnd": { "type": "number" },
+              "darkEnd": { "type": "number" }
+            }
+          },
+          "chromaPeak": { "type": "number", "minimum": 0 },
+          "chromaLow": { "type": "number", "minimum": 0 },
+          "chromaHigh": { "type": "number", "minimum": 0 }
         }
       }
     },
@@ -75,9 +116,13 @@
     },
     "output": {
       "type": "object",
-      "required": ["dtcg"],
+      "oneOf": [
+        { "required": ["dtcg"] },
+        { "required": ["primitives"] }
+      ],
       "properties": {
-        "dtcg": { "type": "string" },
+        "dtcg": { "type": "string", "description": "Path for the resolved DTCG token file. Optional when primitives is set." },
+        "primitives": { "type": "string", "description": "Path for the primitives-only DTCG file (raw ramp steps)." },
         "receiptsSidecar": { "type": "boolean" }
       }
     }
