@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Tabs } from '@base-ui/react/tabs';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -7,6 +7,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
 import { buildPigmintTokensJson } from '../../lib/resolveState';
+import { serializePigmintYaml } from '../../lib/pigmintYaml';
 import { useVocabStore } from '../../store/vocabStore';
 import { AppDialog } from '../base-ui/app-dialog';
 
@@ -14,7 +15,50 @@ interface Props {
   onClose: () => void;
 }
 
-type Tab = 'pigmint-tokens' | 'colors';
+type Tab = 'colors' | 'tokens-yaml' | 'tokens-json' | 'pigmint';
+
+type TabSpec = {
+  id: Tab;
+  label: string;
+  filename: string;
+  mimeType: string;
+  description: string;
+};
+
+const TAB_SPECS: readonly TabSpec[] = [
+  {
+    id: 'colors',
+    label: 'Colors',
+    filename: 'colors.json',
+    mimeType: 'application/json',
+    description:
+      'Primitive color ramps in W3C Design Tokens format. One group per scale, with hex and display-p3 values for every step. Use this when you want the raw color values without semantic tokens.',
+  },
+  {
+    id: 'tokens-yaml',
+    label: 'Tokens (source)',
+    filename: 'tokens.yaml',
+    mimeType: 'application/yaml',
+    description:
+      'Semantic token vocabulary — the editable source for surfaces, foreground, non-text, decorative, and alpha tokens. This is the file you keep in source control and edit by hand.',
+  },
+  {
+    id: 'tokens-json',
+    label: 'Tokens (resolved)',
+    filename: 'tokens.json',
+    mimeType: 'application/json',
+    description:
+      'Design tokens with concrete color values for every step and mode. Generated from the vocabulary plus engine settings — drop this straight into apps or design tools.',
+  },
+  {
+    id: 'pigmint',
+    label: 'Pigmint',
+    filename: 'pigmint.yaml',
+    mimeType: 'application/yaml',
+    description:
+      'Full project configuration — ramps, intent overrides, and engine settings in a single pigmint.yaml. Commit this to reproduce the entire palette setup elsewhere.',
+  },
+];
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 14px',
@@ -25,6 +69,7 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
   cursor: 'pointer',
   color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+  whiteSpace: 'nowrap',
 });
 
 function VirtualizedPre({ text }: { text: string }) {
@@ -77,8 +122,8 @@ function VirtualizedPre({ text }: { text: string }) {
   );
 }
 
-function downloadJSON(json: string, filename: string) {
-  const blob = new Blob([json], { type: 'application/json' });
+function downloadFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -87,77 +132,96 @@ function downloadJSON(json: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+const EMPTY_PLACEHOLDER: Record<Tab, string> = {
+  colors: '# No color scales defined yet.\n',
+  'tokens-yaml': '# No vocabulary defined yet. Edit tokens in the Tokens panel first.\n',
+  'tokens-json': '{\n  "info": "No vocabulary defined yet. Edit tokens in the Tokens panel first."\n}\n',
+  pigmint: '# No project state yet.\n',
+};
+
 export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
+  const intents = useIntentStore((s) => s.overrides);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
+  const engineCvd = useIntentStore((s) => s.engineCvd);
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const vocabEntries = useVocabStore((s) => s.entries);
   const vocabRaw = useVocabStore((s) => s.raw);
   const surfacePaths = useVocabStore((s) => s.surfacePaths);
   const surfaceSteps = useVocabStore((s) => s.surfaceSteps);
-  const vocabCtx = vocabEntries && vocabRaw
-    ? {
-        vocabulary: vocabEntries,
-        tokenRamp: Object.fromEntries(
-          Object.entries({ ...vocabRaw.surfaces, ...vocabRaw.foreground, ...vocabRaw.nonText, ...(vocabRaw.decorative ?? {}) })
-            .map(([n, e]) => [n, (e as { ramp: string }).ramp])
-        ),
-        surfacePaths: surfacePaths ?? undefined,
-        surfaceSteps: surfaceSteps ?? undefined,
-      }
-    : null;
+
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
-  const tabIds: Tab[] = ['pigmint-tokens', 'colors'];
-  const [activeTab, setActiveTab] = useState<Tab>('pigmint-tokens');
-  const [copied, setCopied] = useState(false);
+  const colorsJson = useMemo(() => {
+    if (ramps.length === 0) return EMPTY_PLACEHOLDER.colors;
+    return exportToJSON(ramps);
+  }, [ramps]);
 
-  const exportCacheRef = useRef<{
-    key: string | null;
-    pigmintTokens?: string;
-    colors?: string;
-  }>({ key: null });
+  const tokensYaml = useMemo(() => {
+    if (!vocabRaw) return EMPTY_PLACEHOLDER['tokens-yaml'];
+    return useVocabStore.getState().exportYaml() || EMPTY_PLACEHOLDER['tokens-yaml'];
+  }, [vocabRaw]);
 
-  const cacheKey = `${ramps.length}|${engineModes.join(',')}|${engineTarget}|${engineCompliance}|${JSON.stringify(engineResolver)}|${vocabEntries?.length ?? 0}`;
-  if (exportCacheRef.current.key !== cacheKey) {
-    exportCacheRef.current = { key: cacheKey };
-  }
-
-  const getJson = useCallback(
-    (t: Tab): string => {
-      if (exportCacheRef.current.key !== cacheKey) {
-        exportCacheRef.current = { key: cacheKey };
-      }
-      const cache = exportCacheRef.current;
-      if (t === 'pigmint-tokens') {
-        if (cache.pigmintTokens === undefined) {
-          const result = buildPigmintTokensJson(
-            scales,
-            engineModes,
-            engineTarget,
-            engineCompliance,
-            vocabCtx,
-            engineResolver,
-          );
-          cache.pigmintTokens = result.ok
-            ? result.json
-            : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
+  const tokensJson = useMemo(() => {
+    const vocabCtx = vocabEntries && vocabRaw
+      ? {
+          vocabulary: vocabEntries,
+          tokenRamp: Object.fromEntries(
+            Object.entries({
+              ...vocabRaw.surfaces,
+              ...vocabRaw.foreground,
+              ...vocabRaw.nonText,
+              ...(vocabRaw.decorative ?? {}),
+            }).map(([n, e]) => [n, (e as { ramp: string }).ramp]),
+          ),
+          surfacePaths: surfacePaths ?? undefined,
+          surfaceSteps: surfaceSteps ?? undefined,
         }
-        return cache.pigmintTokens;
-      }
-      if (cache.colors === undefined) cache.colors = exportToJSON(ramps);
-      return cache.colors;
-    },
-    [cacheKey, scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabCtx, ramps],
+      : null;
+    const result = buildPigmintTokensJson(
+      scales,
+      engineModes,
+      engineTarget,
+      engineCompliance,
+      vocabCtx,
+      engineResolver,
+    );
+    return result.ok ? result.json : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
+  }, [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries, vocabRaw, surfacePaths, surfaceSteps]);
+
+  const pigmintYaml = useMemo(
+    () =>
+      serializePigmintYaml({
+        scales,
+        intents,
+        engine: {
+          target: engineTarget,
+          compliance: engineCompliance,
+          modes: engineModes,
+          cvd: engineCvd,
+          resolver: engineResolver,
+        },
+      }),
+    [scales, intents, engineTarget, engineCompliance, engineModes, engineCvd, engineResolver],
   );
 
-  const json = getJson(activeTab);
-  const downloadName = activeTab === 'pigmint-tokens' ? 'tokens.json' : 'colors.json';
+  const contentByTab: Record<Tab, string> = {
+    colors: colorsJson,
+    'tokens-yaml': tokensYaml,
+    'tokens-json': tokensJson,
+    pigmint: pigmintYaml,
+  };
+
+  const [activeTab, setActiveTab] = useState<Tab>('colors');
+  const [copied, setCopied] = useState(false);
+
+  const activeSpec = TAB_SPECS.find((t) => t.id === activeTab) ?? TAB_SPECS[0];
+  const activeContent = contentByTab[activeTab];
 
   function handleCopy() {
-    navigator.clipboard.writeText(json).then(() => {
+    navigator.clipboard.writeText(activeContent).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -174,12 +238,11 @@ export function ExportModal({ onClose }: Props) {
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
           borderRadius: 12,
-          width: '100%',
-          maxWidth: 680,
+          width: 'min(1100px, 95vw)',
           display: 'flex',
           flexDirection: 'column',
           flex: '1 1 auto',
-          maxHeight: '80vh',
+          maxHeight: '85vh',
           minHeight: 0,
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
@@ -232,25 +295,45 @@ export function ExportModal({ onClose }: Props) {
               display: 'flex',
               borderBottom: '1px solid var(--p-border)',
               padding: '0 8px',
+              overflowX: 'auto',
+              flexShrink: 0,
             }}
           >
-            {tabIds.map((tab) => {
-              const label = tab === 'pigmint-tokens' ? 'Tokens (resolved)' : 'Colors (primitives)';
-              return (
-                <Tabs.Tab
-                  key={tab}
-                  value={tab}
-                  className="focus-visible-ring"
-                  style={tabStyle(activeTab === tab)}
-                >
-                  {label}
-                </Tabs.Tab>
-              );
-            })}
+            {TAB_SPECS.map((spec) => (
+              <Tabs.Tab
+                key={spec.id}
+                value={spec.id}
+                className="focus-visible-ring"
+                style={tabStyle(activeTab === spec.id)}
+              >
+                {spec.label}
+              </Tabs.Tab>
+            ))}
           </Tabs.List>
-          {tabIds.map((tab) => (
-            <Tabs.Panel key={tab} value={tab} style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
-              {activeTab === tab ? <VirtualizedPre text={getJson(tab)} /> : null}
+          {TAB_SPECS.map((spec) => (
+            <Tabs.Panel
+              key={spec.id}
+              value={spec.id}
+              style={{ display: activeTab === spec.id ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}
+            >
+              <div
+                style={{
+                  padding: '12px 20px',
+                  borderBottom: '1px solid var(--p-border)',
+                  background: 'var(--p-bg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <div style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
+                  {spec.filename}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--p-text-secondary)', lineHeight: 1.5 }}>
+                  {spec.description}
+                </div>
+              </div>
+              {activeTab === spec.id ? <VirtualizedPre text={activeContent} /> : null}
             </Tabs.Panel>
           ))}
         </Tabs.Root>
@@ -278,14 +361,14 @@ export function ExportModal({ onClose }: Props) {
               color: 'var(--p-text)',
             }}
           >
-            {copied ? 'Copied…' : 'Copy JSON'}
+            {copied ? 'Copied…' : 'Copy'}
           </button>
           <span aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             {copied ? 'Copied to clipboard…' : ''}
           </span>
           <button
             type="button"
-            onClick={() => downloadJSON(json, downloadName)}
+            onClick={() => downloadFile(activeContent, activeSpec.filename, activeSpec.mimeType)}
             className="focus-visible-ring"
             style={{
               padding: '6px 14px',
@@ -298,7 +381,7 @@ export function ExportModal({ onClose }: Props) {
               fontWeight: 500,
             }}
           >
-            Download {downloadName}
+            Download {activeSpec.filename}
           </button>
           <button
             type="button"

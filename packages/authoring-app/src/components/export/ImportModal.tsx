@@ -1,14 +1,135 @@
 import { useId, useRef, useState } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
+import { Tabs } from '@base-ui/react/tabs';
 import { usePaletteStore } from '../../store/paletteStore';
+import { useIntentStore } from '../../store/intentStore';
+import { useVocabStore } from '../../store/vocabStore';
 import { parseW3CTokens, type ImportedScale } from '../../lib/importTokens';
+import {
+  parsePigmintPrimitives,
+  parsePigmintYaml,
+  type ParsedPigmintYaml,
+} from '../../lib/pigmintYaml';
 import { AppCheckbox, AppDialog } from '../base-ui';
 
 interface Props {
   onClose: () => void;
 }
 
-export function ImportModal({ onClose }: Props) {
+type Tab = 'colors' | 'tokens' | 'pigmint';
+
+type TabSpec = {
+  id: Tab;
+  label: string;
+  filename: string;
+  description: string;
+};
+
+const TAB_SPECS: readonly TabSpec[] = [
+  {
+    id: 'colors',
+    label: 'Colors',
+    filename: 'colors.json',
+    description:
+      'Import primitive color ramps from a W3C Design Tokens JSON file (also accepts Figma Variables and lukasoppermann/design-tokens formats). Each top-level group becomes a scale.',
+  },
+  {
+    id: 'tokens',
+    label: 'Tokens',
+    filename: 'tokens.yaml',
+    description:
+      'Replace the semantic token vocabulary — surfaces, foreground, non-text, decorative, and alpha tokens — from a tokens.yaml file. The current ramps stay untouched.',
+  },
+  {
+    id: 'pigmint',
+    label: 'Pigmint',
+    filename: 'pigmint.yaml',
+    description:
+      'Import a full pigmint.yaml — ramps, intent overrides, and engine settings in one go. Optionally pair with a primitives.json file if the YAML references `fromFile` ramps.',
+  },
+];
+
+const tabStyle = (active: boolean): React.CSSProperties => ({
+  padding: '6px 14px',
+  fontSize: 12,
+  fontWeight: 500,
+  background: active ? 'var(--p-bg-inset)' : 'transparent',
+  border: 'none',
+  borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
+  cursor: 'pointer',
+  color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+  whiteSpace: 'nowrap',
+});
+
+const sectionStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  overflow: 'auto',
+  padding: '16px 20px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 12,
+};
+
+const descriptionStyle: React.CSSProperties = {
+  padding: '12px 20px',
+  borderBottom: '1px solid var(--p-border)',
+  background: 'var(--p-bg)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+};
+
+const filenameStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--p-text-tertiary)',
+  fontFamily: 'monospace',
+};
+
+const descriptionTextStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: 'var(--p-text-secondary)',
+  lineHeight: 1.5,
+};
+
+const uploadButtonStyle: React.CSSProperties = {
+  padding: '6px 14px',
+  fontSize: 13,
+  background: 'var(--p-bg-subtle)',
+  border: '1px solid var(--p-border)',
+  borderRadius: 6,
+  cursor: 'pointer',
+  color: 'var(--p-text)',
+};
+
+const textareaStyle: React.CSSProperties = {
+  width: '100%',
+  minHeight: 220,
+  padding: 12,
+  fontSize: 12,
+  fontFamily: 'monospace',
+  background: 'var(--p-bg-subtle)',
+  border: '1px solid var(--p-border)',
+  borderRadius: 8,
+  color: 'var(--p-text-secondary)',
+  resize: 'vertical',
+  boxSizing: 'border-box',
+};
+
+const errorStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: 6,
+  background: 'rgba(220,60,60,0.12)',
+  color: '#e55',
+  fontSize: 13,
+};
+
+type PanelProps = {
+  onClose: () => void;
+  registerImport: (handler: (() => void) | null, label: string, canImport: boolean) => void;
+};
+
+function ColorsPanel({ onClose, registerImport }: PanelProps) {
   const textareaId = useId();
   const importScales = usePaletteStore((s) => s.importScales);
   const hasExisting = usePaletteStore((s) => s.scales.length > 0);
@@ -23,34 +144,427 @@ export function ImportModal({ onClose }: Props) {
     setJson(text);
     setError(null);
     setPreview(null);
-
-    if (!text.trim()) return;
-
+    if (!text.trim()) {
+      registerImport(null, 'Import', false);
+      return;
+    }
     try {
       const scales = parseW3CTokens(text);
       setPreview(scales);
+      registerImport(
+        () => {
+          importScales(scales, replaceMode);
+          onClose();
+        },
+        `Import ${scales.length} scale${scales.length !== 1 ? 's' : ''}`,
+        true,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to parse');
+      registerImport(null, 'Import', false);
     }
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => handleParse(reader.result as string);
+    reader.readAsText(file);
+    e.target.value = '';
+  }
 
+  return (
+    <div style={sectionStyle}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button onClick={() => fileRef.current?.click()} className="focus-visible-ring" style={uploadButtonStyle}>
+          Upload .json
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,.tokens,.tokens.json"
+          onChange={handleFileUpload}
+          style={{ display: 'none' }}
+        />
+        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste JSON below</span>
+      </div>
+
+      <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
+        Token JSON
+      </label>
+      <textarea
+        id={textareaId}
+        name="import-colors-json"
+        value={json}
+        onChange={(e) => handleParse(e.target.value)}
+        placeholder="Paste design token JSON here…"
+        spellCheck={false}
+        className="focus-visible-ring"
+        style={textareaStyle}
+      />
+
+      {error && <div style={errorStyle}>{error}</div>}
+
+      {preview && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-text)' }}>
+            Found {preview.length} color scale{preview.length !== 1 ? 's' : ''}
+          </div>
+
+          {preview.map((scale, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)' }}>{scale.name}</span>
+              <div style={{ display: 'flex', gap: 1, borderRadius: 6, overflow: 'hidden' }}>
+                {scale.steps.map((step, j) => (
+                  <div
+                    key={j}
+                    title={`${step.name}: ${step.hex}`}
+                    style={{ flex: 1, height: 28, background: step.hex, minWidth: 0 }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {hasExisting && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+              <AppCheckbox
+                checked={replaceMode}
+                onCheckedChange={(c) => {
+                  setReplaceMode(c);
+                  if (preview) {
+                    registerImport(
+                      () => {
+                        importScales(preview, c);
+                        onClose();
+                      },
+                      `Import ${preview.length} scale${preview.length !== 1 ? 's' : ''}`,
+                      true,
+                    );
+                  }
+                }}
+              />
+              Replace existing scales
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function engineConfig() {
+  const s = useIntentStore.getState();
+  return { compliance: s.engineCompliance, target: s.engineTarget, modes: s.engineModes };
+}
+
+function TokensPanel({ onClose, registerImport }: PanelProps) {
+  const textareaId = useId();
+  const loadFromText = useVocabStore((s) => s.loadFromText);
+
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function setBody(next: string) {
+    setText(next);
+    setError(null);
+    const trimmed = next.trim();
+    if (!trimmed) {
+      registerImport(null, 'Import', false);
+      return;
+    }
+    registerImport(
+      () => {
+        try {
+          loadFromText(next, engineConfig());
+          onClose();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to parse YAML');
+        }
+      },
+      'Import vocabulary',
+      true,
+    );
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const text = reader.result as string;
-      handleParse(text);
+      const next = reader.result as string;
+      setText(next);
+      try {
+        loadFromText(next, engineConfig());
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load file');
+      }
     };
     reader.readAsText(file);
+    e.target.value = '';
   }
 
-  function handleImport() {
-    if (!preview) return;
-    importScales(preview, replaceMode);
+  return (
+    <div style={sectionStyle}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button onClick={() => fileRef.current?.click()} className="focus-visible-ring" style={uploadButtonStyle}>
+          Upload .yaml
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".yaml,.yml,.json"
+          onChange={handleFileUpload}
+          style={{ display: 'none' }}
+        />
+        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste YAML below</span>
+      </div>
+
+      <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
+        tokens.yaml
+      </label>
+      <textarea
+        id={textareaId}
+        name="import-tokens-yaml"
+        value={text}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Paste tokens.yaml content here…"
+        spellCheck={false}
+        className="focus-visible-ring"
+        style={textareaStyle}
+      />
+
+      {error && <div style={errorStyle}>{error}</div>}
+    </div>
+  );
+}
+
+function PigmintPanel({ onClose, registerImport }: PanelProps) {
+  const textareaId = useId();
+  const importScales = usePaletteStore((s) => s.importScales);
+  const hasExisting = usePaletteStore((s) => s.scales.length > 0);
+  const loadState = useIntentStore((s) => s.loadState);
+
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [parsed, setParsed] = useState<ParsedPigmintYaml | null>(null);
+  const [primitives, setPrimitives] = useState<Record<string, ImportedScale> | null>(null);
+  const [primitivesFileName, setPrimitivesFileName] = useState<string | null>(null);
+  const [replaceMode, setReplaceMode] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const primitivesFileRef = useRef<HTMLInputElement>(null);
+
+  function applyParsed(p: ParsedPigmintYaml, replace: boolean) {
+    importScales(p.scales, replace);
+    loadState({
+      overrides: p.intents,
+      engineTarget: p.engine.target,
+      engineCompliance: p.engine.compliance,
+      engineModes: p.engine.modes,
+      engineCvd: p.engine.cvd,
+      engineResolver: p.engine.resolver,
+    });
     onClose();
   }
+
+  function reparse(next: string, prims: Record<string, ImportedScale> | null, replace: boolean) {
+    setError(null);
+    setParsed(null);
+    if (!next.trim()) {
+      registerImport(null, 'Import', false);
+      return;
+    }
+    try {
+      const result = parsePigmintYaml(next, prims ? { primitives: prims } : {});
+      setParsed(result);
+      registerImport(
+        () => applyParsed(result, replace),
+        `Import ${result.scales.length} ramp${result.scales.length !== 1 ? 's' : ''}`,
+        true,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to parse');
+      registerImport(null, 'Import', false);
+    }
+  }
+
+  function handleBody(next: string) {
+    setText(next);
+    reparse(next, primitives, replaceMode);
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => handleBody(reader.result as string);
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  function handlePrimitivesUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const map = parsePigmintPrimitives(reader.result as string);
+        setPrimitives(map);
+        setPrimitivesFileName(file.name);
+        reparse(text, map, replaceMode);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to parse primitives.json');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  function clearPrimitives() {
+    setPrimitives(null);
+    setPrimitivesFileName(null);
+    reparse(text, null, replaceMode);
+  }
+
+  const intentCount = parsed ? Object.keys(parsed.intents).length : 0;
+
+  return (
+    <div style={sectionStyle}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button onClick={() => fileRef.current?.click()} className="focus-visible-ring" style={uploadButtonStyle}>
+          Upload .yaml
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".yaml,.yml"
+          onChange={handleFileUpload}
+          style={{ display: 'none' }}
+        />
+        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste YAML below</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button onClick={() => primitivesFileRef.current?.click()} className="focus-visible-ring" style={uploadButtonStyle}>
+          Upload primitives.json
+        </button>
+        <input
+          ref={primitivesFileRef}
+          type="file"
+          accept=".json"
+          onChange={handlePrimitivesUpload}
+          style={{ display: 'none' }}
+        />
+        {primitivesFileName ? (
+          <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {primitivesFileName} ({primitives ? Object.keys(primitives).length : 0} ramps)
+            <button
+              onClick={clearPrimitives}
+              className="focus-visible-ring"
+              style={{
+                padding: '2px 6px',
+                fontSize: 11,
+                background: 'transparent',
+                border: '1px solid var(--p-border)',
+                borderRadius: 4,
+                cursor: 'pointer',
+                color: 'var(--p-text-tertiary)',
+              }}
+            >
+              clear
+            </button>
+          </span>
+        ) : (
+          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
+            optional — only required for `fromFile` ramps
+          </span>
+        )}
+      </div>
+
+      <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
+        pigmint.yaml
+      </label>
+      <textarea
+        id={textareaId}
+        name="import-pigmint-yaml"
+        value={text}
+        onChange={(e) => handleBody(e.target.value)}
+        placeholder="Paste pigmint.yaml content here…"
+        spellCheck={false}
+        className="focus-visible-ring"
+        style={textareaStyle}
+      />
+
+      {error && <div style={errorStyle}>{error}</div>}
+
+      {parsed && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-text)' }}>
+            Found {parsed.scales.length} ramp{parsed.scales.length !== 1 ? 's' : ''}
+            {intentCount > 0 && ` · ${intentCount} intent override${intentCount !== 1 ? 's' : ''}`}
+          </div>
+
+          {parsed.scales.map((scale, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  background: scale.sourceHex,
+                  border: '1px solid var(--p-border)',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
+                <strong style={{ color: 'var(--p-text)' }}>{scale.name}</strong> — {scale.sourceHex}
+              </div>
+            </div>
+          ))}
+
+          {hasExisting && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+              <AppCheckbox
+                checked={replaceMode}
+                onCheckedChange={(c) => {
+                  setReplaceMode(c);
+                  if (parsed) {
+                    registerImport(
+                      () => applyParsed(parsed, c),
+                      `Import ${parsed.scales.length} ramp${parsed.scales.length !== 1 ? 's' : ''}`,
+                      true,
+                    );
+                  }
+                }}
+              />
+              Replace existing ramps
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ImportModal({ onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>('colors');
+  const importStateRef = useRef<{ handler: (() => void) | null; label: string; canImport: boolean }>({
+    handler: null,
+    label: 'Import',
+    canImport: false,
+  });
+  const [, forceRender] = useState(0);
+
+  function registerImport(handler: (() => void) | null, label: string, canImport: boolean) {
+    importStateRef.current = { handler, label, canImport };
+    forceRender((n) => n + 1);
+  }
+
+  const activeSpec = TAB_SPECS.find((t) => t.id === activeTab) ?? TAB_SPECS[0];
+  const { handler, label, canImport } = importStateRef.current;
 
   return (
     <AppDialog onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -59,11 +573,11 @@ export function ImportModal({ onClose }: Props) {
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
           borderRadius: 12,
-          width: '100%',
-          maxWidth: 640,
+          width: 'min(1100px, 95vw)',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '80vh',
+          flex: '1 1 auto',
+          maxHeight: '85vh',
           minHeight: 0,
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
@@ -78,7 +592,7 @@ export function ImportModal({ onClose }: Props) {
           }}
         >
           <Dialog.Title id="import-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
-            Import Color Tokens
+            Import
           </Dialog.Title>
           <Dialog.Close
             aria-label="Close import modal"
@@ -102,105 +616,53 @@ export function ImportModal({ onClose }: Props) {
           </Dialog.Close>
         </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="focus-visible-ring"
-              style={{
-                padding: '6px 14px',
-                fontSize: 13,
-                background: 'var(--p-bg-subtle)',
-                border: '1px solid var(--p-border)',
-                borderRadius: 6,
-                cursor: 'pointer',
-                color: 'var(--p-text)',
-              }}
-            >
-              Upload .json
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".json,.tokens,.tokens.json"
-              onChange={handleFileUpload}
-              style={{ display: 'none' }}
-            />
-            <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
-              or paste JSON below
-            </span>
+        <Tabs.Root
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v as Tab);
+            importStateRef.current = { handler: null, label: 'Import', canImport: false };
+            forceRender((n) => n + 1);
+          }}
+          style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}
+        >
+          <Tabs.List
+            aria-label="Import source"
+            style={{
+              display: 'flex',
+              borderBottom: '1px solid var(--p-border)',
+              padding: '0 8px',
+              overflowX: 'auto',
+              flexShrink: 0,
+            }}
+          >
+            {TAB_SPECS.map((spec) => (
+              <Tabs.Tab
+                key={spec.id}
+                value={spec.id}
+                className="focus-visible-ring"
+                style={tabStyle(activeTab === spec.id)}
+              >
+                {spec.label}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+
+          <div style={descriptionStyle}>
+            <div style={filenameStyle}>{activeSpec.filename}</div>
+            <div style={descriptionTextStyle}>{activeSpec.description}</div>
           </div>
 
-          <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-            Token JSON
-          </label>
-          <textarea
-            id={textareaId}
-            name="import-json"
-            value={json}
-            onChange={(e) => handleParse(e.target.value)}
-            placeholder='Paste design token JSON here (W3C DTCG, Figma Variables, or lukasoppermann/design-tokens format)…'
-            spellCheck={false}
-            aria-label="Paste W3C design token JSON"
-            className="focus-visible-ring"
-            style={{
-              width: '100%',
-              minHeight: 180,
-              padding: 12,
-              fontSize: 12,
-              fontFamily: 'monospace',
-              background: 'var(--p-bg-subtle)',
-              border: '1px solid var(--p-border)',
-              borderRadius: 8,
-              color: 'var(--p-text-secondary)',
-              resize: 'vertical',
-            }}
-          />
+          <Tabs.Panel value="colors" style={{ display: activeTab === 'colors' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+            {activeTab === 'colors' && <ColorsPanel onClose={onClose} registerImport={registerImport} />}
+          </Tabs.Panel>
+          <Tabs.Panel value="tokens" style={{ display: activeTab === 'tokens' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+            {activeTab === 'tokens' && <TokensPanel onClose={onClose} registerImport={registerImport} />}
+          </Tabs.Panel>
+          <Tabs.Panel value="pigmint" style={{ display: activeTab === 'pigmint' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+            {activeTab === 'pigmint' && <PigmintPanel onClose={onClose} registerImport={registerImport} />}
+          </Tabs.Panel>
+        </Tabs.Root>
 
-          {error && (
-            <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(220,60,60,0.12)', color: '#e55', fontSize: 13 }}>
-              {error}
-            </div>
-          )}
-
-          {preview && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-text)' }}>
-                Found {preview.length} color scale{preview.length !== 1 ? 's' : ''}
-              </div>
-
-              {preview.map((scale, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)' }}>{scale.name}</span>
-                  <div style={{ display: 'flex', gap: 1, borderRadius: 6, overflow: 'hidden' }}>
-                    {scale.steps.map((step, j) => (
-                      <div
-                        key={j}
-                        title={`${step.name}: ${step.hex}`}
-                        style={{
-                          flex: 1,
-                          height: 28,
-                          background: step.hex,
-                          minWidth: 0,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {hasExisting && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
-                  <AppCheckbox checked={replaceMode} onCheckedChange={(c) => setReplaceMode(c)} />
-                  Replace existing scales
-                </label>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
         <div
           style={{
             display: 'flex',
@@ -210,23 +672,23 @@ export function ImportModal({ onClose }: Props) {
           }}
         >
           <button
-            disabled={!preview}
-            onClick={handleImport}
+            disabled={!canImport}
+            onClick={() => handler?.()}
             className="focus-visible-ring"
             style={{
               padding: '6px 14px',
               fontSize: 13,
-              background: preview ? 'var(--p-accent)' : 'var(--p-bg-subtle)',
+              background: canImport ? 'var(--p-accent)' : 'var(--p-bg-subtle)',
               border: '1px solid',
-              borderColor: preview ? 'var(--p-accent)' : 'var(--p-border)',
+              borderColor: canImport ? 'var(--p-accent)' : 'var(--p-border)',
               borderRadius: 6,
-              cursor: preview ? 'pointer' : 'default',
-              color: preview ? '#fff' : 'var(--p-text-tertiary)',
+              cursor: canImport ? 'pointer' : 'default',
+              color: canImport ? '#fff' : 'var(--p-text-tertiary)',
               fontWeight: 500,
-              opacity: preview ? 1 : 0.6,
+              opacity: canImport ? 1 : 0.6,
             }}
           >
-            Import {preview ? `${preview.length} scale${preview.length !== 1 ? 's' : ''}` : ''}
+            {label}
           </button>
           <button
             onClick={onClose}

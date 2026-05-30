@@ -70,10 +70,6 @@ type AppTheme = 'light' | 'dark';
 interface Props {
   onExport: () => void;
   onImport: () => void;
-  onExportPigmint: () => void;
-  onImportPigmint: () => void;
-  onExportTokens: () => void;
-  onImportTokens: () => void;
   onSave: () => void;
   mode: AppMode;
   onModeChange: (mode: AppMode) => void;
@@ -289,7 +285,7 @@ function ViewMenu({ theme, onThemeChange, srgbPreview, onToggleSrgbPreview }: Vi
   );
 }
 
-export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, onExportTokens, onImportTokens, onSave, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
+export function TopBar({ onExport, onImport, onSave, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
   const saveSplitRef = useRef<HTMLDivElement>(null);
 
   const saveLabel =
@@ -479,31 +475,12 @@ export function TopBar({ onExport, onImport, onExportPigmint, onImportPigmint, o
                   Save
                 </Menu.Item>
                 <Menu.Separator style={viewMenuSeparatorStyle} />
-                <Menu.Group>
-                  <Menu.GroupLabel style={viewMenuGroupLabelStyle}>Import</Menu.GroupLabel>
-                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import colors" onClick={onImport}>
-                    Colors
-                  </Menu.Item>
-                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import tokens" onClick={onImportTokens}>
-                    Tokens
-                  </Menu.Item>
-                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import pigmint yaml" onClick={onImportPigmint}>
-                    Pigmint
-                  </Menu.Item>
-                </Menu.Group>
-                <Menu.Separator style={viewMenuSeparatorStyle} />
-                <Menu.Group>
-                  <Menu.GroupLabel style={viewMenuGroupLabelStyle}>Export</Menu.GroupLabel>
-                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export colors" onClick={onExport}>
-                    Colors
-                  </Menu.Item>
-                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export tokens" onClick={onExportTokens}>
-                    Tokens
-                  </Menu.Item>
-                  <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export pigmint yaml" onClick={onExportPigmint}>
-                    Pigmint
-                  </Menu.Item>
-                </Menu.Group>
+                <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Import" onClick={onImport}>
+                  Import
+                </Menu.Item>
+                <Menu.Item className="app-menu-item focus-visible-ring" style={saveMenuItemStyle} label="Export" onClick={onExport}>
+                  Export
+                </Menu.Item>
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>

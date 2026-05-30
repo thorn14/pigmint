@@ -7,12 +7,9 @@ import { TokensPanel } from './components/tokens/TokensPanel';
 
 import { ExportModal } from './components/export/ExportModal';
 import { ImportModal } from './components/export/ImportModal';
-import { ExportPigmintYamlModal } from './components/export/ExportPigmintYamlModal';
-import { ImportPigmintYamlModal } from './components/export/ImportPigmintYamlModal';
 import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { PalettePreviewModal } from './components/preview/PalettePreviewModal';
-import { ImportTokensYamlModal } from './components/tokens/ImportTokensYamlModal';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useIntentStore } from './store/intentStore';
 import { initVocabStore, useVocabStore } from './store/vocabStore';
@@ -94,9 +91,6 @@ function EditPanel({
 export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [showExportPigmint, setShowExportPigmint] = useState(false);
-  const [showImportPigmint, setShowImportPigmint] = useState(false);
-  const [showImportTokens, setShowImportTokens] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -221,18 +215,6 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
-  const handleExportTokens = useCallback(() => {
-    const yaml = useVocabStore.getState().exportYaml();
-    if (!yaml) return;
-    const blob = new Blob([yaml], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'tokens.yaml';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, []);
-
   const handleSave = useCallback(() => {
     setSaveStatus('saving');
     try {
@@ -266,10 +248,6 @@ export default function App() {
       <TopBar
         onExport={() => setShowExport(true)}
         onImport={() => setShowImport(true)}
-        onExportPigmint={() => setShowExportPigmint(true)}
-        onImportPigmint={() => setShowImportPigmint(true)}
-        onExportTokens={handleExportTokens}
-        onImportTokens={() => setShowImportTokens(true)}
         onSave={handleSave}
         mode={mode}
         onModeChange={setMode}
@@ -328,9 +306,6 @@ export default function App() {
       )}
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
-      {showExportPigmint && <ExportPigmintYamlModal onClose={() => setShowExportPigmint(false)} />}
-      {showImportPigmint && <ImportPigmintYamlModal onClose={() => setShowImportPigmint(false)} />}
-      {showImportTokens && <ImportTokensYamlModal onClose={() => setShowImportTokens(false)} />}
       {showSteps && scale && <StepListModal scale={scale} mode="names" applyToAll onClose={() => setShowSteps(false)} />}
       {showLightness && scale && <StepListModal scale={scale} mode="lightness" onClose={() => setShowLightness(false)} />}
     </div>
