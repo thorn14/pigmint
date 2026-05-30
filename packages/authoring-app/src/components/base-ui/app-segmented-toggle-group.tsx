@@ -16,7 +16,7 @@ type Props<V extends string> = {
 const segment: CSSProperties = {
   display: 'inline-flex',
   borderRadius: 6,
-  background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+  background: 'var(--p-surface))',
   padding: 2,
   gap: 2,
 };

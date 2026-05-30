@@ -64,7 +64,7 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 14px',
   fontSize: 12,
   fontWeight: 500,
-  background: active ? 'var(--p-bg-inset)' : 'transparent',
+  background: active ? 'var(--p-surface)' : 'transparent',
   border: 'none',
   borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
   cursor: 'pointer',
@@ -89,7 +89,7 @@ function VirtualizedPre({ text }: { text: string }) {
       style={{
         flex: 1,
         overflow: 'auto',
-        background: 'var(--p-bg-subtle)',
+        background: 'var(--p-surface)',
         padding: '12px 0',
       }}
     >
@@ -354,7 +354,7 @@ export function ExportModal({ onClose }: Props) {
             style={{
               padding: '6px 14px',
               fontSize: 13,
-              background: 'var(--p-bg-subtle)',
+              background: 'var(--p-surface)',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: 'pointer',

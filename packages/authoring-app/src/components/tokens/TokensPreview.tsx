@@ -11,13 +11,13 @@ import { EditTokenModal } from './EditTokenModal';
 // ─── Badge ────────────────────────────────────────────────────────────────────
 
 const LEVEL_BADGE: Record<ComplianceLevel, { bg: string; text: string; label: string }> = {
-  'AAA-text':    { bg: 'var(--badge-aaa-bg)',  text: 'var(--badge-aaa-text)',  label: 'AAA'     },
-  'AAA-nonText': { bg: 'var(--badge-aaa-bg)',  text: 'var(--badge-aaa-text)',  label: 'AAA'     },
-  'AA-text':     { bg: 'var(--badge-aa-bg)',   text: 'var(--badge-aa-text)',   label: 'AA'      },
-  'AA-nonText':  { bg: 'var(--badge-aa-bg)',   text: 'var(--badge-aa-text)',   label: 'AA'      },
-  'apca-pass':   { bg: 'var(--badge-aa-bg)',   text: 'var(--badge-aa-text)',   label: 'Lc pass' },
-  'fail':        { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail'    },
-  'exempt':      { bg: 'var(--p-bg-subtle)',   text: 'var(--p-text-tertiary)', label: 'Exempt'  },
+  'AAA-text':    { bg: 'var(--p-success-subtle)',  text: 'var(--p-success)',  label: 'AAA'     },
+  'AAA-nonText': { bg: 'var(--p-success-subtle)',  text: 'var(--p-success)',  label: 'AAA'     },
+  'AA-text':     { bg: 'var(--p-success-subtle)',   text: 'var(--p-success)',   label: 'AA'      },
+  'AA-nonText':  { bg: 'var(--p-success-subtle)',   text: 'var(--p-success)',   label: 'AA'      },
+  'apca-pass':   { bg: 'var(--p-success-subtle)',   text: 'var(--p-success)',   label: 'Lc pass' },
+  'fail':        { bg: 'var(--p-danger-subtle)', text: 'var(--p-danger)', label: 'Fail'    },
+  'exempt':      { bg: 'var(--p-surface)',   text: 'var(--p-text-tertiary)', label: 'Exempt'  },
 };
 
 // ─── Token card ───────────────────────────────────────────────────────────────

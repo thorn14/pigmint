@@ -1,9 +1,9 @@
-import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
 import type { PortableSemanticToken, GeneratedRamp } from '@pigmint/core';
 import type { WcagMapEntry, ApcaMapEntry } from '../../types/palette';
+import { AppDrawer } from '../base-ui';
 import { AppSelect, type AppSelectOption } from '../tokens/AppSelect';
 import { surfaceOptions, stepOptions } from '../tokens/tokenOptions';
 import { derivedConsistency } from '../tokens/tokenShared';
@@ -46,7 +46,7 @@ const inp: React.CSSProperties = {
 const readOnly: React.CSSProperties = { ...inp, color: 'var(--p-text-secondary)' };
 const btn: React.CSSProperties = {
   padding: '3px 8px', fontSize: 11,
-  background: 'var(--p-bg-subtle)', border: '1px solid var(--p-border)',
+  background: 'var(--p-surface)', border: '1px solid var(--p-border)',
   borderRadius: 4, cursor: 'pointer', color: 'var(--p-text)', whiteSpace: 'nowrap',
 };
 const modeToggle = (active: boolean): React.CSSProperties => ({
@@ -60,7 +60,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
   return (
     <div style={{
       display: 'inline-flex', borderRadius: 6,
-      background: 'var(--p-bg-inset, rgba(0,0,0,0.12))', padding: 2, gap: 2,
+      background: 'var(--p-surface))', padding: 2, gap: 2,
     }}>
       <button style={modeToggle(mode === 'new')} onClick={() => onChange('new')}>New</button>
       <button style={modeToggle(mode === 'existing')} onClick={() => onChange('existing')}>Existing</button>
@@ -127,11 +127,9 @@ export function ComboToTokenModal({
   const bgNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setTimeout(() => bgNameRef.current?.focus(), 50);
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    const id = setTimeout(() => bgNameRef.current?.focus(), 50);
+    return () => clearTimeout(id);
+  }, []);
 
   const contrastLabel = isWcag
     ? `${(entry as WcagMapEntry).ratio}:1`
@@ -168,40 +166,26 @@ export function ComboToTokenModal({
     (fgMode === 'new' && !fgName.trim()) ||
     (fgMode === 'new' && bgMode === 'existing' && !existingSurface);
 
-  return createPortal(
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }}
-      />
+  return (
+    <AppDrawer onOpenChange={(open) => { if (!open) onClose(); }}>
+      {/* Header */}
       <div style={{
-        position: 'fixed', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 201,
-        background: 'var(--p-bg)', border: '1px solid var(--p-border)',
-        borderRadius: 10, width: 440, maxWidth: 'calc(100vw - 32px)',
-        maxHeight: 'calc(100dvh - 32px)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        padding: '14px 16px 12px', borderBottom: '1px solid var(--p-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
       }}>
-        {/* Header */}
-        <div style={{
-          padding: '14px 16px 12px', borderBottom: '1px solid var(--p-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Save as tokens</span>
-          <button onClick={onClose} style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--p-text-secondary)', fontSize: 16, lineHeight: 1, padding: '2px 4px',
-          }}>✕</button>
-        </div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Save as tokens</span>
+        <button onClick={onClose} style={{
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          color: 'var(--p-text-secondary)', fontSize: 16, lineHeight: 1, padding: '2px 4px',
+        }}>✕</button>
+      </div>
 
         {/* Combo preview */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12,
           padding: '12px 16px', borderBottom: '1px solid var(--p-border)',
-          background: 'var(--p-bg-subtle)', flexShrink: 0,
+          background: 'var(--p-surface)', flexShrink: 0,
         }}>
           <div style={{
             background: entry.bg.hex, borderRadius: 6,
@@ -367,9 +351,9 @@ export function ComboToTokenModal({
         <div style={{
           display: 'flex', flexDirection: 'column', gap: 8,
           padding: '12px 16px', borderTop: '1px solid var(--p-border)',
-          background: 'var(--p-bg-subtle)', flexShrink: 0,
+          background: 'var(--p-surface)', flexShrink: 0,
         }}>
-          {error && <span style={{ fontSize: 12, color: '#e55' }}>{error}</span>}
+          {error && <span style={{ fontSize: 12, color: 'var(--p-danger)' }}>{error}</span>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button style={btn} onClick={onClose}>Cancel</button>
             <button
@@ -389,8 +373,6 @@ export function ComboToTokenModal({
             </button>
           </div>
         </div>
-      </div>
-    </>,
-    document.body,
+    </AppDrawer>
   );
 }

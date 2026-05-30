@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { usePaletteStore } from '../../store/paletteStore';
-import { AppDialog } from '../base-ui';
+import { AppDialog, ConfirmDialog } from '../base-ui';
 
 interface Props {
   onClose: () => void;
@@ -71,7 +71,7 @@ function PaletteRow({ id, name, isActive, canDelete, onRename, onDelete }: RowPr
             letterSpacing: '0.05em',
             padding: '2px 6px',
             borderRadius: 4,
-            background: 'var(--p-accent-subtle, rgba(99,102,241,0.12))',
+            background: 'var(--p-surface)',
             color: 'var(--p-accent, #6366f1)',
             flexShrink: 0,
           }}
@@ -116,6 +116,7 @@ export function ManagePalettesModal({ onClose }: Props) {
   const renamePalette = usePaletteStore((s) => s.renamePalette);
 
   const canDelete = savedPalettes.length > 1;
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   function handleCreate() {
     createPalette(`Palette ${savedPalettes.length + 1}`);
@@ -180,7 +181,7 @@ export function ManagePalettesModal({ onClose }: Props) {
               isActive={p.id === activePaletteId}
               canDelete={canDelete}
               onRename={(next) => renamePalette(p.id, next)}
-              onDelete={() => deletePalette(p.id)}
+              onDelete={() => setPendingDelete({ id: p.id, name: p.name })}
             />
           ))}
         </div>
@@ -229,6 +230,21 @@ export function ManagePalettesModal({ onClose }: Props) {
           </button>
         </div>
       </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete palette"
+          message={<>Delete palette <strong>{pendingDelete.name}</strong>? All ramps and tokens inside will be lost. This cannot be undone.</>}
+          confirmLabel="Delete palette"
+          destructive
+          onConfirm={() => {
+            const { id } = pendingDelete;
+            setPendingDelete(null);
+            deletePalette(id);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </AppDialog>
   );
 }

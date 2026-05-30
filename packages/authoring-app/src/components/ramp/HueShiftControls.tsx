@@ -11,7 +11,7 @@ const panelStyle: CSSProperties = {
   display: 'flex',
   gap: 24,
   padding: 12,
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   borderRadius: 8,
   border: '1px solid var(--p-border)',
 };

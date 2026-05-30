@@ -21,25 +21,19 @@ body {
 }
 
 :root {
+  /* Foundation — pure literals, flipped per theme */
   --p-bg: #ffffff;
-  --p-bg-subtle: #f6f8fa;
-  /* WCAG badge colours: pass=success, fail=error */
-  --badge-aaa-bg: #dcfce7;   --badge-aaa-text: #166534;
-  --badge-aa-bg: #dcfce7;    --badge-aa-text: #166534;
-  --badge-aal-bg: #dcfce7;   --badge-aal-text: #166534;
-  --badge-fail-bg: #fee2e2;  --badge-fail-text: #b91c1c;
-  --p-bg-inset: #eaeef2;
-  --p-border: #d0d7de;
-  --p-border-muted: #d8dee4;
-  --p-text: #1f2328;
-  --p-text-secondary: #636c76;
-  --p-text-tertiary: #9198a1;
+  --p-text: #000000;
+  /* Grays — overlay form of pure black on white */
+  --p-surface: rgba(0, 0, 0, 0.05);
+  --p-border: rgba(0, 0, 0, 0.18);
+  --p-text-secondary: rgba(0, 0, 0, 0.6);
+  --p-text-tertiary: rgba(0, 0, 0, 0.4);
+  /* Semantic — solid */
   --p-accent: #4b5563;
-  --p-accent-subtle: #e5e7eb;
   --p-success: #1a7f37;
   --p-success-subtle: #dcfce7;
   --p-warning: #b45309;
-  --p-warning-subtle: #fffbeb;
   --p-danger: #cf222e;
   --p-danger-subtle: #ffebe9;
 }
@@ -47,24 +41,16 @@ body {
 /* Dark theme — data-theme on <html> (see App.tsx) so portaled UI inherits the same tokens */
 [data-theme="dark"] {
   color-scheme: dark;
-  --badge-aaa-bg: #14532d;   --badge-aaa-text: #86efac;
-  --badge-aa-bg: #14532d;    --badge-aa-text: #86efac;
-  --badge-aal-bg: #14532d;   --badge-aal-text: #86efac;
-  --badge-fail-bg: #7f1d1d;  --badge-fail-text: #fecaca;
   --p-bg: #000000;
-  --p-bg-subtle: #161b22;
-  --p-bg-inset: #010409;
-  --p-border: #30363d;
-  --p-border-muted: #21262d;
-  --p-text: #e6edf3;
-  --p-text-secondary: #8b949e;
-  --p-text-tertiary: #6e7681;
+  --p-text: #ffffff;
+  --p-surface: rgba(255, 255, 255, 0.08);
+  --p-border: rgba(255, 255, 255, 0.18);
+  --p-text-secondary: rgba(255, 255, 255, 0.6);
+  --p-text-tertiary: rgba(255, 255, 255, 0.4);
   --p-accent: #6b7280;
-  --p-accent-subtle: #4b5563;
   --p-success: #3fb950;
   --p-success-subtle: #14532d;
   --p-warning: #e3b341;
-  --p-warning-subtle: #3d2a00;
   --p-danger: #f85149;
   --p-danger-subtle: #da36313d;
 }
@@ -105,8 +91,8 @@ input[type="range"].p-range {
   min-height: 1.35rem;
   background: transparent;
   /* Override per input via style={{ ['--p-range-thumb']: '…' }} for accent thumbs */
-  --p-range-track: var(--p-bg-inset);
-  --p-range-track-stroke: var(--p-border-muted);
+  --p-range-track: var(--p-surface);
+  --p-range-track-stroke: var(--p-border);
   --p-range-thumb: var(--p-text-secondary);
   --p-range-thumb-stroke: var(--p-bg);
   cursor: pointer;
@@ -127,12 +113,12 @@ input[type="range"].p-range::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--p-range-thumb);
   border: 2px solid var(--p-range-thumb-stroke);
-  box-shadow: 0 0 0 1px var(--p-border-muted);
+  box-shadow: 0 0 0 1px var(--p-border);
   margin-top: -5px;
 }
 
 input[type="range"].p-range:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 1px var(--p-border-muted), 0 0 0 3px var(--p-accent-subtle, var(--p-border));
+  box-shadow: 0 0 0 1px var(--p-border), 0 0 0 3px var(--p-surface);
 }
 
 input[type="range"].p-range::-moz-range-track {
@@ -148,11 +134,11 @@ input[type="range"].p-range::-moz-range-thumb {
   border: 2px solid var(--p-range-thumb-stroke);
   border-radius: 50%;
   background: var(--p-range-thumb);
-  box-shadow: 0 0 0 1px var(--p-border-muted);
+  box-shadow: 0 0 0 1px var(--p-border);
 }
 
 input[type="range"].p-range:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 1px var(--p-border-muted), 0 0 0 3px var(--p-accent-subtle, var(--p-border));
+  box-shadow: 0 0 0 1px var(--p-border), 0 0 0 3px var(--p-surface);
 }
 
 .skip-link {
@@ -215,14 +201,24 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   }
 }
 
+.app-drawer-popup {
+  transition: transform 180ms ease-out;
+}
+.app-drawer-popup[data-state="open"]  { transform: translateX(0); }
+.app-drawer-popup[data-state="closed"] { transform: translateX(100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-drawer-popup { transition: none; }
+}
+
 /* Base UI `Select` item pointer / keyboard focus */
 .app-select-item[data-highlighted] {
-  background: var(--p-bg-subtle);
+  background: var(--p-surface);
   color: var(--p-text);
 }
 
 .app-menu-item[data-highlighted] {
-  background: var(--p-bg-subtle);
+  background: var(--p-surface);
   color: var(--p-text);
 }
 
@@ -287,7 +283,7 @@ input[type="submit"]:not(:disabled):active {
 }
 
 .app-menu-item:not([aria-disabled="true"]):hover {
-  background-color: var(--p-bg-subtle);
+  background-color: var(--p-surface);
   color: var(--p-text);
 }
 
@@ -305,7 +301,7 @@ input[type="submit"]:not(:disabled):active {
 }
 
 .app-select-item:not([aria-disabled="true"]):hover {
-  background-color: var(--p-bg-subtle);
+  background-color: var(--p-surface);
 }
 
 .app-select-item:not([aria-disabled="true"]):active {
@@ -326,8 +322,8 @@ input[type="submit"]:not(:disabled):active {
 /* Base UI `Slider` — horizontal + vertical, aligned with `.p-range` tokens */
 .app-slider-root {
   position: relative;
-  --p-range-track: var(--p-bg-inset);
-  --p-range-track-stroke: var(--p-border-muted);
+  --p-range-track: var(--p-surface);
+  --p-range-track-stroke: var(--p-border);
 }
 
 .app-slider-control {

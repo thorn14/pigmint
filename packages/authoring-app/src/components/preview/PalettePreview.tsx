@@ -318,7 +318,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
             style={{
               display: 'inline-flex',
               borderRadius: 6,
-              background: 'var(--p-bg-inset, rgba(0,0,0,0.2))',
+              background: 'var(--p-surface))',
               padding: 2,
               gap: 2,
             }}
@@ -364,7 +364,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
               gridTemplateColumns: gridColumns,
               minHeight: 28,
               borderBottom: '1px solid var(--p-border)',
-              background: 'var(--p-bg-subtle)',
+              background: 'var(--p-surface)',
               position: 'sticky',
               top: 0,
               zIndex: 3,

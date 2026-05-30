@@ -28,7 +28,7 @@ function GradientStrip({ label, srgb, p3, height }: { label: string; srgb: strin
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
           color: 'var(--p-text-secondary)',
-          background: 'var(--p-bg-subtle, var(--p-bg))',
+          background: 'var(--p-surface))',
           borderBottom: '1px solid var(--p-border)',
         }}
       >
@@ -73,7 +73,7 @@ export function ScaleDiagnosticsRow({ scale, ramp }: RowProps) {
           fontSize: 12,
           fontWeight: 600,
           color: 'var(--p-text)',
-          background: 'var(--p-bg-subtle, var(--p-bg))',
+          background: 'var(--p-surface))',
           borderBottom: '1px solid var(--p-border)',
         }}
       >
@@ -109,7 +109,7 @@ export function ScaleDiagnosticsRow({ scale, ramp }: RowProps) {
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             color: 'var(--p-text-secondary)',
-            background: 'var(--p-bg-subtle, var(--p-bg))',
+            background: 'var(--p-surface))',
             borderBottom: '1px solid var(--p-border)',
           }}
         >

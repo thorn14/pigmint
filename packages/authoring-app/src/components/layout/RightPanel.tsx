@@ -7,7 +7,7 @@ import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, 
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { LockIcon } from '../icons/LockIcon';
 import { canonicalScaleName } from '../../lib/scaleNaming';
-import { AppField, AppSlider } from '../base-ui';
+import { AppField, AppSlider, ConfirmDialog } from '../base-ui';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -136,7 +136,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   return (
     <aside
       className="shrink-0 overflow-y-auto"
-      style={{ width: 260, background: 'var(--p-bg-subtle)', borderLeft: '1px solid var(--p-border)' }}
+      style={{ width: 260, background: 'var(--p-surface)', borderLeft: '1px solid var(--p-border)' }}
     >
       {/* Scale name + source color */}
       <div style={sectionStyle}>
@@ -562,7 +562,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                 fontWeight: 700,
                 padding: '1px 5px',
                 borderRadius: 4,
-                background: activeStep.gamut === 'p3' ? '#78350f' : 'var(--p-bg-inset)',
+                background: activeStep.gamut === 'p3' ? '#78350f' : 'var(--p-surface)',
                 color: activeStep.gamut === 'p3' ? '#fde68a' : 'var(--p-text-secondary)',
                 letterSpacing: '0.03em',
                 cursor: 'default',
@@ -693,66 +693,37 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Delete scale — last section */}
       <div style={{ ...sectionStyle, borderBottom: 'none' }}>
         <SectionLabel>Danger zone</SectionLabel>
-        {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="focus-visible-ring"
-            style={{
-              width: '100%',
-              padding: '5px 8px',
-              fontSize: 12,
-              background: 'var(--p-bg)',
-              border: '1px solid var(--p-border)',
-              borderRadius: 6,
-              color: 'var(--p-danger)',
-              cursor: 'pointer',
-            }}
-          >
-            Delete scale
-          </button>
-        ) : (
-          <div>
-            <p style={{ fontSize: 12, color: 'var(--p-text)', marginBottom: 8, lineHeight: 1.4 }}>
-              Delete <strong>{scale.name}</strong>? This cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                onClick={() => removeScale(scale.id)}
-                className="focus-visible-ring"
-                style={{
-                  flex: 1,
-                  padding: '5px 8px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: 'var(--p-danger)',
-                  border: '1px solid var(--p-danger)',
-                  borderRadius: 6,
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="focus-visible-ring"
-                style={{
-                  flex: 1,
-                  padding: '5px 8px',
-                  fontSize: 12,
-                  background: 'var(--p-bg)',
-                  border: '1px solid var(--p-border)',
-                  borderRadius: 6,
-                  color: 'var(--p-text-secondary)',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="focus-visible-ring"
+          style={{
+            width: '100%',
+            padding: '5px 8px',
+            fontSize: 12,
+            background: 'var(--p-bg)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            color: 'var(--p-danger)',
+            cursor: 'pointer',
+          }}
+        >
+          Delete scale
+        </button>
       </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete scale"
+          message={<>Delete scale <strong>{scale.name}</strong>? This cannot be undone.</>}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirmDelete(false);
+            removeScale(scale.id);
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </aside>
   );
 }

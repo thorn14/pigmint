@@ -291,7 +291,7 @@ export function SurfacePairViewer() {
         style={{
           padding: '14px 20px',
           borderBottom: '1px solid var(--p-border)',
-          background: 'var(--p-bg-subtle)',
+          background: 'var(--p-surface)',
         }}
       >
         <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>

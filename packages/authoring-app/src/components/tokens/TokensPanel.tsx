@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
@@ -24,6 +23,7 @@ import {
 } from './tokenShared';
 import { AppSelect } from './AppSelect';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
+import { AppDrawer, ConfirmDialog } from '../base-ui';
 import {
   rampOptions,
   surfaceOptions,
@@ -51,7 +51,7 @@ const ROW: React.CSSProperties = {
 
 const HEADER: React.CSSProperties = {
   ...ROW,
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   color: 'var(--p-text-secondary)',
   fontWeight: 600,
   fontSize: 11,
@@ -97,7 +97,7 @@ const inp: React.CSSProperties = {
 const btn: React.CSSProperties = {
   padding: '3px 8px',
   fontSize: 11,
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
   borderRadius: 4,
   cursor: 'pointer',
@@ -296,7 +296,7 @@ function SurfaceRow({ name, token, rampNames, rampMap, onUpdate, onDelete, onRen
       onClick={isUnified ? toSplit : toUnified}
       style={{
         padding: '2px 4px', fontSize: 10, lineHeight: 1,
-        background: 'var(--p-bg-subtle)', border: '1px solid var(--p-border)',
+        background: 'var(--p-surface)', border: '1px solid var(--p-border)',
         borderRadius: 3, cursor: 'pointer', color: 'var(--p-text-secondary)',
         whiteSpace: 'nowrap' as const,
       }}
@@ -626,7 +626,7 @@ const kindTab: (active: boolean) => React.CSSProperties = (active) => ({
   padding: '6px 0',
   fontSize: 12,
   fontWeight: active ? 600 : 400,
-  background: active ? 'var(--p-bg-inset)' : 'transparent',
+  background: active ? 'var(--p-surface)' : 'transparent',
   border: 'none',
   borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
   color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
@@ -699,12 +699,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
 
   useEffect(() => {
     nameRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   // Composite preview for alpha scrim
   const alphaRamp = rampMap.get(ramp);
@@ -764,54 +759,31 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
     { id: 'alpha', label: 'Alpha' },
   ];
 
-  return createPortal(
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
+  return (
+    <AppDrawer onOpenChange={(open) => { if (!open) onClose(); }}>
       <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 101,
-        background: 'var(--p-bg)',
-        border: '1px solid var(--p-border)',
-        borderRadius: 10,
-        width: 420,
-        maxWidth: 'calc(100vw - 32px)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        padding: '14px 16px 12px',
+        borderBottom: '1px solid var(--p-border)',
+        fontSize: 14,
+        fontWeight: 600,
+        color: 'var(--p-text)',
       }}>
-        <div style={{
-          padding: '14px 16px 12px',
-          borderBottom: '1px solid var(--p-border)',
-          fontSize: 14,
-          fontWeight: 600,
-          color: 'var(--p-text)',
-        }}>
-          Add token
-        </div>
+        Add token
+      </div>
 
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--p-border)',
-          padding: '0 16px',
-        }}>
-          {kinds.map((k) => (
-            <button key={k.id} style={kindTab(kind === k.id)} onClick={() => { setKind(k.id); setError(''); }}>
-              {k.label}
-            </button>
-          ))}
-        </div>
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid var(--p-border)',
+        padding: '0 16px',
+      }}>
+        {kinds.map((k) => (
+          <button key={k.id} style={kindTab(kind === k.id)} onClick={() => { setKind(k.id); setError(''); }}>
+            {k.label}
+          </button>
+        ))}
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '16px' }}>
           <div style={field}>
             <span style={label}>Name</span>
             <input
@@ -925,7 +897,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                       onClick={() => setAlphaSubKind(sk)}
                       style={{
                         flex: 1, padding: '6px 0', fontSize: 12, border: 'none', cursor: 'pointer',
-                        background: alphaSubKind === sk ? 'var(--p-bg-inset)' : 'transparent',
+                        background: alphaSubKind === sk ? 'var(--p-surface)' : 'transparent',
                         color: alphaSubKind === sk ? 'var(--p-text)' : 'var(--p-text-secondary)',
                         fontWeight: alphaSubKind === sk ? 600 : 400,
                         borderBottom: alphaSubKind === sk ? '2px solid var(--p-accent)' : '2px solid transparent',
@@ -1045,36 +1017,34 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
           )}
 
           {error && (
-            <span style={{ fontSize: 12, color: '#e55' }}>{error}</span>
-          )}
-        </div>
-
-        <div style={{
-          display: 'flex',
-          gap: 8,
-          justifyContent: 'flex-end',
-          padding: '12px 16px',
-          borderTop: '1px solid var(--p-border)',
-          background: 'var(--p-bg-subtle)',
-        }}>
-          <button style={btn} onClick={onClose}>Cancel</button>
-          <button
-            style={{
-              ...btn,
-              background: 'var(--p-accent, #6366f1)',
-              borderColor: 'var(--p-accent, #6366f1)',
-              color: '#fff',
-              fontWeight: 600,
-            }}
-            onClick={commit}
-            disabled={(kind === 'foreground' || kind === 'nonText') && surfaceNames.length === 0}
-          >
-            Add
-          </button>
-        </div>
+          <span style={{ fontSize: 12, color: 'var(--p-danger)' }}>{error}</span>
+        )}
       </div>
-    </>,
-    document.body,
+
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        justifyContent: 'flex-end',
+        padding: '12px 16px',
+        borderTop: '1px solid var(--p-border)',
+        background: 'var(--p-surface)',
+      }}>
+        <button style={btn} onClick={onClose}>Cancel</button>
+        <button
+          style={{
+            ...btn,
+            background: 'var(--p-accent, #6366f1)',
+            borderColor: 'var(--p-accent, #6366f1)',
+            color: '#fff',
+            fontWeight: 600,
+          }}
+          onClick={commit}
+          disabled={(kind === 'foreground' || kind === 'nonText') && surfaceNames.length === 0}
+        >
+          Add
+        </button>
+      </div>
+    </AppDrawer>
   );
 }
 
@@ -1124,6 +1094,18 @@ export function TokensPanel() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [view, setView] = useState<'edit' | 'preview' | 'combos'>('edit');
+  const [pendingDelete, setPendingDelete] = useState<{
+    title: string;
+    label: string;
+    run: () => void;
+  } | null>(null);
+  function requestDelete(kindLabel: string, name: string, run: () => void) {
+    setPendingDelete({
+      title: `Delete ${kindLabel}`,
+      label: name,
+      run,
+    });
+  }
   const VIEW_LABELS: Record<'edit' | 'preview' | 'combos', string> = {
     edit: 'Edit',
     preview: 'Preview',
@@ -1144,7 +1126,7 @@ export function TokensPanel() {
         <div style={{
           display: 'inline-flex',
           borderRadius: 6,
-          background: 'var(--p-bg-inset, rgba(0,0,0,0.15))',
+          background: 'var(--p-surface))',
           padding: 2,
           gap: 2,
         }}>
@@ -1184,7 +1166,7 @@ export function TokensPanel() {
         {raw && (
           <button style={{ ...btn, color: 'var(--p-text-secondary)' }} onClick={clear}>Clear</button>
         )}
-        {error && <span style={{ fontSize: 12, color: '#e55' }}>{error}</span>}
+        {error && <span style={{ fontSize: 12, color: 'var(--p-danger)' }}>{error}</span>}
       </div>
 
 
@@ -1222,7 +1204,7 @@ export function TokensPanel() {
               rampNames={rampNames}
               rampMap={rampMap}
               onUpdate={(u) => updateSurface(name, u, ec())}
-              onDelete={() => removeSurface(name, ec())}
+              onDelete={() => requestDelete('surface token', name, () => removeSurface(name, ec()))}
               onRename={(next) => renameSurface(name, next, ec())}
             />
           ))}
@@ -1247,7 +1229,7 @@ export function TokensPanel() {
               surfaces={surfaces}
               compliance={compliance}
               onUpdate={(u) => updateToken('foreground', name, u, ec())}
-              onDelete={() => removeToken('foreground', name, ec())}
+              onDelete={() => requestDelete('foreground token', name, () => removeToken('foreground', name, ec()))}
               onRename={(next) => renameToken('foreground', name, next, ec())}
               onMove={(to) => moveToken('foreground', to, name, ec())}
             />
@@ -1273,7 +1255,7 @@ export function TokensPanel() {
               surfaces={surfaces}
               compliance={compliance}
               onUpdate={(u) => updateToken('nonText', name, u, ec())}
-              onDelete={() => removeToken('nonText', name, ec())}
+              onDelete={() => requestDelete('non-text token', name, () => removeToken('nonText', name, ec()))}
               onRename={(next) => renameToken('nonText', name, next, ec())}
               onMove={(to) => moveToken('nonText', to, name, ec())}
             />
@@ -1307,7 +1289,7 @@ export function TokensPanel() {
                       onChange={(i) => addDecorative(name, { ...token, step: i }, ec())}
                     />
                     <span />
-                    <button style={delBtn} onClick={() => removeToken('decorative', name, ec())}>✕</button>
+                    <button style={delBtn} onClick={() => requestDelete('decorative token', name, () => removeToken('decorative', name, ec()))} title="Remove">✕</button>
                   </div>
                 );
               })}
@@ -1332,7 +1314,7 @@ export function TokensPanel() {
                   surfaces={surfaces}
                   compliance={compliance}
                   onUpdate={(u) => updateAlpha(name, u, ec())}
-                  onDelete={() => removeAlpha(name, ec())}
+                  onDelete={() => requestDelete('alpha token', name, () => removeAlpha(name, ec()))}
                   onRename={(next) => renameAlpha(name, next, ec())}
                 />
               ))}
@@ -1354,6 +1336,21 @@ export function TokensPanel() {
           onAddSurface={(n, t) => addSurface(n, t, ec())}
           onAddSemantic={(kind, n, t) => addToken(kind, n, t, ec())}
           onAddAlpha={(n, t) => addAlpha(n, t, ec())}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={pendingDelete.title}
+          message={<>Delete <strong>{pendingDelete.label}</strong>? This cannot be undone.</>}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            const run = pendingDelete.run;
+            setPendingDelete(null);
+            run();
+          }}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </div>

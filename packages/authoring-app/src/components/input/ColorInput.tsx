@@ -14,7 +14,7 @@ const textInputStyle: React.CSSProperties = {
   padding: '6px 10px',
   fontSize: 13,
   fontFamily: 'monospace',
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
   borderRadius: 6,
   color: 'var(--p-text)',

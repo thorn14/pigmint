@@ -91,7 +91,7 @@ function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () =>
       <div
         style={{
           padding: '5px 8px',
-          background: 'var(--p-bg-subtle)',
+          background: 'var(--p-surface)',
           fontSize: 12,
           color: 'var(--p-text-secondary)',
           display: 'flex',
@@ -142,7 +142,7 @@ function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () =>
       <div
         style={{
           padding: '5px 8px',
-          background: 'var(--p-bg-subtle)',
+          background: 'var(--p-surface)',
           fontSize: 12,
           color: 'var(--p-text-secondary)',
           display: 'flex',
@@ -159,7 +159,7 @@ function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () =>
 const selectStyle: React.CSSProperties = {
   padding: '4px 8px',
   fontSize: 12,
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
   borderRadius: 6,
   color: 'var(--p-text)',
@@ -382,7 +382,7 @@ export function AccessibleCombos() {
               marginLeft: 'auto',
               fontSize: 12,
               color: 'var(--p-text-secondary)',
-              background: 'var(--p-bg-subtle)',
+              background: 'var(--p-surface)',
               border: '1px solid var(--p-border)',
               borderRadius: 10,
               padding: '1px 7px',

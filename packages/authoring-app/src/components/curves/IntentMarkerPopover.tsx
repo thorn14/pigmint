@@ -96,7 +96,7 @@ export function IntentMarkerPopover({
                 gap: 12,
                 padding: 12,
                 borderBottom: '1px solid var(--p-border)',
-                background: 'var(--p-bg-subtle)',
+                background: 'var(--p-surface)',
                 flexShrink: 0,
                 alignItems: 'flex-start',
               }}

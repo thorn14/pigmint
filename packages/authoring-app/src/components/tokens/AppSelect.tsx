@@ -171,7 +171,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px', width: '100%', textAlign: 'left',
-                  background: active ? 'var(--p-bg-subtle)' : 'transparent',
+                  background: active ? 'var(--p-surface)' : 'transparent',
                   border: 'none',
                   borderBottom: i < options.length - 1 ? '1px solid var(--p-border)' : 'none',
                   cursor: isDisabled ? 'not-allowed' : 'pointer',

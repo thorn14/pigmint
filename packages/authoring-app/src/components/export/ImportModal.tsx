@@ -53,7 +53,7 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 14px',
   fontSize: 12,
   fontWeight: 500,
-  background: active ? 'var(--p-bg-inset)' : 'transparent',
+  background: active ? 'var(--p-surface)' : 'transparent',
   border: 'none',
   borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
   cursor: 'pointer',
@@ -95,7 +95,7 @@ const descriptionTextStyle: React.CSSProperties = {
 const uploadButtonStyle: React.CSSProperties = {
   padding: '6px 14px',
   fontSize: 13,
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
   borderRadius: 6,
   cursor: 'pointer',
@@ -108,7 +108,7 @@ const textareaStyle: React.CSSProperties = {
   padding: 12,
   fontSize: 12,
   fontFamily: 'monospace',
-  background: 'var(--p-bg-subtle)',
+  background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
   borderRadius: 8,
   color: 'var(--p-text-secondary)',
@@ -119,8 +119,8 @@ const textareaStyle: React.CSSProperties = {
 const errorStyle: React.CSSProperties = {
   padding: '8px 12px',
   borderRadius: 6,
-  background: 'rgba(220,60,60,0.12)',
-  color: '#e55',
+  background: 'var(--p-danger-subtle)',
+  color: 'var(--p-danger)',
   fontSize: 13,
 };
 
@@ -678,7 +678,7 @@ export function ImportModal({ onClose }: Props) {
             style={{
               padding: '6px 14px',
               fontSize: 13,
-              background: canImport ? 'var(--p-accent)' : 'var(--p-bg-subtle)',
+              background: canImport ? 'var(--p-accent)' : 'var(--p-surface)',
               border: '1px solid',
               borderColor: canImport ? 'var(--p-accent)' : 'var(--p-border)',
               borderRadius: 6,

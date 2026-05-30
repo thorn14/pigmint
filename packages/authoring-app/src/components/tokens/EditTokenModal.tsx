@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
@@ -19,6 +18,7 @@ import {
 } from './tokenShared';
 import { AppSelect, type AppSelectOption } from './AppSelect';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
+import { AppDrawer, ConfirmDialog } from '../base-ui';
 import {
   rampOptions,
   surfaceOptions,
@@ -45,12 +45,12 @@ const inp: React.CSSProperties = {
 const readOnly: React.CSSProperties = { ...inp, color: 'var(--p-text-tertiary)', cursor: 'default' };
 const btn: React.CSSProperties = {
   padding: '6px 12px', fontSize: 12, fontWeight: 500,
-  background: 'var(--p-bg-subtle)', border: '1px solid var(--p-border)',
+  background: 'var(--p-surface)', border: '1px solid var(--p-border)',
   borderRadius: 6, cursor: 'pointer', color: 'var(--p-text)',
 };
 const dangerBtn: React.CSSProperties = {
   ...btn,
-  color: '#e55',
+  color: 'var(--p-danger)',
   borderColor: 'rgba(229,85,85,0.4)',
 };
 const primaryBtn: React.CSSProperties = {
@@ -97,14 +97,6 @@ export function EditTokenModal({ path: initialPath, onClose }: Props) {
 
   const rampNames = scales.map((s) => s.name);
   const surfaceNames = raw ? Object.keys(raw.surfaces) : [];
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   if (!raw || !kind) return null;
 
@@ -156,46 +148,24 @@ export function EditTokenModal({ path: initialPath, onClose }: Props) {
     );
   }
 
-  return createPortal(
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }}
-      />
+  return (
+    <AppDrawer onOpenChange={(open) => { if (!open) onClose(); }}>
       <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 101,
-        background: 'var(--p-bg)',
-        border: '1px solid var(--p-border)',
-        borderRadius: 10,
-        width: 440,
-        maxWidth: 'calc(100vw - 32px)',
-        maxHeight: 'calc(100vh - 32px)',
+        padding: '14px 16px 12px',
+        borderBottom: '1px solid var(--p-border)',
         display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        alignItems: 'baseline',
+        gap: 8,
       }}>
-        <div style={{
-          padding: '14px 16px 12px',
-          borderBottom: '1px solid var(--p-border)',
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 8,
-        }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Edit token</span>
-          <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {kind}
-          </span>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
-          {body}
-        </div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Edit token</span>
+        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {kind}
+        </span>
       </div>
-    </>,
-    document.body,
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
+        {body}
+      </div>
+    </AppDrawer>
   );
 }
 
@@ -231,11 +201,32 @@ function NameField({ value, onCommit, autoFocus }: { value: string; onCommit: (n
   );
 }
 
-function Footer({ onDelete, onClose }: { onDelete: () => void; onClose: () => void }) {
+function Footer({
+  onDelete,
+  onClose,
+  confirmTitle,
+  confirmMessage,
+}: {
+  onDelete: () => void;
+  onClose: () => void;
+  confirmTitle: string;
+  confirmMessage: React.ReactNode;
+}) {
+  const [confirming, setConfirming] = useState(false);
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-      <button style={dangerBtn} onClick={onDelete}>Delete</button>
+      <button style={dangerBtn} onClick={() => setConfirming(true)}>Delete</button>
       <button style={primaryBtn} onClick={onClose}>Done</button>
+      {confirming && (
+        <ConfirmDialog
+          title={confirmTitle}
+          message={confirmMessage}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => { setConfirming(false); onDelete(); }}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </div>
   );
 }
@@ -294,7 +285,12 @@ function SurfaceFields({
           />
         </div>
       </div>
-      <Footer onDelete={handleDelete} onClose={onClose} />
+      <Footer
+        onDelete={handleDelete}
+        onClose={onClose}
+        confirmTitle="Delete surface token"
+        confirmMessage={<>Delete surface token <strong>{name}</strong>? This cannot be undone.</>}
+      />
     </>
   );
 }
@@ -414,7 +410,12 @@ function SemanticFields({
         />
         Decorative — skip a11y compliance check
       </label>
-      <Footer onDelete={handleDelete} onClose={onClose} />
+      <Footer
+        onDelete={handleDelete}
+        onClose={onClose}
+        confirmTitle={`Delete ${section === 'foreground' ? 'foreground' : 'non-text'} token`}
+        confirmMessage={<>Delete <strong>{name}</strong>? This cannot be undone.</>}
+      />
     </>
   );
 }
@@ -461,7 +462,12 @@ function DecorativeFields({
           onChange={(v) => addDecorative(name, { ramp: token.ramp, step: Number(v) }, ec())}
         />
       </div>
-      <Footer onDelete={handleDelete} onClose={onClose} />
+      <Footer
+        onDelete={handleDelete}
+        onClose={onClose}
+        confirmTitle="Delete decorative token"
+        confirmMessage={<>Delete decorative token <strong>{name}</strong>? This cannot be undone.</>}
+      />
     </>
   );
 }
@@ -617,7 +623,12 @@ function AlphaFields({
           onChange={(v) => updateAlpha(name, { referenceSurface: v || undefined }, ec())}
         />
       </div>
-      <Footer onDelete={handleDelete} onClose={onClose} />
+      <Footer
+        onDelete={handleDelete}
+        onClose={onClose}
+        confirmTitle="Delete alpha token"
+        confirmMessage={<>Delete alpha token <strong>{name}</strong>? This cannot be undone.</>}
+      />
     </>
   );
 }

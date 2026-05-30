@@ -161,7 +161,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
             padding: 10,
             borderRadius: 8,
             border: '1px solid var(--p-border)',
-              background: 'var(--p-bg-subtle)',
+              background: 'var(--p-surface)',
               color: 'var(--p-text)',
               fontSize: 13,
               fontFamily: 'monospace',

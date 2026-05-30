@@ -55,7 +55,7 @@ function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
           fontSize: 12,
           fontWeight: 600,
           color: 'var(--p-text)',
-          background: 'var(--p-bg-subtle, var(--p-bg))',
+          background: 'var(--p-surface))',
           borderBottom: '1px solid var(--p-border)',
         }}
       >

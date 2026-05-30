@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, StepNamingPreset } from '../../types/palette';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
-import { AppStringSelect } from '../base-ui';
+import { AppStringSelect, ConfirmDialog } from '../base-ui';
 import { LockIcon } from '../icons/LockIcon';
 
 const linkBtnStyle: React.CSSProperties = {
@@ -122,11 +122,11 @@ function ScaleItem({
         padding: '6px 0 8px 0',
         borderRadius: 6,
         background: isSelected
-          ? 'var(--p-accent-subtle, rgba(99,102,241,0.12))'
+          ? 'var(--p-surface)'
           : isActive
-            ? 'var(--p-bg-inset)'
+            ? 'var(--p-surface)'
             : hovered
-              ? 'var(--p-bg-subtle)'
+              ? 'var(--p-surface)'
               : 'transparent',
         border: `1px solid ${isSelected ? 'var(--p-accent, #6366f1)' : isActive ? 'var(--p-border)' : 'transparent'}`,
         opacity: isDragging ? 0.35 : 1,
@@ -308,6 +308,7 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
   const [newHex, setNewHex] = useState('#6366f1');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const effectiveActiveId = activeScaleId ?? scales[0]?.id;
   const hasSelection = selectedScaleIds.length > 0;
@@ -320,7 +321,7 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        background: 'var(--p-bg-subtle)',
+        background: 'var(--p-surface)',
         borderRight: '1px solid var(--p-border)',
       }}
     >
@@ -417,14 +418,14 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 6,
-            background: 'var(--p-accent-subtle, rgba(99,102,241,0.08))',
+            background: 'var(--p-surface)',
           }}
         >
           <span style={{ fontSize: 11, color: 'var(--p-text-secondary)' }}>
             {selectedScaleIds.length} selected
           </span>
           <button
-            onClick={removeSelectedScales}
+            onClick={() => setConfirmBulkDelete(true)}
             style={{
               padding: '3px 8px',
               fontSize: 11,
@@ -615,6 +616,20 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
           New scale
         </button>
       </div>
+
+      {confirmBulkDelete && (
+        <ConfirmDialog
+          title="Delete scales"
+          message={<>Delete <strong>{selectedScaleIds.length}</strong> selected scale{selectedScaleIds.length === 1 ? '' : 's'}? This cannot be undone.</>}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirmBulkDelete(false);
+            removeSelectedScales();
+          }}
+          onCancel={() => setConfirmBulkDelete(false)}
+        />
+      )}
     </aside>
   );
 }

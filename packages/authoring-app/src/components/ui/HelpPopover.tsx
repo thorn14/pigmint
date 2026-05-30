@@ -32,7 +32,7 @@ export function HelpPopover({ title, children, triggerLabel }: HelpPopoverProps)
           padding: 0,
           border: '1px solid var(--p-border)',
           borderRadius: '50%',
-          background: 'var(--p-bg-inset)',
+          background: 'var(--p-surface)',
           color: 'var(--p-text-secondary)',
           cursor: 'pointer',
         }}
@@ -70,7 +70,7 @@ export function HelpPopover({ title, children, triggerLabel }: HelpPopoverProps)
                 padding: '10px 12px 8px',
                 borderBottom: '1px solid var(--p-border)',
                 flex: '0 0 auto',
-                background: 'var(--p-bg-subtle)',
+                background: 'var(--p-surface)',
               }}
             >
               <Popover.Title

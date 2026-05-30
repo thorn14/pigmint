@@ -30,7 +30,7 @@ const outer: CSSProperties = {
 const btn = (active: boolean, i: number, size: 'compact' | 'comfortable'): CSSProperties => ({
   border: 'none',
   borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
-  background: active ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+  background: active ? 'var(--p-surface)' : 'var(--p-bg)',
   color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
   cursor: 'pointer',
   fontFamily: 'inherit',
