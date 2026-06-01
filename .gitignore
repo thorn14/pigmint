@@ -10,9 +10,6 @@ coverage/
 .env.*
 !.env.example
 
-# Generated sticker-sheet token artifacts — rebuilt on every CLI run.
-packages/sticker-sheet-*/src/generated/
-
 # Personal toolchain pin (asdf / mise).
 .tool-versions
 

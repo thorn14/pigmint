@@ -71,7 +71,7 @@ To import an existing config: **Import → Import pigmint.yaml** (or **Import to
 
 ## Contributing
 
-See **[`docs/contributing.md`](./docs/contributing.md)** for the contributor guide. It covers adding a new adapter and adding a new sticker sheet, including the portability conventions that keep every package self-contained.
+See **[`docs/contributing.md`](./docs/contributing.md)** for the contributor guide. It covers adding a new adapter and the portability conventions that keep every package self-contained.
 
 ## Agents & AI assistants
 
@@ -263,4 +263,3 @@ New directories under `examples/` are gitignored by default — drop your own sc
 | `packages/adapter-tailwind` | Tailwind CSS adapter |
 | `packages/adapter-mui` | MUI v6 adapter |
 | `packages/authoring-app` | Visual authoring UI (Vite + React) |
-| `packages/sticker-sheet-tailwind` | Sticker-sheet preview component |

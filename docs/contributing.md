@@ -1,6 +1,6 @@
 # Contributing — adding packages
 
-This guide covers the two common additions to the monorepo: a new **adapter** and a new **sticker sheet**. It also captures the portability conventions that keep every package self-contained.
+This guide covers the most common addition to the monorepo: a new **adapter**. It also captures the portability conventions that keep every package self-contained.
 
 ---
 
@@ -23,7 +23,6 @@ packages/
   core/               Resolver engine, DTCG emitter, adapter contract
   cli/                CLI binary (build command) + adapter registry
   adapter-<name>/     One package per target framework
-  sticker-sheet-<name>/  Verification app for a given adapter
   authoring-app/      Visual editor for ramps and token intent
 ```
 
@@ -32,10 +31,6 @@ The workspace root `package.json` exposes convenience scripts:
 | Script | What it runs |
 |---|---|
 | `pnpm start` | authoring app (port 5173) |
-| `pnpm sticker:tailwind` | Tailwind sticker sheet (port 5174) |
-| `pnpm sticker:mui` | MUI sticker sheet (port 5175) |
-
-When you add a new sticker sheet, add a matching `sticker:<name>` entry there.
 
 ---
 
@@ -297,122 +292,6 @@ Follow the pattern in `packages/adapter-mui/tests/emit.test.ts`. Build a minimal
 
 ---
 
-## Adding a new sticker sheet
-
-A sticker sheet is a Vite + React app that:
-1. Runs `pigmint build` (via the CLI) against a local `fixtures/pigmint.yaml` before starting.
-2. Imports the generated output and renders real framework components under every mode.
-3. Provides a visual surface for catching regressions across modes and CVD simulations.
-
-### 1. Scaffold the package
-
-```
-packages/sticker-sheet-<name>/
-  fixtures/
-    pigmint.yaml        Project config for this sticker sheet
-    tokens.yaml         Semantic vocabulary
-  src/
-    App.tsx
-    components/
-      StickerPanel.tsx
-    cvd.tsx             Copy from sticker-sheet-tailwind (no changes needed)
-    generated/          Populated by "generate:tokens" — commit these files
-      tokens.json
-      <adapter-specific output>
-    index.css
-    main.tsx
-  index.html
-  package.json
-  tsconfig.json
-  tsconfig.build.json
-  vite.config.ts
-```
-
-### 2. `package.json`
-
-```json
-{
-  "name": "@pigmint/sticker-sheet-<name>",
-  "version": "0.0.0",
-  "private": true,
-  "license": "MIT",
-  "type": "module",
-  "scripts": {
-    "generate:tokens": "cd fixtures && node ../../cli/dist/bin.js build",
-    "predev": "pnpm run generate:tokens",
-    "prebuild": "pnpm run generate:tokens",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
-  }
-}
-```
-
-The `predev` / `prebuild` hooks ensure generated files are always fresh before the dev server or production build starts.
-
-### 3. `fixtures/pigmint.yaml`
-
-Match the adapter's supported modes and use its preset. Point output paths up to `../src/generated`:
-
-```yaml
-engine:
-  compliance: wcag21
-  target: AA
-  modes:
-    - light
-    - dark
-  cvd:
-    - deuteranopia
-    - protanopia
-    - tritanopia
-ramps:
-  - name: neutral
-    source: "#888888"
-  - name: blue
-    source: "#3366cc"
-  # … additional ramps as needed
-adapters:
-  - name: <adapter-name>
-    output: ../src/generated
-    preset: <preset-name>
-    formats:
-      - hex
-output:
-  dtcg: ../src/generated/tokens.json
-defaults:
-  vocabulary: ./tokens.yaml
-```
-
-Only include modes that the target adapter declares in `supportedModes`. Mismatches surface as warnings at build time.
-
-### 4. `fixtures/tokens.yaml`
-
-Include every token path that the adapter binds. Check the adapter's palette-map or preset file to find the full list. Tokens with no binding are silently skipped; bindings with no matching token generate a missing-binding warning.
-
-### 5. Commit generated files
-
-Run `generate:tokens` once and commit the output:
-
-```sh
-pnpm --filter @pigmint/sticker-sheet-<name> run generate:tokens
-```
-
-Committing `src/generated/` means reviewers can open the sticker sheet without running the CLI first and lets CI catch unexpected token drift via diff.
-
-### 6. Register in root `package.json`
-
-```json
-"scripts": {
-  "sticker:<name>": "pnpm --filter @pigmint/sticker-sheet-<name> dev"
-}
-```
-
-Assign the next available port in `vite.config.ts` (5173 is authoring, 5174 is tailwind, 5175 is mui).
-
----
-
 ## Portability conventions
 
 These rules keep every package runnable in isolation and reviewable without setup steps.
@@ -423,10 +302,6 @@ These rules keep every package runnable in isolation and reviewable without setu
 
 **`"private": true` on every package.** Nothing in this repo is published to npm. The field prevents accidental publish.
 
-**Build before depending.** The CLI and adapters must be built before sticker sheets can run `generate:tokens`. The dependency order is: `core` → `adapters` → `cli` → sticker sheets. If you add a new library package, build it explicitly before packages that depend on it.
+**Build before depending.** The CLI depends on adapters, which depend on core. The dependency order is: `core` → `adapters` → `cli`. If you add a new library package, build it explicitly before packages that depend on it.
 
 **No side effects in library packages.** Packages under `adapter-*` and `core` must have no top-level side effects. This keeps them tree-shakeable and safe to import in tests without additional setup.
-
-**Self-contained sticker sheets.** A sticker sheet must work after `pnpm install` + `pnpm run generate:tokens` with no other steps. Don't pull in state from outside `packages/sticker-sheet-<name>/`. The `fixtures/` directory is the only input the CLI reads.
-
-**Generated files are source-controlled.** `src/generated/` is committed. This is intentional: it gives reviewers a diff of what changed in emitted output when tokens or adapter logic changes, without requiring them to run the CLI.
