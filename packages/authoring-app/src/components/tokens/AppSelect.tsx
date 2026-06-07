@@ -134,7 +134,16 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
         }}>
           {current?.label ?? placeholder ?? '—'}
         </span>
-        <span style={{ opacity: 0.4, fontSize: 9, flexShrink: 0 }}>▾</span>
+        <svg
+          width="10"
+          height="6"
+          viewBox="0 0 10 6"
+          fill="currentColor"
+          aria-hidden="true"
+          style={{ flexShrink: 0, opacity: 0.6 }}
+        >
+          <path d="M0 0h10L5 6z" />
+        </svg>
       </button>
 
       {open && createPortal(
@@ -149,7 +158,11 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
             border: '1px solid var(--p-border)',
             borderRadius: 6,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            zIndex: 300,
+            // 100k clears vaul's drawer content (z-index 50) and any other portal.
+            zIndex: 100_000,
+            // vaul/Radix Dialog locks pointer-events on <body> while open;
+            // body-portaled menus inherit it, so re-enable here.
+            pointerEvents: 'auto',
             maxHeight: 320,
             overflowY: 'auto',
           }}

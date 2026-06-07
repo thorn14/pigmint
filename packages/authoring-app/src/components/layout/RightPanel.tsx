@@ -134,9 +134,14 @@ export function RightPanel({ scale, activeStep }: Props) {
   }
 
   return (
-    <aside
-      className="shrink-0 overflow-y-auto"
-      style={{ width: 260, background: 'var(--p-surface)', borderLeft: '1px solid var(--p-border)' }}
+    <div
+      style={{
+        width: '100%',
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto',
+        background: 'var(--p-bg)',
+      }}
     >
       {/* Scale name + source color */}
       <div style={sectionStyle}>
@@ -724,6 +729,6 @@ export function RightPanel({ scale, activeStep }: Props) {
           onCancel={() => setConfirmDelete(false)}
         />
       )}
-    </aside>
+    </div>
   );
 }

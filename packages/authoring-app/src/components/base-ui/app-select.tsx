@@ -89,7 +89,16 @@ export function AppStringSelect({
             return found ? found.label : String(v);
           }}
         </Select.Value>
-        <span aria-hidden="true" style={{ fontSize: 8, lineHeight: 0, color: 'var(--p-text-tertiary)' }}>▾</span>
+        <svg
+          width="10"
+          height="6"
+          viewBox="0 0 10 6"
+          fill="currentColor"
+          aria-hidden="true"
+          style={{ flexShrink: 0, color: 'var(--p-text-tertiary)' }}
+        >
+          <path d="M0 0h10L5 6z" />
+        </svg>
       </Select.Trigger>
       <Select.Portal>
         <Select.Positioner side="bottom" align="start" sideOffset={4} className="app-select-positioner" style={{ zIndex: 60_000 }}>

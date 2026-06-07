@@ -6,7 +6,7 @@ import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { ScaleDiagnosticsRow } from '../diagnostics/RampDiagnosticsView';
-import { PanelLeftIcon } from '../icons/PanelIcons';
+import { useIsNarrow } from '../../hooks/useViewportWidth';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -31,19 +31,8 @@ interface Props {
   ramp: GeneratedRamp;
   activeStepIndex: number | null;
   onStepClick: (idx: number) => void;
-  panelsCollapsed: boolean;
-  onTogglePanels: () => void;
-  onShowPreview: () => void;
+  bottomReserve?: number;
 }
-
-// Keyboard shortcut descriptions shown in the help tooltip
-const SHORTCUTS = [
-  { key: 'Drag line',         desc: 'Shift entire curve up/down' },
-  { key: 'Drag node',         desc: 'Move single control point'  },
-  { key: 'Alt + click node',  desc: 'Toggle smooth ↔ corner'     },
-  { key: 'Shift + drag node', desc: 'Snap to smooth interpolation'},
-  { key: 'Escape',            desc: 'Cancel drag'                 },
-];
 
 type ViewMode = 'gradient' | 'curves' | 'diagnostic';
 const VIEW_MODES: readonly ViewMode[] = ['gradient', 'curves', 'diagnostic'];
@@ -52,7 +41,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   curves: 'Steps',
   diagnostic: 'Diagnostic',
 };
-export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, panelsCollapsed, onTogglePanels, onShowPreview }: Props) {
+export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, bottomReserve = 0 }: Props) {
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
@@ -69,12 +58,19 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
   const [dragState, setDragState]   = useState<DragState | null>(null);
   const [preCancel, setPreCancel]   = useState<{ key: CurveKey; values: number[] } | null>(null);
   const [size, setSize]             = useState({ width: 800, height: 400 });
-  const [showHelp, setShowHelp]     = useState(false);
   const [viewMode, setViewMode]     = useState<ViewMode>('gradient');
+  const narrow = useIsNarrow();
   const isContinuous = engineResolver.mode === 'continuous';
   const effectiveBackground: ViewMode = isContinuous ? viewMode : 'curves';
   const n = ramp.steps.length;
   const PAD = 18;
+  // Top reserve clears the floating step-name badges. The view-mode pill and the
+  // global Scales/Edit bar sit at the same y on opposite sides; bottomReserve
+  // covers both.
+  const topReserve = 52;
+  const effectiveBottomReserve = bottomReserve;
+  const padTop = PAD + topReserve;
+  const padBottom = PAD + effectiveBottomReserve;
 
   const gradientCss = useMemo(() => {
     if (effectiveBackground !== 'gradient') return '';
@@ -102,7 +98,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
 
     if (dragState.mode === 'group') {
       const deltaY = e.clientY - dragState.dragStartClientY;
-      const valueDelta = -(deltaY / (size.height - PAD * 2)) * (meta.max - meta.min);
+      const valueDelta = -(deltaY / (size.height - padTop - padBottom)) * (meta.max - meta.min);
       const newValues = dragState.groupStartValues.map((v) =>
         Math.max(meta.min, Math.min(meta.max, v + valueDelta))
       );
@@ -121,7 +117,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
     }
 
     // Node drag
-    const norm = 1 - (e.clientY - rect.top - PAD) / (size.height - PAD * 2);
+    const norm = 1 - (e.clientY - rect.top - padTop) / (size.height - padTop - padBottom);
     const clamped = Math.max(0, Math.min(1, norm));
     let value = meta.min + clamped * (meta.max - meta.min);
 
@@ -193,7 +189,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
   function getPoint(value: number, stepIndex: number, min: number, max: number) {
     const norm = (value - min) / (max - min);
     const x = (stepIndex + 0.5) / n * size.width;
-    const y = PAD + (1 - norm) * (size.height - PAD * 2);
+    const y = padTop + (1 - norm) * (size.height - padTop - padBottom);
     return { x, y };
   }
 
@@ -210,22 +206,26 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative" style={{ background: 'var(--p-bg)' }}>
 
-      {/* Floating top-right controls: view-mode toggle (continuous only) + preview + panels */}
-      <div
-        className="absolute flex items-center gap-2 pointer-events-none"
-        style={{ top: 8, right: 8, zIndex: 20 }}
-      >
+      {/* Floating bottom-right view-mode toggle (continuous only) */}
+      {isContinuous && (
         <div
-          className="pointer-events-auto"
+          className="absolute flex items-center gap-2 pointer-events-none"
           style={{
-            ...floatingPillBase,
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: 2,
-            gap: 2,
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+            right: 14,
+            zIndex: 20,
           }}
         >
-          {isContinuous && (
+          <div
+            className="pointer-events-auto"
+            style={{
+              ...floatingPillBase,
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: 2,
+              gap: 2,
+            }}
+          >
             <div role="radiogroup" aria-label="Canvas view" style={{ display: 'inline-flex', gap: 2 }}>
               {VIEW_MODES.map((m) => {
                 const active = viewMode === m;
@@ -254,70 +254,9 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
                 );
               })}
             </div>
-          )}
-
-          {isContinuous && (
-            <div style={{ width: 1, alignSelf: 'stretch', margin: '4px 2px', background: 'rgba(255,255,255,0.12)' }} aria-hidden="true" />
-          )}
-
-          <button
-            type="button"
-            onClick={onShowPreview}
-            title="Open palette preview (P)"
-            aria-label="Open palette preview"
-            className="focus-visible-ring"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '3px 10px',
-              background: 'transparent',
-              border: 'none',
-              borderRadius: 6,
-              fontSize: 10,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: 'rgba(255,255,255,0.7)',
-              cursor: 'pointer',
-              boxSizing: 'border-box',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6V3h3" />
-              <path d="M13 6V3h-3" />
-              <path d="M3 10v3h3" />
-              <path d="M13 10v3h-3" />
-            </svg>
-            Preview
-            <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7, textTransform: 'none', letterSpacing: 0 }}>P</span>
-          </button>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={onTogglePanels}
-          title={`${panelsCollapsed ? 'Show' : 'Hide'} panels (⌘/)`}
-          aria-label={`${panelsCollapsed ? 'Show' : 'Hide'} panels`}
-          aria-pressed={panelsCollapsed}
-          className="focus-visible-ring pointer-events-auto"
-          style={{
-            ...floatingPillBase,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '4px 8px',
-            border: 'none',
-            fontSize: 10,
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxSizing: 'border-box',
-          }}
-        >
-          <PanelLeftIcon size={12} />
-          <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7 }}>⌘/</span>
-        </button>
-      </div>
+      )}
 
       {effectiveBackground === 'diagnostic' ? (
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -330,6 +269,36 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
         ref={containerRef}
         className="relative flex-1 min-h-0 flex select-none"
       >
+        {topReserve > 0 && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: topReserve,
+              left: 0,
+              right: 0,
+              height: 1,
+              background: 'rgba(255,255,255,0.18)',
+              pointerEvents: 'none',
+              zIndex: 15,
+            }}
+          />
+        )}
+        {effectiveBottomReserve > 0 && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              bottom: effectiveBottomReserve,
+              left: 0,
+              right: 0,
+              height: 1,
+              background: 'rgba(255,255,255,0.18)',
+              pointerEvents: 'none',
+              zIndex: 15,
+            }}
+          />
+        )}
         {effectiveBackground === 'gradient' ? (
           <div
             className="flex-1 relative"
@@ -577,78 +546,26 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
             );
           })}
 
-          {/* Help button */}
-          <foreignObject
-            x={8}
-            y={size.height - 32}
-            width={24}
-            height={24}
-            style={{ pointerEvents: 'all' }}
-          >
-            <button
-              onMouseEnter={() => setShowHelp(true)}
-              onMouseLeave={() => setShowHelp(false)}
-              onFocus={() => setShowHelp(true)}
-              onBlur={() => setShowHelp(false)}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: 'rgba(0,0,0,0.35)',
-                color: 'rgba(255,255,255,0.85)',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
-              }}
-              aria-label="Keyboard shortcuts"
-            >
-              ?
-            </button>
-          </foreignObject>
-
-          {/* Shortcut tooltip */}
-          {showHelp && (
-            <foreignObject x={8} y={size.height - 32 - (SHORTCUTS.length * 24 + 16) - 8} width={232} height={SHORTCUTS.length * 24 + 16} style={{ pointerEvents: 'none' }}>
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.82)',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  backdropFilter: 'blur(4px)',
-                }}
-              >
-                {SHORTCUTS.map(({ key, desc }) => (
-                  <div key={key} style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 2 }}>
-                    <span style={{
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      color: 'rgba(255,255,255,0.6)',
-                      flexShrink: 0,
-                      minWidth: 120,
-                    }}>
-                      {key}
-                    </span>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}>
-                      {desc}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </foreignObject>
-          )}
         </svg>
 
-        {/* Floating step badges: P3 (if present), contrast (if fails), step name */}
+        {/* Floating step badges: P3 (if present), contrast (if fails), step name.
+            On narrow viewports the badges overflow, so we show only the min/max
+            in gradient mode and only the selected step in stepped mode. */}
         <div
-          className="absolute inset-x-0 bottom-0 flex pointer-events-none"
-          style={{ padding: '0 0 12px 0' }}
+          className="absolute inset-x-0 flex pointer-events-none"
+          style={{ left: 0, right: 0, top: 12, padding: 0 }}
         >
           {ramp.steps.map((step, i) => {
+            const showBadge = !narrow
+              ? true
+              : effectiveBackground === 'gradient'
+                ? (i === 0 || i === n - 1)
+                : activeStepIndex === i;
+
+            if (!showBadge) {
+              return <div key={step.name} className="flex-1" aria-hidden="true" />;
+            }
+
             const activeHex =
               activeStepIndex !== null ? ramp.steps[activeStepIndex]?.hex : null;
             const hasP3 = step.gamut === 'p3';

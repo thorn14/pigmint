@@ -18,7 +18,7 @@ import {
 } from './tokenShared';
 import { AppSelect, type AppSelectOption } from './AppSelect';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
-import { AppDrawer, ConfirmDialog } from '../base-ui';
+import { ResponsivePanel, ConfirmDialog } from '../base-ui';
 import {
   rampOptions,
   surfaceOptions,
@@ -149,23 +149,53 @@ export function EditTokenModal({ path: initialPath, onClose }: Props) {
   }
 
   return (
-    <AppDrawer onOpenChange={(open) => { if (!open) onClose(); }}>
+    <ResponsivePanel onOpenChange={(open) => { if (!open) onClose(); }}>
       <div style={{
         padding: '14px 16px 12px',
         borderBottom: '1px solid var(--p-border)',
         display: 'flex',
-        alignItems: 'baseline',
+        alignItems: 'center',
         gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Edit token</span>
         <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {kind}
         </span>
+        <div style={{ flex: 1 }} />
+        <CloseButton onClose={onClose} />
       </div>
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
         {body}
       </div>
-    </AppDrawer>
+    </ResponsivePanel>
+  );
+}
+
+function CloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close"
+      className="focus-visible-ring"
+      style={{
+        width: 28,
+        height: 28,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'transparent',
+        border: '1px solid var(--p-border)',
+        borderRadius: 6,
+        color: 'var(--p-text-secondary)',
+        cursor: 'pointer',
+        padding: 0,
+      }}
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+        <path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5" />
+      </svg>
+    </button>
   );
 }
 

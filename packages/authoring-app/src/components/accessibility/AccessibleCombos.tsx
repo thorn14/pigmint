@@ -54,106 +54,54 @@ function matchesSearch(
     || bg.ramp.toLowerCase().includes(q) || bg.step.toLowerCase().includes(q) || bg.hex.toLowerCase().includes(q);
 }
 
-function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () => void }) {
+function ComboCardShell({
+  entry,
+  metric,
+  onClick,
+}: {
+  entry: WcagMapEntry | ApcaMapEntry;
+  metric: string;
+  onClick: () => void;
+}) {
   return (
     <div
       onClick={onClick}
       style={{
         borderRadius: 8,
-        overflow: 'hidden',
-        border: '1px solid var(--p-border)',
         minWidth: 140,
         flexShrink: 0,
         cursor: 'pointer',
         height: '100%',
+        background: entry.bg.hex,
+        color: entry.fg.hex,
+        padding: '10px 12px',
         display: 'flex',
         flexDirection: 'column',
+        gap: 2,
       }}
     >
-      <div
-        style={{
-          background: entry.bg.hex,
-          padding: '10px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          flex: 1,
-        }}
-      >
-        <span style={{ color: entry.fg.hex, fontSize: 20, fontWeight: 700, lineHeight: 1 }}>Aa</span>
-        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.85 }}>
-          {entry.fg.ramp} {entry.fg.step}
-        </span>
-        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.6 }}>
-          on {entry.bg.ramp} {entry.bg.step}
-        </span>
-      </div>
-      <div
-        style={{
-          padding: '5px 8px',
-          background: 'var(--p-surface)',
-          fontSize: 12,
-          color: 'var(--p-text-secondary)',
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span>{entry.ratio}:1</span>
-        <span style={{ fontFamily: 'monospace', fontSize: 12, opacity: 0.7 }}>{entry.fg.hex}</span>
+      <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>Aa</span>
+      <span style={{ fontSize: 12 }}>
+        {entry.fg.ramp} {entry.fg.step}
+      </span>
+      <span style={{ fontSize: 12 }}>
+        on {entry.bg.ramp} {entry.bg.step}
+      </span>
+      <div style={{ flex: 1 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+        <span>{metric}</span>
+        <span style={{ fontFamily: 'monospace' }}>{entry.fg.hex}</span>
       </div>
     </div>
   );
 }
 
+function WcagComboCard({ entry, onClick }: { entry: WcagMapEntry; onClick: () => void }) {
+  return <ComboCardShell entry={entry} metric={`${entry.ratio}:1`} onClick={onClick} />;
+}
+
 function ApcaComboCard({ entry, onClick }: { entry: ApcaMapEntry; onClick: () => void }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        borderRadius: 8,
-        overflow: 'hidden',
-        border: '1px solid var(--p-border)',
-        minWidth: 140,
-        flexShrink: 0,
-        cursor: 'pointer',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <div
-        style={{
-          background: entry.bg.hex,
-          padding: '10px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          flex: 1,
-        }}
-      >
-        <span style={{ color: entry.fg.hex, fontSize: 20, fontWeight: 700, lineHeight: 1 }}>Aa</span>
-        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.85 }}>
-          {entry.fg.ramp} {entry.fg.step}
-        </span>
-        <span style={{ color: entry.fg.hex, fontSize: 12, opacity: 0.6 }}>
-          on {entry.bg.ramp} {entry.bg.step}
-        </span>
-      </div>
-      <div
-        style={{
-          padding: '5px 8px',
-          background: 'var(--p-surface)',
-          fontSize: 12,
-          color: 'var(--p-text-secondary)',
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span>Lc {entry.lc.toFixed(1)}</span>
-        <span style={{ fontFamily: 'monospace', fontSize: 12, opacity: 0.7 }}>{entry.fg.hex}</span>
-      </div>
-    </div>
-  );
+  return <ComboCardShell entry={entry} metric={`Lc ${entry.lc.toFixed(1)}`} onClick={onClick} />;
 }
 
 const selectStyle: React.CSSProperties = {
@@ -350,7 +298,7 @@ export function AccessibleCombos() {
         background: 'var(--p-bg)',
       }}
     >
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ width: '100%' }}>
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: '0 0 4px 0' }}>
             Accessible Combinations — {useWcag ? 'WCAG 2.1' : 'APCA'}
