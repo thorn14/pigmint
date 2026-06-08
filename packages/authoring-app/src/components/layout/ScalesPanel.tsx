@@ -3,7 +3,25 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, StepNamingPreset } from '../../types/palette';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
-import { AppStringSelect, ConfirmDialog } from '../base-ui';
+import { ConfirmDialog } from '../base-ui';
+
+const nativeSelectStyle: React.CSSProperties = {
+  width: '100%',
+  height: 28,
+  padding: '0 22px 0 8px',
+  fontSize: 12,
+  fontFamily: 'inherit',
+  color: 'var(--p-text)',
+  background:
+    'var(--p-bg) url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\' fill=\'%23999\'><path d=\'M0 0h10L5 6z\'/></svg>") no-repeat right 6px center',
+  border: '1px solid var(--p-border)',
+  borderRadius: 5,
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
+  cursor: 'pointer',
+  boxSizing: 'border-box',
+};
 import { LockIcon } from '../icons/LockIcon';
 
 const linkBtnStyle: React.CSSProperties = {
@@ -137,9 +155,7 @@ function ScaleItem({
         textAlign: 'left',
       }}
     >
-      {/* Top row: checkbox, grip, title, duplicate, lock — all aligned top */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 4, paddingRight: 0 }}>
-        {/* Checkbox */}
         <div
           onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
           onKeyDown={(e) => {
@@ -172,7 +188,6 @@ function ScaleItem({
           </svg>
         </div>
 
-        {/* Name */}
         <span
           style={{
             flex: 1,
@@ -188,7 +203,6 @@ function ScaleItem({
           {scale.name}
         </span>
 
-        {/* Duplicate button */}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
@@ -214,7 +228,6 @@ function ScaleItem({
           <DuplicateIcon />
         </button>
 
-        {/* Lock toggle */}
         <button
           type="button"
           aria-label={scale.lockedFromOverrides ? 'Unlock from overrides' : 'Lock from overrides'}
@@ -241,7 +254,6 @@ function ScaleItem({
         </button>
       </div>
 
-      {/* Ramp row: grip on the left (hover-only), ramp fills to right edge */}
       <div
         style={{
           display: 'flex',
@@ -251,7 +263,6 @@ function ScaleItem({
           paddingRight: 0,
         }}
       >
-        {/* Grip handle — show on hover */}
         <div
           style={{
             color: 'var(--p-text-tertiary)',
@@ -270,7 +281,6 @@ function ScaleItem({
           <GripIcon />
         </div>
 
-        {/* Ramp */}
         <div style={{ flex: 1, display: 'flex', height: 8, overflow: 'hidden' }}>
           {ramp.steps.map((step) => (
             <div
@@ -284,12 +294,13 @@ function ScaleItem({
   );
 }
 
-interface SidebarProps {
+interface ScalesPanelProps {
   onEditSteps: () => void;
   onEditLightness: () => void;
+  onClose: () => void;
 }
 
-export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
+export function ScalesPanel({ onEditSteps, onEditLightness, onClose }: ScalesPanelProps) {
   const scales = usePaletteStore((s) => s.scales);
   const activeScaleId = usePaletteStore((s) => s.activeScaleId);
   const selectedScaleIds = usePaletteStore((s) => s.selectedScaleIds);
@@ -313,42 +324,71 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
   const effectiveActiveId = activeScaleId ?? scales[0]?.id;
   const hasSelection = selectedScaleIds.length > 0;
 
+  function handlePickScale(id: string) {
+    setActiveScale(id);
+    onClose();
+  }
+
+  function handleAddScale() {
+    addScale(newHex);
+    setNewHex('#6366f1');
+    onClose();
+  }
+
   return (
-    <aside
+    <div
       style={{
-        width: 192,
-        flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        background: 'var(--p-surface)',
-        borderRight: '1px solid var(--p-border)',
+        background: 'var(--p-bg)',
+        color: 'var(--p-text)',
+        minHeight: 0,
       }}
     >
-      {/* Header */}
       <div
         style={{
-          padding: '10px 12px',
+          padding: '14px 16px 12px',
           borderBottom: '1px solid var(--p-border)',
-          fontSize: 11,
+          fontSize: 14,
           fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          color: 'var(--p-text-secondary)',
+          color: 'var(--p-text)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 6,
+          gap: 8,
         }}
       >
         <span>Scales</span>
+        <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="focus-visible-ring"
+          style={{
+            width: 28,
+            height: 28,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            color: 'var(--p-text-secondary)',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5" />
+          </svg>
+        </button>
       </div>
 
-      {/* Steps / Lightness presets — affect the active scale */}
       {activeScale && (
         <div
           style={{
-            padding: '10px 12px',
+            padding: '10px 16px',
             borderBottom: '1px solid var(--p-border)',
             display: 'flex',
             flexDirection: 'column',
@@ -356,40 +396,38 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            <label htmlFor="sidebar-steps-preset" style={presetLabelStyle}>Steps</label>
+            <label htmlFor="scales-steps-preset" style={presetLabelStyle}>Steps</label>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <AppStringSelect
-                id="sidebar-steps-preset"
-                name="sidebar-steps-preset"
-                size="compact"
+              <select
+                id="scales-steps-preset"
+                name="scales-steps-preset"
                 value={activeScale.naming.preset}
-                onValueChange={(v) => {
-                  const preset = v as StepNamingPreset;
+                onChange={(e) => {
+                  const preset = e.target.value as StepNamingPreset;
                   updateStepNamingAll({ preset });
                   if (preset === 'custom') onEditSteps();
                 }}
                 className="focus-visible-ring"
-                options={[
-                  { value: 'tailwind', label: 'Tailwind' },
-                  { value: 'numeric', label: 'Numeric' },
-                  { value: 'custom', label: 'Custom…' },
-                ]}
-              />
+                style={nativeSelectStyle}
+              >
+                <option value="tailwind">Tailwind</option>
+                <option value="numeric">Numeric</option>
+                <option value="custom">Custom…</option>
+              </select>
             </div>
             {activeScale.naming.preset === 'custom' && (
               <button onClick={onEditSteps} style={linkBtnStyle} className="focus-visible-ring">edit</button>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            <label htmlFor="sidebar-lightness-preset" style={presetLabelStyle}>Lightness</label>
+            <label htmlFor="scales-lightness-preset" style={presetLabelStyle}>Lightness</label>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <AppStringSelect
-                id="sidebar-lightness-preset"
-                name="sidebar-lightness-preset"
-                size="compact"
+              <select
+                id="scales-lightness-preset"
+                name="scales-lightness-preset"
                 value={activeScale.lightnessPreset}
-                onValueChange={(v) => {
-                  const preset = v as LightnessPreset;
+                onChange={(e) => {
+                  const preset = e.target.value as LightnessPreset;
                   if (preset === 'custom') {
                     applyLightnessPreset(activeScale.id, 'custom');
                     onEditLightness();
@@ -398,8 +436,12 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
                   }
                 }}
                 className="focus-visible-ring"
-                options={LIGHTNESS_PRESET_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
-              />
+                style={nativeSelectStyle}
+              >
+                {LIGHTNESS_PRESET_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
             </div>
             {activeScale.lightnessPreset === 'custom' && (
               <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
@@ -408,11 +450,10 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
         </div>
       )}
 
-      {/* Bulk action bar */}
       {hasSelection && (
         <div
           style={{
-            padding: '6px 12px',
+            padding: '6px 16px',
             borderBottom: '1px solid var(--p-border)',
             display: 'flex',
             alignItems: 'center',
@@ -441,8 +482,7 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
         </div>
       )}
 
-      {/* Scale list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
         {scales.length > 0 && (
           <div
             style={{
@@ -474,12 +514,10 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
         <div
           style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
           onDragOver={(e) => {
-            // Allow drop on the container itself (end of list)
             e.preventDefault();
           }}
           onDrop={(e) => {
             e.preventDefault();
-            // Drop on container = move to end
             if (dragIndex !== null && dragOverIndex === null) {
               reorderScales(dragIndex, scales.length - 1);
             }
@@ -508,7 +546,7 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
                   isActive={effectiveActiveId === scale.id}
                   isSelected={selectedScaleIds.includes(scale.id)}
                   isDragging={dragIndex === i}
-                  onClick={() => setActiveScale(scale.id)}
+                  onClick={() => handlePickScale(scale.id)}
                   onDragStart={() => setDragIndex(i)}
                   onDragOver={() => setDragOverIndex(i)}
                   onDrop={() => {
@@ -541,9 +579,8 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
         </div>
       </div>
 
-      {/* Add new scale */}
       <div style={{
-        padding: '10px 12px',
+        padding: '10px 16px 14px',
         borderTop: '1px solid var(--p-border)',
         boxSizing: 'border-box',
         width: '100%',
@@ -598,12 +635,12 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
           />
         </div>
         <button
-          onClick={() => { addScale(newHex); setNewHex('#6366f1'); }}
+          onClick={handleAddScale}
           className="focus-visible-ring"
           style={{
             width: '100%',
             boxSizing: 'border-box',
-            padding: '6px 0',
+            padding: '8px 0',
             fontSize: 12,
             fontWeight: 500,
             background: 'var(--p-bg)',
@@ -630,6 +667,6 @@ export function Sidebar({ onEditSteps, onEditLightness }: SidebarProps) {
           onCancel={() => setConfirmBulkDelete(false)}
         />
       )}
-    </aside>
+    </div>
   );
 }

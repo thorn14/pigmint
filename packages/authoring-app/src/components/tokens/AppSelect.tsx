@@ -134,7 +134,16 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
         }}>
           {current?.label ?? placeholder ?? '—'}
         </span>
-        <span style={{ opacity: 0.4, fontSize: 9, flexShrink: 0 }}>▾</span>
+        <svg
+          width="10"
+          height="6"
+          viewBox="0 0 10 6"
+          fill="currentColor"
+          aria-hidden="true"
+          style={{ flexShrink: 0, opacity: 0.6 }}
+        >
+          <path d="M0 0h10L5 6z" />
+        </svg>
       </button>
 
       {open && createPortal(

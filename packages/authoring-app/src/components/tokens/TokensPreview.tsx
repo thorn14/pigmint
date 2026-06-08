@@ -58,13 +58,10 @@ function TokenCard({
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
 
-  const nonTextBgStyle: React.CSSProperties = { background: colorValue };
-
   return (
     <button
       type="button"
       onClick={onEdit}
-      title="Click to edit"
       style={{
         width: 168,
         flexShrink: 0,
@@ -81,7 +78,7 @@ function TokenCard({
       }}
     >
       {/* Preview area */}
-      <div style={{
+      <div className="swatch-hover" style={{
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
@@ -92,16 +89,8 @@ function TokenCard({
         width: '100%',
         ...(usage !== 'text' ? { border: `1px solid ${colorValue}` } : {}),
       }}>
-        {usage !== 'text' && (
-          <div style={{
-            height: 3,
-            flexShrink: 0,
-            width: '100%',
-            ...nonTextBgStyle,
-          }} />
-        )}
         <div style={{
-          padding: usage !== 'text' ? '8px 12px 10px' : '10px 12px',
+          padding: '10px 12px',
           display: 'flex',
           flexDirection: 'column',
           gap: 4,
@@ -155,7 +144,56 @@ function TokenCard({
 
 // ─── Main preview ─────────────────────────────────────────────────────────────
 
-export function TokensPreview() {
+type Props = {
+  onAdd?: () => void;
+};
+
+function AddTokenSwatch({ onAdd }: { onAdd: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onAdd}
+      aria-label="Add token"
+      style={{
+        width: 168,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: 0,
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        textAlign: 'left',
+        font: 'inherit',
+        color: 'inherit',
+      }}
+    >
+      <div className="swatch-hover" style={{
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 78,
+        width: '100%',
+        border: '1px dashed var(--p-border)',
+        background: 'transparent',
+        color: 'var(--p-text-secondary)',
+        gap: 6,
+        fontSize: 13,
+        fontWeight: 600,
+      }}>
+        <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">+</span>
+        <span>Add token</span>
+      </div>
+      <div style={{ padding: '0 4px', fontSize: 10, color: 'var(--p-text-tertiary)' }}>
+        Surface, foreground, nonText, alpha
+      </div>
+    </button>
+  );
+}
+
+export function TokensPreview({ onAdd }: Props = {}) {
   const scales           = usePaletteStore((s) => s.scales);
   const engineModes      = useIntentStore((s) => s.engineModes);
   const engineTarget     = useIntentStore((s) => s.engineTarget);
@@ -334,9 +372,14 @@ export function TokensPreview() {
         flexDirection: 'column',
         gap: 32,
       }}>
+        {onAdd && (
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
+            <AddTokenSwatch onAdd={onAdd} />
+          </div>
+        )}
         {grouped.size === 0 ? (
           <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
-            No tokens resolved against a surface in this mode. Add foreground or nonText tokens in the Edit view.
+            No tokens resolved against a surface in this mode. Use + Add to create one.
           </span>
         ) : (
           Array.from(grouped.entries()).map(([surface, tokens]) => {
@@ -388,13 +431,22 @@ export function TokensPreview() {
                     {tokens.length} token{tokens.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                {/* Cards */}
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
+                {/* Full-width surface swatch with tokens overlaid */}
+                <div style={{
+                  background: bgColor,
+                  borderRadius: 6,
+                  padding: '20px 24px',
+                  display: 'flex',
+                  flexWrap: 'wrap' as const,
+                  gap: 10,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}>
                   {tokens.map((t) => (
                     <TokenCard
                       key={t.path}
                       token={t}
-                      surfaceHex={bgColor}
+                      surfaceHex="transparent"
                       usage={usageMap.get(t.path) ?? 'text'}
                       useWcag={useWcag}
                       onEdit={() => setEditingPath(t.path)}

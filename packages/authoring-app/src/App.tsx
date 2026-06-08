@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TopBar } from './components/layout/TopBar';
-import { Sidebar } from './components/layout/Sidebar';
-import { RightPanel } from './components/layout/RightPanel';
+import { ScalesPanel } from './components/layout/ScalesPanel';
+import { EditScalePanel } from './components/layout/EditScalePanel';
+import { BottomBar, type ActivePanel } from './components/layout/BottomBar';
+import { AppBottomSheet } from './components/base-ui';
+import { useIsNarrow } from './hooks/useViewportWidth';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { TokensPanel } from './components/tokens/TokensPanel';
 
@@ -51,24 +54,20 @@ function authoringFingerprint(): string {
   return JSON.stringify({ palettePart, intentPart });
 }
 
-function EditPanel({
+function CanvasPanel({
   scale,
-  panelsCollapsed,
-  onTogglePanels,
-  onShowPreview,
+  activeStepIndex,
+  onStepClick,
+  bottomReserve,
+  topInset = 0,
 }: {
   scale: ColorScale;
-  panelsCollapsed: boolean;
-  onTogglePanels: () => void;
-  onShowPreview: () => void;
+  activeStepIndex: number | null;
+  onStepClick: (idx: number) => void;
+  bottomReserve: number;
+  topInset?: number;
 }) {
   const ramp = useGeneratedRamp(scale);
-  const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
-  const activeStep = activeStepIndex !== null ? (ramp.steps[activeStepIndex] ?? null) : null;
-
-  function handleStepClick(i: number) {
-    setActiveStepIndex((prev) => (prev === i ? null : i));
-  }
 
   return (
     <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -76,16 +75,26 @@ function EditPanel({
         scale={scale}
         ramp={ramp}
         activeStepIndex={activeStepIndex}
-        onStepClick={handleStepClick}
-        panelsCollapsed={panelsCollapsed}
-        onTogglePanels={onTogglePanels}
-        onShowPreview={onShowPreview}
+        onStepClick={onStepClick}
+        bottomReserve={bottomReserve}
+        topInset={topInset}
       />
-      {!panelsCollapsed && (
-        <RightPanel key={scale.id} scale={scale} activeStep={activeStep} />
-      )}
     </div>
   );
+}
+
+function ActiveStepInspector({
+  scale,
+  activeStepIndex,
+  children,
+}: {
+  scale: ColorScale;
+  activeStepIndex: number | null;
+  children: (step: import('./types/palette').GeneratedStep | null) => React.ReactNode;
+}) {
+  const ramp = useGeneratedRamp(scale);
+  const step = activeStepIndex !== null ? (ramp.steps[activeStepIndex] ?? null) : null;
+  return <>{children(step)}</>;
 }
 
 export default function App() {
@@ -100,15 +109,9 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>(() =>
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
   );
-  const [panelsCollapsed, setPanelsCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem('pigmint:panels-collapsed') === '1';
-  });
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('pigmint:panels-collapsed', panelsCollapsed ? '1' : '0');
-  }, [panelsCollapsed]);
   const lastSavedFingerprint = useRef<string | null>(null);
   const activePaletteId = usePaletteStore((s) => s.activePaletteId);
   const scale = usePaletteStore(selectActiveScale);
@@ -150,9 +153,6 @@ export default function App() {
         } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
           e.preventDefault();
           usePaletteStore.getState().redo();
-        } else if (key === '/') {
-          e.preventDefault();
-          setPanelsCollapsed((v) => !v);
         }
         return;
       }
@@ -235,9 +235,36 @@ export default function App() {
     }
   }, []);
 
+  const narrow = useIsNarrow();
+  const showBottomBar = mode === 'primitives' && scales.length > 0;
+  const showInlinePanel = !narrow && activePanel !== null && mode === 'primitives' && Boolean(scale);
+
+  function renderPanelBody() {
+    if (activePanel === 'scales') {
+      return (
+        <ScalesPanel
+          onEditSteps={() => setShowSteps(true)}
+          onEditLightness={() => setShowLightness(true)}
+          onClose={() => setActivePanel(null)}
+        />
+      );
+    }
+    if (activePanel === 'edit' && scale) {
+      return (
+        <ActiveStepInspector scale={scale} activeStepIndex={activeStepIndex}>
+          {(step) => <EditScalePanel activeStep={step} onClose={() => setActivePanel(null)} />}
+        </ActiveStepInspector>
+      );
+    }
+    return null;
+  }
+
+  const canvasAsBg = mode === 'primitives' && scale !== null;
+
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
@@ -245,20 +272,47 @@ export default function App() {
         color: 'var(--p-text)',
       }}
     >
-      <TopBar
-        onExport={() => setShowExport(true)}
-        onImport={() => setShowImport(true)}
-        onSave={handleSave}
-        mode={mode}
-        onModeChange={setMode}
-        theme={theme}
-        onThemeChange={setTheme}
-        saveStatus={saveStatus}
-        srgbPreview={srgbPreview}
-        onToggleSrgbPreview={toggleSrgbPreview}
-      />
+      {/* Canvas as background layer in primitives mode — extends full height so it peeks through the topbar's 4px margins */}
+      {canvasAsBg && scale && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, display: 'flex' }}>
+          <CanvasPanel
+            scale={scale}
+            activeStepIndex={activeStepIndex}
+            onStepClick={(i) => setActiveStepIndex((prev) => (prev === i ? null : i))}
+            bottomReserve={showBottomBar ? 44 : 0}
+            topInset={48}
+          />
+        </div>
+      )}
 
-      <main id="main-content" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
+        <TopBar
+          onExport={() => setShowExport(true)}
+          onImport={() => setShowImport(true)}
+          onSave={handleSave}
+          onPreview={() => setShowPreview(true)}
+          mode={mode}
+          onModeChange={setMode}
+          theme={theme}
+          onThemeChange={setTheme}
+          saveStatus={saveStatus}
+          srgbPreview={srgbPreview}
+          onToggleSrgbPreview={toggleSrgbPreview}
+        />
+      </div>
+
+      <main
+        id="main-content"
+        style={{
+          display: 'flex',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          position: 'relative',
+          zIndex: 5,
+          pointerEvents: canvasAsBg ? 'none' : 'auto',
+        }}
+      >
         <h1
           style={{
             position: 'absolute',
@@ -275,25 +329,42 @@ export default function App() {
         >
           Pigmint color authoring
         </h1>
-        {mode === 'primitives' && scales.length > 0 && !panelsCollapsed && (
-          <Sidebar
-            onEditSteps={() => setShowSteps(true)}
-            onEditLightness={() => setShowLightness(true)}
-          />
-        )}
 
-        {mode === 'primitives' && (scale ? (
-          <EditPanel
-            scale={scale}
-            panelsCollapsed={panelsCollapsed}
-            onTogglePanels={() => setPanelsCollapsed((v) => !v)}
-            onShowPreview={() => setShowPreview(true)}
-          />
-        ) : (
-          <BulkCreatePanel />
-        ))}
+        {mode === 'primitives' && !scale && <BulkCreatePanel />}
         {mode === 'tokens' && <TokensPanel />}
+
+        {showInlinePanel && (
+          <aside
+            style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              bottom: 4,
+              width: 360,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+              background: 'var(--p-bg)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.24)',
+              overflow: 'hidden',
+              pointerEvents: 'auto',
+            }}
+            aria-label={activePanel === 'scales' ? 'Scales' : 'Edit scale'}
+          >
+            {renderPanelBody()}
+          </aside>
+        )}
       </main>
+
+      {showBottomBar && <BottomBar activePanel={activePanel} onSelectPanel={setActivePanel} />}
+
+      {narrow && activePanel !== null && mode === 'primitives' && (
+        <AppBottomSheet onOpenChange={(open) => { if (!open) setActivePanel(null); }}>
+          {renderPanelBody()}
+        </AppBottomSheet>
+      )}
 
       {showPreview && (
         <PalettePreviewModal

@@ -30,7 +30,7 @@ body {
   --p-text-secondary: rgba(0, 0, 0, 0.6);
   --p-text-tertiary: rgba(0, 0, 0, 0.4);
   /* Semantic — solid */
-  --p-accent: #4b5563;
+  --p-accent: #4b556350;
   --p-success: #1a7f37;
   --p-success-subtle: #dcfce7;
   --p-warning: #b45309;
@@ -166,8 +166,7 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   }
 
   .focus-visible-ring:focus-visible {
-    outline: 2px solid var(--p-accent);
-    outline-offset: 2px;
+    outline: 1px solid var(--p-accent);
   }
 }
 
@@ -205,7 +204,7 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   transition: transform 180ms ease-out;
 }
 .app-drawer-popup[data-state="open"]  { transform: translateX(0); }
-.app-drawer-popup[data-state="closed"] { transform: translateX(100%); }
+.app-drawer-popup[data-state="closed"] { transform: translateX(calc(100% + 8px)); }
 
 @media (prefers-reduced-motion: reduce) {
   .app-drawer-popup { transition: none; }
@@ -393,4 +392,18 @@ input[type="submit"]:not(:disabled):active {
   .pigmint-p3-layer {
     display: block;
   }
+}
+
+/* Hover ring for clickable swatches (combo cards, token preview cards).
+   Sits 1px outside the element so it doesn't stack with any existing border. */
+.swatch-hover {
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+  transition: outline-color 0.12s ease-out;
+}
+.swatch-hover:hover {
+  outline-color: rgba(255, 255, 255, 0.7);
+}
+[data-theme="light"] .swatch-hover:hover {
+  outline-color: rgba(0, 0, 0, 0.55);
 }
