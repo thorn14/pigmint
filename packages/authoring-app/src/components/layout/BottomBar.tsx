@@ -9,8 +9,8 @@ interface Props {
 
 const barStyle: CSSProperties = {
   position: 'fixed',
-  bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-  left: 14,
+  bottom: 4,
+  left: 4,
   display: 'inline-flex',
   alignItems: 'center',
   padding: 2,

@@ -5,7 +5,6 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
-import { ScaleDiagnosticsRow } from '../diagnostics/RampDiagnosticsView';
 import { useIsNarrow } from '../../hooks/useViewportWidth';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
@@ -35,12 +34,11 @@ interface Props {
   topInset?: number;
 }
 
-type ViewMode = 'gradient' | 'curves' | 'diagnostic';
-const VIEW_MODES: readonly ViewMode[] = ['gradient', 'curves', 'diagnostic'];
+type ViewMode = 'gradient' | 'curves';
+const VIEW_MODES: readonly ViewMode[] = ['gradient', 'curves'];
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   gradient: 'Gradient',
   curves: 'Steps',
-  diagnostic: 'Diagnostic',
 };
 
 function GradientIcon() {
@@ -68,19 +66,9 @@ function StepsIcon() {
   );
 }
 
-function DiagnosticIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 12 L6 7 L9 10 L14 3" />
-      <circle cx="14" cy="3" r="0.8" fill="currentColor" />
-    </svg>
-  );
-}
-
 const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
   gradient: GradientIcon,
   curves: StepsIcon,
-  diagnostic: DiagnosticIcon,
 };
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, bottomReserve = 0, topInset = 0 }: Props) {
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
@@ -253,8 +241,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
         <div
           className="absolute flex items-center gap-2 pointer-events-none"
           style={{
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-            right: 14,
+            bottom: 4,
+            right: 4,
             zIndex: 20,
           }}
         >
@@ -307,12 +295,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
         </div>
       )}
 
-      {effectiveBackground === 'diagnostic' ? (
-        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-          <ScaleDiagnosticsRow scale={scale} ramp={ramp} />
-        </div>
-      ) : (
-      <>
       {/* Color columns + SVG curve overlay */}
       <div
         ref={containerRef}
@@ -682,8 +664,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           })}
         </div>
       </div>
-      </>
-      )}
     </div>
   );
 }

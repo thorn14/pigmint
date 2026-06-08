@@ -204,7 +204,7 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   transition: transform 180ms ease-out;
 }
 .app-drawer-popup[data-state="open"]  { transform: translateX(0); }
-.app-drawer-popup[data-state="closed"] { transform: translateX(100%); }
+.app-drawer-popup[data-state="closed"] { transform: translateX(calc(100% + 8px)); }
 
 @media (prefers-reduced-motion: reduce) {
   .app-drawer-popup { transition: none; }

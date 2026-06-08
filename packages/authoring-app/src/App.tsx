@@ -336,15 +336,19 @@ export default function App() {
         {showInlinePanel && (
           <aside
             style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              bottom: 4,
               width: 360,
-              flexShrink: 0,
               display: 'flex',
               flexDirection: 'column',
-              height: '100%',
               minHeight: 0,
               background: 'var(--p-bg)',
-              borderLeft: '1px solid var(--p-border)',
-              marginLeft: 'auto',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.24)',
+              overflow: 'hidden',
               pointerEvents: 'auto',
             }}
             aria-label={activePanel === 'scales' ? 'Scales' : 'Edit scale'}
