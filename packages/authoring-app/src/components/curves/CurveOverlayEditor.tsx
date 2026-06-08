@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, type ComponentType } from 'react';
 import { formatCss } from 'culori';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -32,6 +32,7 @@ interface Props {
   activeStepIndex: number | null;
   onStepClick: (idx: number) => void;
   bottomReserve?: number;
+  topInset?: number;
 }
 
 type ViewMode = 'gradient' | 'curves' | 'diagnostic';
@@ -41,7 +42,47 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   curves: 'Steps',
   diagnostic: 'Diagnostic',
 };
-export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, bottomReserve = 0 }: Props) {
+
+function GradientIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+      <defs>
+        <linearGradient id="vm-gradient-icon" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="4" width="12" height="8" rx="1" fill="url(#vm-gradient-icon)" />
+    </svg>
+  );
+}
+
+function StepsIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="2"   y="4" width="2.4" height="8" rx="0.5" opacity="0.35" />
+      <rect x="5"   y="4" width="2.4" height="8" rx="0.5" opacity="0.6" />
+      <rect x="8"   y="4" width="2.4" height="8" rx="0.5" opacity="0.8" />
+      <rect x="11"  y="4" width="2.4" height="8" rx="0.5" />
+    </svg>
+  );
+}
+
+function DiagnosticIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12 L6 7 L9 10 L14 3" />
+      <circle cx="14" cy="3" r="0.8" fill="currentColor" />
+    </svg>
+  );
+}
+
+const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
+  gradient: GradientIcon,
+  curves: StepsIcon,
+  diagnostic: DiagnosticIcon,
+};
+export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, bottomReserve = 0, topInset = 0 }: Props) {
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
@@ -66,8 +107,9 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
   const PAD = 18;
   // Top reserve clears the floating step-name badges. The view-mode pill and the
   // global Scales/Edit bar sit at the same y on opposite sides; bottomReserve
-  // covers both.
-  const topReserve = 52;
+  // covers both. topInset accounts for an overlapping floating topbar so badges
+  // render below it.
+  const topReserve = 52 + topInset;
   const effectiveBottomReserve = bottomReserve;
   const padTop = PAD + topReserve;
   const padBottom = PAD + effectiveBottomReserve;
@@ -229,14 +271,19 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
             <div role="radiogroup" aria-label="Canvas view" style={{ display: 'inline-flex', gap: 2 }}>
               {VIEW_MODES.map((m) => {
                 const active = viewMode === m;
+                const Icon = VIEW_MODE_ICONS[m];
                 return (
                   <button
                     key={m}
                     type="button"
                     role="radio"
                     aria-checked={active}
+                    className="focus-visible-ring"
                     onClick={() => setViewMode(m)}
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
                       border: 'none',
                       background: active ? 'rgba(255,255,255,0.95)' : 'transparent',
                       color: active ? '#000' : 'rgba(255,255,255,0.7)',
@@ -247,8 +294,10 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
                       padding: '3px 10px',
                       borderRadius: 6,
                       cursor: 'pointer',
+                      transition: 'background-color 0.12s ease-out, color 0.12s ease-out',
                     }}
                   >
+                    <Icon />
                     {VIEW_MODE_LABELS[m]}
                   </button>
                 );
@@ -553,7 +602,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
             in gradient mode and only the selected step in stepped mode. */}
         <div
           className="absolute inset-x-0 flex pointer-events-none"
-          style={{ left: 0, right: 0, top: 12, padding: 0 }}
+          style={{ left: 0, right: 0, top: 12 + topInset, padding: 0 }}
         >
           {ramp.steps.map((step, i) => {
             const showBadge = !narrow

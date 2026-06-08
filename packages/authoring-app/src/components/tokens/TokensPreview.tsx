@@ -431,13 +431,22 @@ export function TokensPreview({ onAdd }: Props = {}) {
                     {tokens.length} token{tokens.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                {/* Cards */}
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
+                {/* Full-width surface swatch with tokens overlaid */}
+                <div style={{
+                  background: bgColor,
+                  borderRadius: 6,
+                  padding: '20px 24px',
+                  display: 'flex',
+                  flexWrap: 'wrap' as const,
+                  gap: 10,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}>
                   {tokens.map((t) => (
                     <TokenCard
                       key={t.path}
                       token={t}
-                      surfaceHex={bgColor}
+                      surfaceHex="transparent"
                       usage={usageMap.get(t.path) ?? 'text'}
                       useWcag={useWcag}
                       onEdit={() => setEditingPath(t.path)}

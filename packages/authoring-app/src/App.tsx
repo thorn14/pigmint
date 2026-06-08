@@ -59,11 +59,13 @@ function CanvasPanel({
   activeStepIndex,
   onStepClick,
   bottomReserve,
+  topInset = 0,
 }: {
   scale: ColorScale;
   activeStepIndex: number | null;
   onStepClick: (idx: number) => void;
   bottomReserve: number;
+  topInset?: number;
 }) {
   const ramp = useGeneratedRamp(scale);
 
@@ -75,6 +77,7 @@ function CanvasPanel({
         activeStepIndex={activeStepIndex}
         onStepClick={onStepClick}
         bottomReserve={bottomReserve}
+        topInset={topInset}
       />
     </div>
   );
@@ -256,9 +259,12 @@ export default function App() {
     return null;
   }
 
+  const canvasAsBg = mode === 'primitives' && scale !== null;
+
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
@@ -266,19 +272,34 @@ export default function App() {
         color: 'var(--p-text)',
       }}
     >
-      <TopBar
-        onExport={() => setShowExport(true)}
-        onImport={() => setShowImport(true)}
-        onSave={handleSave}
-        onPreview={() => setShowPreview(true)}
-        mode={mode}
-        onModeChange={setMode}
-        theme={theme}
-        onThemeChange={setTheme}
-        saveStatus={saveStatus}
-        srgbPreview={srgbPreview}
-        onToggleSrgbPreview={toggleSrgbPreview}
-      />
+      {/* Canvas as background layer in primitives mode — extends full height so it peeks through the topbar's 4px margins */}
+      {canvasAsBg && scale && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, display: 'flex' }}>
+          <CanvasPanel
+            scale={scale}
+            activeStepIndex={activeStepIndex}
+            onStepClick={(i) => setActiveStepIndex((prev) => (prev === i ? null : i))}
+            bottomReserve={showBottomBar ? 44 : 0}
+            topInset={48}
+          />
+        </div>
+      )}
+
+      <div style={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
+        <TopBar
+          onExport={() => setShowExport(true)}
+          onImport={() => setShowImport(true)}
+          onSave={handleSave}
+          onPreview={() => setShowPreview(true)}
+          mode={mode}
+          onModeChange={setMode}
+          theme={theme}
+          onThemeChange={setTheme}
+          saveStatus={saveStatus}
+          srgbPreview={srgbPreview}
+          onToggleSrgbPreview={toggleSrgbPreview}
+        />
+      </div>
 
       <main
         id="main-content"
@@ -287,6 +308,9 @@ export default function App() {
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
+          position: 'relative',
+          zIndex: 5,
+          pointerEvents: canvasAsBg ? 'none' : 'auto',
         }}
       >
         <h1
@@ -306,16 +330,7 @@ export default function App() {
           Pigmint color authoring
         </h1>
 
-        {mode === 'primitives' && (scale ? (
-          <CanvasPanel
-            scale={scale}
-            activeStepIndex={activeStepIndex}
-            onStepClick={(i) => setActiveStepIndex((prev) => (prev === i ? null : i))}
-            bottomReserve={showBottomBar ? 44 : 0}
-          />
-        ) : (
-          <BulkCreatePanel />
-        ))}
+        {mode === 'primitives' && !scale && <BulkCreatePanel />}
         {mode === 'tokens' && <TokensPanel />}
 
         {showInlinePanel && (
@@ -329,6 +344,8 @@ export default function App() {
               minHeight: 0,
               background: 'var(--p-bg)',
               borderLeft: '1px solid var(--p-border)',
+              marginLeft: 'auto',
+              pointerEvents: 'auto',
             }}
             aria-label={activePanel === 'scales' ? 'Scales' : 'Edit scale'}
           >

@@ -334,8 +334,10 @@ export function TopBar({ onExport, onImport, onSave, onPreview, mode, onModeChan
         alignItems: 'center',
         gap: 12,
         padding: '0 16px',
+        margin: '4px 4px 0',
         background: 'var(--p-bg)',
-        borderBottom: '1px solid var(--p-border)',
+        border: '1px solid var(--p-border)',
+        borderRadius: 6,
         flexShrink: 0,
         overflow: 'visible',
       }}
