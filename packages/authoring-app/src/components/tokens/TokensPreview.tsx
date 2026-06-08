@@ -58,13 +58,10 @@ function TokenCard({
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
 
-  const nonTextBgStyle: React.CSSProperties = { background: colorValue };
-
   return (
     <button
       type="button"
       onClick={onEdit}
-      title="Click to edit"
       style={{
         width: 168,
         flexShrink: 0,
@@ -81,7 +78,7 @@ function TokenCard({
       }}
     >
       {/* Preview area */}
-      <div style={{
+      <div className="swatch-hover" style={{
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
@@ -92,16 +89,8 @@ function TokenCard({
         width: '100%',
         ...(usage !== 'text' ? { border: `1px solid ${colorValue}` } : {}),
       }}>
-        {usage !== 'text' && (
-          <div style={{
-            height: 3,
-            flexShrink: 0,
-            width: '100%',
-            ...nonTextBgStyle,
-          }} />
-        )}
         <div style={{
-          padding: usage !== 'text' ? '8px 12px 10px' : '10px 12px',
+          padding: '10px 12px',
           display: 'flex',
           flexDirection: 'column',
           gap: 4,
@@ -180,7 +169,7 @@ function AddTokenSwatch({ onAdd }: { onAdd: () => void }) {
         color: 'inherit',
       }}
     >
-      <div style={{
+      <div className="swatch-hover" style={{
         borderRadius: 8,
         display: 'flex',
         alignItems: 'center',

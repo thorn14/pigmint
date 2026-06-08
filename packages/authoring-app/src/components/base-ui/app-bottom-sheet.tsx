@@ -46,7 +46,7 @@ type Props = {
  */
 export function AppBottomSheet({ children, onOpenChange }: Props) {
   return (
-    <Drawer.Root open onOpenChange={onOpenChange} handleOnly>
+    <Drawer.Root open onOpenChange={onOpenChange} handleOnly modal={false}>
       <Drawer.Portal>
         <Drawer.Overlay style={overlayStyle} />
         <Drawer.Content style={contentStyle} aria-describedby={undefined}>

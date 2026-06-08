@@ -66,6 +66,7 @@ function ComboCardShell({
   return (
     <div
       onClick={onClick}
+      className="swatch-hover"
       style={{
         borderRadius: 8,
         minWidth: 140,

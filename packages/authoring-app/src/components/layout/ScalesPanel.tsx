@@ -3,7 +3,25 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, StepNamingPreset } from '../../types/palette';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
-import { AppStringSelect, ConfirmDialog } from '../base-ui';
+import { ConfirmDialog } from '../base-ui';
+
+const nativeSelectStyle: React.CSSProperties = {
+  width: '100%',
+  height: 28,
+  padding: '0 22px 0 8px',
+  fontSize: 12,
+  fontFamily: 'inherit',
+  color: 'var(--p-text)',
+  background:
+    'var(--p-bg) url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\' fill=\'%23999\'><path d=\'M0 0h10L5 6z\'/></svg>") no-repeat right 6px center',
+  border: '1px solid var(--p-border)',
+  borderRadius: 5,
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
+  cursor: 'pointer',
+  boxSizing: 'border-box',
+};
 import { LockIcon } from '../icons/LockIcon';
 
 const linkBtnStyle: React.CSSProperties = {
@@ -380,23 +398,22 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose }: ScalesPan
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             <label htmlFor="scales-steps-preset" style={presetLabelStyle}>Steps</label>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <AppStringSelect
+              <select
                 id="scales-steps-preset"
                 name="scales-steps-preset"
-                size="compact"
                 value={activeScale.naming.preset}
-                onValueChange={(v) => {
-                  const preset = v as StepNamingPreset;
+                onChange={(e) => {
+                  const preset = e.target.value as StepNamingPreset;
                   updateStepNamingAll({ preset });
                   if (preset === 'custom') onEditSteps();
                 }}
                 className="focus-visible-ring"
-                options={[
-                  { value: 'tailwind', label: 'Tailwind' },
-                  { value: 'numeric', label: 'Numeric' },
-                  { value: 'custom', label: 'Custom…' },
-                ]}
-              />
+                style={nativeSelectStyle}
+              >
+                <option value="tailwind">Tailwind</option>
+                <option value="numeric">Numeric</option>
+                <option value="custom">Custom…</option>
+              </select>
             </div>
             {activeScale.naming.preset === 'custom' && (
               <button onClick={onEditSteps} style={linkBtnStyle} className="focus-visible-ring">edit</button>
@@ -405,13 +422,12 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose }: ScalesPan
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             <label htmlFor="scales-lightness-preset" style={presetLabelStyle}>Lightness</label>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <AppStringSelect
+              <select
                 id="scales-lightness-preset"
                 name="scales-lightness-preset"
-                size="compact"
                 value={activeScale.lightnessPreset}
-                onValueChange={(v) => {
-                  const preset = v as LightnessPreset;
+                onChange={(e) => {
+                  const preset = e.target.value as LightnessPreset;
                   if (preset === 'custom') {
                     applyLightnessPreset(activeScale.id, 'custom');
                     onEditLightness();
@@ -420,8 +436,12 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose }: ScalesPan
                   }
                 }}
                 className="focus-visible-ring"
-                options={LIGHTNESS_PRESET_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
-              />
+                style={nativeSelectStyle}
+              >
+                {LIGHTNESS_PRESET_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
             </div>
             {activeScale.lightnessPreset === 'custom' && (
               <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>

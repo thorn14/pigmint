@@ -158,11 +158,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
             border: '1px solid var(--p-border)',
             borderRadius: 6,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            // 100k clears vaul's drawer content (z-index 50) and any other portal.
-            zIndex: 100_000,
-            // vaul/Radix Dialog locks pointer-events on <body> while open;
-            // body-portaled menus inherit it, so re-enable here.
-            pointerEvents: 'auto',
+            zIndex: 300,
             maxHeight: 320,
             overflowY: 'auto',
           }}
