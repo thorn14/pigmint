@@ -394,6 +394,35 @@ input[type="submit"]:not(:disabled):active {
   }
 }
 
+/* Uppercase buttons and interactive labels. Monospace content (hex codes,
+   identifiers) opts out so user-facing values keep their original case. */
+button,
+[role="tab"],
+[role="radio"],
+[role="switch"],
+a[href]:not(.skip-link) {
+  text-transform: uppercase;
+}
+
+button [style*="monospace"],
+button .font-mono,
+[role="tab"] [style*="monospace"],
+[role="tab"] .font-mono,
+[role="radio"] [style*="monospace"],
+[role="radio"] .font-mono,
+[role="switch"] [style*="monospace"],
+[role="switch"] .font-mono,
+a[href] [style*="monospace"],
+a[href] .font-mono {
+  text-transform: none;
+}
+
+input,
+textarea,
+select {
+  text-transform: none;
+}
+
 /* Hover ring for clickable swatches (combo cards, token preview cards).
    Sits 1px outside the element so it doesn't stack with any existing border. */
 .swatch-hover {

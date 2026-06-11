@@ -52,11 +52,10 @@ pnpm start       # launches authoring app at http://localhost:5173
 
 The app has two top-level modes, selected from the toolbar:
 
-- **Primitives** — scale sidebar + curve overlay editor + step inspector. Tune L/C/H curves, hue shifts, and chroma peak/floor for every ramp. Edits round-trip into `pigmint.yaml` on export.
-- **Tokens** — three sub-views in the panel toolbar:
-  - **Edit** — author surfaces, foreground, nonText, decorative, and alpha tokens with inline ramp + step + preference + consistency + level controls.
-  - **Preview** — see resolved tokens across every mode (and CVD simulation, if enabled).
-  - **Create** — full contrast matrix showing every foreground/background pair. Filter by WCAG 2.1 or APCA threshold; click any pair to promote it into a semantic token.
+- **Primitives** — scale list (left drawer) + curve overlay editor + step inspector (right drawer). Tune L/C/H curves, hue shifts, and chroma peak/floor for every ramp. Edits round-trip into `pigmint.yaml` on export.
+- **Tokens** — two sub-views in the panel toolbar:
+  - **Preview** — surfaces, foreground, non-text, decorative, and alpha tokens grouped by surface anchor, with inline editing via per-token cards and an Add modal for new tokens. Resolved across every mode (and CVD simulation, if enabled).
+  - **Discover** — full contrast matrix showing every foreground/background pair. Filter by WCAG 2.1 or APCA threshold; click any pair to promote it into a semantic token.
 
 The **View** menu in the top bar exposes app-wide toggles:
 

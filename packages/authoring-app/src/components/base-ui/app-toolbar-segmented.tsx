@@ -41,7 +41,7 @@ const btn = (active: boolean, i: number, size: 'compact' | 'comfortable'): CSSPr
   alignItems: 'center',
   justifyContent: 'center',
   ...(size === 'comfortable'
-    ? { padding: '0 14px', fontSize: 12, fontWeight: 500, textTransform: 'capitalize' as const }
+    ? { padding: '0 14px', fontSize: 12, fontWeight: 500, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }
     : { padding: '0 10px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }),
 });
 

@@ -320,7 +320,7 @@ export default function App() {
   const scalesVisibleDesktop = !narrow && openPanels.has('scales') && mode === 'primitives';
   const editVisibleDesktop = !narrow && openPanels.has('edit') && mode === 'primitives' && Boolean(scale);
 
-  const PANEL_W = 360;
+  const PANEL_W = 280;
   const PANEL_MARGIN = 4;
   // Both drawers push the canvas so the ramp steps stay reachable next to the open panel.
   const canvasLeftInset = scalesVisibleDesktop ? PANEL_W + 2 * PANEL_MARGIN : 0;

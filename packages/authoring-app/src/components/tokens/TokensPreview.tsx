@@ -469,9 +469,6 @@ export function TokensPreview({ onAdd }: Props = {}) {
                       {stepLabel}
                     </span>
                   )}
-                  <span style={{ fontSize: 11, opacity: 0.7, color: surfaceFg }}>
-                    {tokens.length} token{tokens.length !== 1 ? 's' : ''}
-                  </span>
                 </div>
                 {/* Tokens + floating Add */}
                 <div style={{

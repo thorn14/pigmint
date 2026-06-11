@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { selectActiveScale, usePaletteStore } from '../../store/paletteStore';
 import type { GeneratedStep } from '../../types/palette';
-import { DiagnosticsModal } from '../diagnostics/DiagnosticsModal';
+import { LockIcon } from '../icons/LockIcon';
 import { RightPanel } from './RightPanel';
 
 interface EditScalePanelProps {
@@ -11,7 +10,7 @@ interface EditScalePanelProps {
 
 export function EditScalePanel({ activeStep, onClose }: EditScalePanelProps) {
   const scale = usePaletteStore(selectActiveScale);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
 
   return (
     <div
@@ -41,32 +40,26 @@ export function EditScalePanel({ activeStep, onClose }: EditScalePanelProps) {
         {scale && (
           <button
             type="button"
-            onClick={() => setShowDiagnostics(true)}
-            aria-label="Open diagnostics"
-            title="Diagnostics"
+            onClick={() => toggleScaleLock(scale.id)}
+            aria-label={scale.lockedFromOverrides ? 'Unlock from global overrides' : 'Lock from global overrides'}
+            aria-pressed={scale.lockedFromOverrides}
+            title={scale.lockedFromOverrides ? 'Unlock from global overrides' : 'Lock from global overrides'}
             className="focus-visible-ring"
             style={{
+              width: 28,
               height: 28,
-              padding: '0 10px',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
+              justifyContent: 'center',
               background: 'transparent',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
-              color: 'var(--p-text-secondary)',
+              color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-secondary)',
               cursor: 'pointer',
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
+              padding: 0,
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M2 12 L6 7 L9 10 L14 3" />
-              <circle cx="14" cy="3" r="0.8" fill="currentColor" />
-            </svg>
-            Diagnostics
+            <LockIcon locked={scale.lockedFromOverrides} />
           </button>
         )}
         <button
@@ -100,10 +93,6 @@ export function EditScalePanel({ activeStep, onClose }: EditScalePanelProps) {
         <div style={{ padding: '24px 16px', color: 'var(--p-text-secondary)', fontSize: 12 }}>
           No active scale to edit.
         </div>
-      )}
-
-      {showDiagnostics && scale && (
-        <DiagnosticsModal scale={scale} onClose={() => setShowDiagnostics(false)} />
       )}
     </div>
   );
