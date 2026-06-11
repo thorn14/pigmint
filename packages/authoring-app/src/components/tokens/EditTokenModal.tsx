@@ -367,7 +367,34 @@ function SemanticFields({
     updateToken(section, name, updates, ec());
   }
 
+  function handleDecorativeChange(checked: boolean) {
+    if (checked) {
+      const updates: Partial<PortableSemanticToken> = {
+        decorative: true,
+        preference: 'preferred-contrast',
+        consistency: derivedConsistency('preferred-contrast'),
+      };
+      if (typeof token.targetContrast !== 'number') {
+        updates.targetContrast = compliance === 'apca' ? 60 : 5;
+      }
+      updateToken(section, name, updates, ec());
+    } else {
+      updateToken(section, name, { decorative: undefined }, ec());
+    }
+  }
+
   function handleDelete() { removeToken(section, name, ec()); onClose(); }
+
+  const decorativeRow = (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={Boolean(token.decorative)}
+        onChange={(e) => handleDecorativeChange(e.target.checked)}
+      />
+      Decorative — pin to target contrast, skip a11y check
+    </label>
+  );
 
   return (
     <>
@@ -380,6 +407,7 @@ function SemanticFields({
           onChange={(to) => { if (to !== section) moveToken(section, to as 'foreground' | 'nonText', name, ec()); }}
         />
       </div>
+      {decorativeRow}
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect
@@ -402,15 +430,7 @@ function SemanticFields({
           />
         )}
       </div>
-      <div style={field}>
-        <span style={label}>Preference</span>
-        <AppSelect
-          options={prefOptions()}
-          value={token.preference}
-          onChange={(p) => handlePrefChange(p as Pref)}
-        />
-      </div>
-      {token.preference === 'preferred-contrast' ? (
+      {token.decorative ? (
         <div style={field}>
           <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
           <input
@@ -425,21 +445,39 @@ function SemanticFields({
           />
         </div>
       ) : (
-        <div style={field}>
-          <span style={label}>Consistency</span>
-          <span style={readOnly} title="Derived from preference — matched-to-set syncs across ramps; everything else is independent.">
-            {consistency}
-          </span>
-        </div>
+        <>
+          <div style={field}>
+            <span style={label}>Preference</span>
+            <AppSelect
+              options={prefOptions()}
+              value={token.preference}
+              onChange={(p) => handlePrefChange(p as Pref)}
+            />
+          </div>
+          {token.preference === 'preferred-contrast' ? (
+            <div style={field}>
+              <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
+              <input
+                type="number"
+                min={bounds.min} max={bounds.max} step={bounds.step}
+                style={inp}
+                value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (Number.isFinite(v)) updateToken(section, name, { targetContrast: v }, ec());
+                }}
+              />
+            </div>
+          ) : (
+            <div style={field}>
+              <span style={label}>Consistency</span>
+              <span style={readOnly} title="Derived from preference — matched-to-set syncs across ramps; everything else is independent.">
+                {consistency}
+              </span>
+            </div>
+          )}
+        </>
       )}
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={Boolean(token.decorative)}
-          onChange={(e) => updateToken(section, name, { decorative: e.target.checked || undefined }, ec())}
-        />
-        Decorative — skip a11y compliance check
-      </label>
       <Footer
         onDelete={handleDelete}
         onClose={onClose}
@@ -556,6 +594,21 @@ function AlphaFields({
     updateAlpha(name, updates, ec());
   }
 
+  function handleDecorativeChange(checked: boolean) {
+    if (checked) {
+      const updates: Partial<PortableAlphaToken> = {
+        decorative: true,
+        preference: 'preferred-contrast',
+      };
+      if (typeof token.targetContrast !== 'number') {
+        updates.targetContrast = compliance === 'apca' ? 60 : 5;
+      }
+      updateAlpha(name, updates, ec());
+    } else {
+      updateAlpha(name, { decorative: undefined }, ec());
+    }
+  }
+
   const refSurfaceOptions: AppSelectOption[] = [
     { value: '', label: 'auto' },
     ...surfaceOptions(surfaceNames, surfaces, rampMap),
@@ -612,15 +665,15 @@ function AlphaFields({
       </div>
       {!isScrim && (
         <>
-          <div style={field}>
-            <span style={label}>Preference</span>
-            <AppSelect
-              options={alphaPrefOptions()}
-              value={token.preference ?? 'lowest-passing'}
-              onChange={(p) => handlePrefChange(p as AlphaPref)}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={Boolean(token.decorative)}
+              onChange={(e) => handleDecorativeChange(e.target.checked)}
             />
-          </div>
-          {token.preference === 'preferred-contrast' && (
+            Decorative — pin to target contrast, skip a11y check
+          </label>
+          {token.decorative ? (
             <div style={field}>
               <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
               <input
@@ -634,15 +687,33 @@ function AlphaFields({
                 }}
               />
             </div>
+          ) : (
+            <>
+              <div style={field}>
+                <span style={label}>Preference</span>
+                <AppSelect
+                  options={alphaPrefOptions()}
+                  value={token.preference ?? 'lowest-passing'}
+                  onChange={(p) => handlePrefChange(p as AlphaPref)}
+                />
+              </div>
+              {token.preference === 'preferred-contrast' && (
+                <div style={field}>
+                  <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
+                  <input
+                    type="number"
+                    min={bounds.min} max={bounds.max} step={bounds.step}
+                    style={inp}
+                    value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (Number.isFinite(v)) updateAlpha(name, { targetContrast: v }, ec());
+                    }}
+                  />
+                </div>
+              )}
+            </>
           )}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={Boolean(token.decorative)}
-              onChange={(e) => updateAlpha(name, { decorative: e.target.checked || undefined }, ec())}
-            />
-            Decorative — skip a11y compliance check
-          </label>
         </>
       )}
       <div style={field}>

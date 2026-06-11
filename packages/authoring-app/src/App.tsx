@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { formatCss } from 'culori';
 import { TopBar } from './components/layout/TopBar';
 import { ScalesPanel } from './components/layout/ScalesPanel';
 import { EditScalePanel } from './components/layout/EditScalePanel';
-import { BottomBar, type ActivePanel } from './components/layout/BottomBar';
+import { BottomBar, type Panel } from './components/layout/BottomBar';
 import { AppBottomSheet } from './components/base-ui';
 import { useIsNarrow } from './hooks/useViewportWidth';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
@@ -52,6 +53,51 @@ function authoringFingerprint(): string {
     overrides: is.overrides,
   };
   return JSON.stringify({ palettePart, intentPart });
+}
+
+function CanvasEdgeBleed({ scale, leftWidth, rightWidth }: { scale: ColorScale; leftWidth: number; rightWidth: number }) {
+  const ramp = useGeneratedRamp(scale);
+  if (ramp.steps.length === 0) return null;
+  const first = ramp.steps[0];
+  const last = ramp.steps[ramp.steps.length - 1];
+  const colorOf = (s: typeof first) =>
+    s.oklch.alpha != null && s.oklch.alpha < 1
+      ? (formatCss({ mode: 'oklch', ...s.oklch }) ?? s.hex)
+      : s.hex;
+  const firstColor = colorOf(first);
+  const lastColor = colorOf(last);
+  return (
+    <>
+      {leftWidth > 0 && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 0, bottom: 0, left: 0,
+            width: leftWidth,
+            background: firstColor,
+            zIndex: 0,
+            pointerEvents: 'none',
+            transition: 'width 0.16s ease-out',
+          }}
+        />
+      )}
+      {rightWidth > 0 && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 0, bottom: 0, right: 0,
+            width: rightWidth,
+            background: lastColor,
+            zIndex: 0,
+            pointerEvents: 'none',
+            transition: 'width 0.16s ease-out',
+          }}
+        />
+      )}
+    </>
+  );
 }
 
 function CanvasPanel({
@@ -109,7 +155,7 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>(() =>
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
   );
-  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [openPanels, setOpenPanels] = useState<Set<Panel>>(() => new Set());
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const lastSavedFingerprint = useRef<string | null>(null);
@@ -237,27 +283,70 @@ export default function App() {
 
   const narrow = useIsNarrow();
   const showBottomBar = mode === 'primitives' && scales.length > 0;
-  const showInlinePanel = !narrow && activePanel !== null && mode === 'primitives' && Boolean(scale);
 
-  function renderPanelBody() {
-    if (activePanel === 'scales') {
-      return (
-        <ScalesPanel
-          onEditSteps={() => setShowSteps(true)}
-          onEditLightness={() => setShowLightness(true)}
-          onClose={() => setActivePanel(null)}
-        />
-      );
-    }
-    if (activePanel === 'edit' && scale) {
-      return (
-        <ActiveStepInspector scale={scale} activeStepIndex={activeStepIndex}>
-          {(step) => <EditScalePanel activeStep={step} onClose={() => setActivePanel(null)} />}
-        </ActiveStepInspector>
-      );
-    }
-    return null;
-  }
+  const togglePanel = useCallback((panel: Panel) => {
+    setOpenPanels((prev) => {
+      const next = new Set(prev);
+      if (next.has(panel)) {
+        next.delete(panel);
+      } else {
+        next.add(panel);
+      }
+      return next;
+    });
+  }, []);
+
+  const closePanel = useCallback((panel: Panel) => {
+    setOpenPanels((prev) => {
+      if (!prev.has(panel)) return prev;
+      const next = new Set(prev);
+      next.delete(panel);
+      return next;
+    });
+  }, []);
+
+  // On narrow viewports, collapse to a single open panel — prefer 'edit' if both are open.
+  useEffect(() => {
+    if (!narrow) return;
+    setOpenPanels((prev) => {
+      if (prev.size <= 1) return prev;
+      const next = new Set<Panel>();
+      if (prev.has('edit')) next.add('edit');
+      else if (prev.has('scales')) next.add('scales');
+      return next;
+    });
+  }, [narrow]);
+
+  const scalesVisibleDesktop = !narrow && openPanels.has('scales') && mode === 'primitives';
+  const editVisibleDesktop = !narrow && openPanels.has('edit') && mode === 'primitives' && Boolean(scale);
+
+  const PANEL_W = 360;
+  const PANEL_MARGIN = 4;
+  // Both drawers push the canvas so the ramp steps stay reachable next to the open panel.
+  const canvasLeftInset = scalesVisibleDesktop ? PANEL_W + 2 * PANEL_MARGIN : 0;
+  const canvasRightInset = editVisibleDesktop ? PANEL_W + 2 * PANEL_MARGIN : 0;
+
+  const scalesBody = (
+    <ScalesPanel
+      onEditSteps={() => setShowSteps(true)}
+      onEditLightness={() => setShowLightness(true)}
+      onClose={() => closePanel('scales')}
+      dismissOnSelect={narrow}
+    />
+  );
+
+  const editBody = scale ? (
+    <ActiveStepInspector scale={scale} activeStepIndex={activeStepIndex}>
+      {(step) => <EditScalePanel activeStep={step} onClose={() => closePanel('edit')} />}
+    </ActiveStepInspector>
+  ) : null;
+
+  // Which single panel to render in the bottom sheet on narrow.
+  const narrowPanel: Panel | null = openPanels.has('edit') && scale
+    ? 'edit'
+    : openPanels.has('scales')
+      ? 'scales'
+      : null;
 
   const canvasAsBg = mode === 'primitives' && scale !== null;
 
@@ -272,9 +361,23 @@ export default function App() {
         color: 'var(--p-text)',
       }}
     >
-      {/* Canvas as background layer in primitives mode — extends full height so it peeks through the topbar's 4px margins */}
+      {/* Canvas as background layer in primitives mode — shrinks from the right when desktop panels are open so they don't occlude. */}
       {canvasAsBg && scale && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, display: 'flex' }}>
+        <CanvasEdgeBleed scale={scale} leftWidth={canvasLeftInset} rightWidth={canvasRightInset} />
+      )}
+      {canvasAsBg && scale && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: canvasLeftInset,
+            bottom: 0,
+            right: canvasRightInset,
+            zIndex: 0,
+            display: 'flex',
+            transition: 'left 0.16s ease-out, right 0.16s ease-out',
+          }}
+        >
           <CanvasPanel
             scale={scale}
             activeStepIndex={activeStepIndex}
@@ -333,14 +436,14 @@ export default function App() {
         {mode === 'primitives' && !scale && <BulkCreatePanel />}
         {mode === 'tokens' && <TokensPanel />}
 
-        {showInlinePanel && (
+        {scalesVisibleDesktop && (
           <aside
             style={{
               position: 'absolute',
-              top: 4,
-              right: 4,
-              bottom: 4,
-              width: 360,
+              top: PANEL_MARGIN,
+              left: PANEL_MARGIN,
+              bottom: PANEL_MARGIN,
+              width: PANEL_W,
               display: 'flex',
               flexDirection: 'column',
               minHeight: 0,
@@ -351,18 +454,47 @@ export default function App() {
               overflow: 'hidden',
               pointerEvents: 'auto',
             }}
-            aria-label={activePanel === 'scales' ? 'Scales' : 'Edit scale'}
+            aria-label="Scales"
           >
-            {renderPanelBody()}
+            {scalesBody}
+          </aside>
+        )}
+        {editVisibleDesktop && (
+          <aside
+            style={{
+              position: 'absolute',
+              top: PANEL_MARGIN,
+              right: PANEL_MARGIN,
+              bottom: PANEL_MARGIN,
+              width: PANEL_W,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+              background: 'var(--p-bg)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.24)',
+              overflow: 'hidden',
+              pointerEvents: 'auto',
+            }}
+            aria-label="Edit scale"
+          >
+            {editBody}
           </aside>
         )}
       </main>
 
-      {showBottomBar && <BottomBar activePanel={activePanel} onSelectPanel={setActivePanel} />}
+      {showBottomBar && (
+        <BottomBar
+          openPanels={openPanels}
+          onTogglePanel={togglePanel}
+          leftInset={canvasLeftInset}
+        />
+      )}
 
-      {narrow && activePanel !== null && mode === 'primitives' && (
-        <AppBottomSheet onOpenChange={(open) => { if (!open) setActivePanel(null); }}>
-          {renderPanelBody()}
+      {narrow && narrowPanel !== null && mode === 'primitives' && (
+        <AppBottomSheet onOpenChange={(open) => { if (!open) closePanel(narrowPanel); }}>
+          {narrowPanel === 'scales' ? scalesBody : editBody}
         </AppBottomSheet>
       )}
 

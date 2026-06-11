@@ -1,28 +1,14 @@
 import type { CSSProperties } from 'react';
 
-export type ActivePanel = 'scales' | 'edit' | null;
+export type Panel = 'scales' | 'edit';
+export type ActivePanel = Panel | null;
 
 interface Props {
-  activePanel: ActivePanel;
-  onSelectPanel: (panel: ActivePanel) => void;
+  openPanels: ReadonlySet<Panel>;
+  onTogglePanel: (panel: Panel) => void;
+  /** Pixel offset from the viewport's left edge — set to the canvas left inset when the scales drawer is open so the bar lands past the drawer instead of overlapping it. */
+  leftInset?: number;
 }
-
-const barStyle: CSSProperties = {
-  position: 'fixed',
-  bottom: 4,
-  left: 4,
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: 2,
-  gap: 2,
-  background: 'rgba(20, 20, 22, 0.78)',
-  borderRadius: 8,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06)',
-  backdropFilter: 'blur(6px)',
-  WebkitBackdropFilter: 'blur(6px)',
-  color: '#fff',
-  zIndex: 40,
-};
 
 const btnBase: CSSProperties = {
   display: 'inline-flex',
@@ -66,19 +52,36 @@ function EditIcon() {
   );
 }
 
-export function BottomBar({ activePanel, onSelectPanel }: Props) {
-  function toggle(panel: 'scales' | 'edit') {
-    onSelectPanel(activePanel === panel ? null : panel);
-  }
+export function BottomBar({ openPanels, onTogglePanel, leftInset = 0 }: Props) {
+  const scalesOpen = openPanels.has('scales');
+  const editOpen = openPanels.has('edit');
+
+  const barStyle: CSSProperties = {
+    position: 'fixed',
+    bottom: 4,
+    left: 4 + leftInset,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: 2,
+    gap: 2,
+    background: 'rgba(20, 20, 22, 0.78)',
+    borderRadius: 8,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    color: '#fff',
+    zIndex: 40,
+    transition: 'left 0.16s ease-out',
+  };
 
   return (
     <div style={barStyle} role="toolbar" aria-label="Authoring panels">
       <button
         type="button"
         className="focus-visible-ring"
-        aria-pressed={activePanel === 'scales'}
-        onClick={() => toggle('scales')}
-        style={activePanel === 'scales' ? btnActive : btnBase}
+        aria-pressed={scalesOpen}
+        onClick={() => onTogglePanel('scales')}
+        style={scalesOpen ? btnActive : btnBase}
       >
         <ScalesIcon />
         Scales
@@ -86,9 +89,9 @@ export function BottomBar({ activePanel, onSelectPanel }: Props) {
       <button
         type="button"
         className="focus-visible-ring"
-        aria-pressed={activePanel === 'edit'}
-        onClick={() => toggle('edit')}
-        style={activePanel === 'edit' ? btnActive : btnBase}
+        aria-pressed={editOpen}
+        onClick={() => onTogglePanel('edit')}
+        style={editOpen ? btnActive : btnBase}
       >
         <EditIcon />
         Edit

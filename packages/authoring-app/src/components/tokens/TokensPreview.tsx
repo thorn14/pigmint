@@ -4,7 +4,8 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
-import type { ResolvedToken, ComplianceLevel } from '@pigmint/core';
+import { generateRamp, getRelativeLuminance } from '../../lib/colorMath';
+import type { ResolvedToken, ComplianceLevel, GeneratedRamp } from '@pigmint/core';
 import { EditTokenModal } from './EditTokenModal';
 
 
@@ -24,13 +25,13 @@ const LEVEL_BADGE: Record<ComplianceLevel, { bg: string; text: string; label: st
 
 function TokenCard({
   token,
-  surfaceHex,
+  surfaceFg,
   usage,
   useWcag,
   onEdit,
 }: {
   token: ResolvedToken;
-  surfaceHex: string;
+  surfaceFg: string;
   usage: 'text' | 'nonText' | 'decorative';
   useWcag: boolean;
   onEdit: () => void;
@@ -62,60 +63,56 @@ function TokenCard({
     <button
       type="button"
       onClick={onEdit}
+      className="swatch-hover"
       style={{
         width: 168,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        gap: 6,
-        padding: 0,
+        gap: 4,
+        padding: '10px 12px',
         background: 'transparent',
         border: 'none',
+        borderRadius: 8,
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
         color: 'inherit',
-      }}
-    >
-      {/* Preview area */}
-      <div className="swatch-hover" style={{
-        borderRadius: 8,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 78,
-        background: surfaceHex,
+        minHeight: 96,
         overflow: 'hidden',
         boxSizing: 'border-box',
-        width: '100%',
-        ...(usage !== 'text' ? { border: `1px solid ${colorValue}` } : {}),
+      }}
+    >
+      {usage === 'text' ? (
+        <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
+          {stepLabel || '—'}
+        </span>
+      ) : (
+        <span
+          aria-hidden="true"
+          style={{
+            width: 28,
+            height: 16,
+            borderRadius: 4,
+            ...(usage === 'nonText'
+              ? { background: colorValue }
+              : { border: `1.5px solid ${colorValue}`, background: 'transparent' }),
+          }}
+        />
+      )}
+      <span style={{
+        color: surfaceFg,
+        fontSize: 10,
+        opacity: 0.85,
+        fontFamily: 'monospace',
+        lineHeight: 1.3,
+        wordBreak: 'break-all' as const,
       }}>
-        <div style={{
-          padding: '10px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4,
-          flex: 1,
-        }}>
-          {usage === 'text' && (
-            <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
-              {stepLabel || '—'}
-            </span>
-          )}
-          <span style={{
-            color: colorValue,
-            fontSize: 10,
-            opacity: 0.85,
-            fontFamily: 'monospace',
-            lineHeight: 1.3,
-            wordBreak: 'break-all' as const,
-          }}>
-            {token.path}
-          </span>
-        </div>
-      </div>
-      {/* Footer */}
+        {token.path}
+      </span>
       <div style={{
-        padding: '0 4px',
+        marginTop: 'auto',
+        paddingTop: 6,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -134,7 +131,7 @@ function TokenCard({
             {badge.label}
           </span>
         ) : <span />}
-        <span style={{ fontSize: 10, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 10, color: surfaceFg, fontFamily: 'monospace' }}>
           {contrastStr}
         </span>
       </div>
@@ -145,7 +142,7 @@ function TokenCard({
 // ─── Main preview ─────────────────────────────────────────────────────────────
 
 type Props = {
-  onAdd?: () => void;
+  onAdd?: (initialSurface?: string) => void;
 };
 
 function AddTokenSwatch({ onAdd }: { onAdd: () => void }) {
@@ -293,10 +290,17 @@ export function TokensPreview({ onAdd }: Props = {}) {
     return map;
   }, [vocabRaw]);
 
-  // group resolved tokens by surface for the active mode
+  // group resolved tokens by surface for the active mode — every surface gets
+  // a section header (even if no tokens resolve against it yet), so a brand-new
+  // surface is visible immediately after creation.
   const grouped = useMemo(() => {
-    if (!resolution.ok) return new Map<string, ResolvedToken[]>();
     const out = new Map<string, ResolvedToken[]>();
+    if (vocabRaw) {
+      for (const name of Object.keys(vocabRaw.surfaces)) {
+        out.set(`{${name}}`, []);
+      }
+    }
+    if (!resolution.ok) return out;
     for (const t of resolution.tokens) {
       if (t.mode !== effectiveMode || t.resolvedAgainst === null) continue;
       const arr = out.get(t.resolvedAgainst);
@@ -304,7 +308,40 @@ export function TokensPreview({ onAdd }: Props = {}) {
       else out.set(t.resolvedAgainst, [t]);
     }
     return out;
-  }, [resolution, effectiveMode]);
+  }, [resolution, effectiveMode, vocabRaw]);
+
+  // Tokens with no surface anchor: alpha scrims (resolver emits resolvedAgainst=null
+  // for those) plus the standalone `vocab.decorative` section which the resolver
+  // currently skips entirely. They go in a "Standalone" group at the bottom — never hide them.
+  const standaloneResolved = useMemo(() => {
+    if (!resolution.ok || !surfacePathSet) return [] as ResolvedToken[];
+    const out: ResolvedToken[] = [];
+    for (const t of resolution.tokens) {
+      if (t.mode !== effectiveMode) continue;
+      if (t.resolvedAgainst !== null) continue;
+      if (surfacePathSet.has(t.path)) continue; // surface itself — already shown as a section header
+      out.push(t);
+    }
+    return out;
+  }, [resolution, effectiveMode, surfacePathSet]);
+
+  const standaloneDecorative = useMemo(() => {
+    if (!vocabRaw?.decorative) return [] as Array<{ path: string; hex: string; stepLabel: string }>;
+    const ramps = new Map<string, GeneratedRamp>();
+    for (const scale of scales) {
+      try { ramps.set(scale.name, generateRamp(scale)); } catch { /* skip */ }
+    }
+    const out: Array<{ path: string; hex: string; stepLabel: string }> = [];
+    for (const [name, entry] of Object.entries(vocabRaw.decorative)) {
+      const ramp = ramps.get(entry.ramp);
+      if (!ramp) continue;
+      const idx = Math.max(0, Math.min(entry.step ?? 0, ramp.steps.length - 1));
+      const step = ramp.steps[idx];
+      if (!step) continue;
+      out.push({ path: name, hex: step.hex, stepLabel: `${entry.ramp}.${step.name}` });
+    }
+    return out;
+  }, [vocabRaw, scales]);
 
   // ─── Empty states ──────────────────────────────────────────────────────────
 
@@ -377,9 +414,9 @@ export function TokensPreview({ onAdd }: Props = {}) {
             <AddTokenSwatch onAdd={onAdd} />
           </div>
         )}
-        {grouped.size === 0 ? (
+        {grouped.size === 0 && standaloneResolved.length === 0 && standaloneDecorative.length === 0 ? (
           <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
-            No tokens resolved against a surface in this mode. Use + Add to create one.
+            No surfaces yet. Use + Add to create one.
           </span>
         ) : (
           Array.from(grouped.entries()).map(([surface, tokens]) => {
@@ -387,10 +424,23 @@ export function TokensPreview({ onAdd }: Props = {}) {
             const bgHex = surfaceHexMap.get(surfaceKey) ?? '#cccccc';
             const bgColor = surfaceColorMap.get(surfaceKey) ?? bgHex;
             const stepLabel = surfaceStepLabelMap.get(surfaceKey);
+            const surfaceFg = getRelativeLuminance(bgHex) > 0.5 ? '#000000' : '#ffffff';
             return (
-              <div key={surface}>
-                {/* Surface header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div
+                key={surface}
+                style={{
+                  background: bgColor,
+                  borderRadius: 8,
+                  padding: '14px 18px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Info row — sits inside the swatch, uses contrast color */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: surfaceFg }}>
                   <button
                     type="button"
                     onClick={() => setEditingPath(surfaceKey)}
@@ -407,55 +457,157 @@ export function TokensPreview({ onAdd }: Props = {}) {
                       color: 'inherit',
                     }}
                   >
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: 3,
-                      border: '1px solid var(--p-border)',
-                      flexShrink: 0,
-                      background: bgColor,
-                    }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', color: surfaceFg }}>
                       {surfaceKey}
                     </span>
                   </button>
-                  <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: 11, opacity: 0.7, fontFamily: 'monospace', color: surfaceFg }}>
                     {bgHex}
                   </span>
                   {stepLabel && (
-                    <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: 11, opacity: 0.7, fontFamily: 'monospace', color: surfaceFg }}>
                       {stepLabel}
                     </span>
                   )}
-                  <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginLeft: 4 }}>
+                  <span style={{ fontSize: 11, opacity: 0.7, color: surfaceFg }}>
                     {tokens.length} token{tokens.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                {/* Full-width surface swatch with tokens overlaid */}
+                {/* Tokens + floating Add */}
                 <div style={{
-                  background: bgColor,
-                  borderRadius: 6,
-                  padding: '20px 24px',
                   display: 'flex',
                   flexWrap: 'wrap' as const,
+                  alignItems: 'flex-start',
                   gap: 10,
-                  width: '100%',
-                  boxSizing: 'border-box',
+                  minHeight: tokens.length === 0 ? 48 : undefined,
                 }}>
                   {tokens.map((t) => (
                     <TokenCard
                       key={t.path}
                       token={t}
-                      surfaceHex="transparent"
+                      surfaceFg={surfaceFg}
                       usage={usageMap.get(t.path) ?? 'text'}
                       useWcag={useWcag}
                       onEdit={() => setEditingPath(t.path)}
                     />
                   ))}
+                  {onAdd && (() => {
+                    const isLightSurface = surfaceFg === '#000000';
+                    const btnBg = isLightSurface ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.14)';
+                    const btnBorder = isLightSurface ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.32)';
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onAdd(surfaceKey)}
+                        title={`Add token to ${surfaceKey}`}
+                        aria-label={`Add token to ${surfaceKey}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          background: btnBg,
+                          border: `1px solid ${btnBorder}`,
+                          borderRadius: 6,
+                          color: surfaceFg,
+                          cursor: 'pointer',
+                          alignSelf: 'center',
+                        }}
+                      >
+                        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+                        <span>Add</span>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             );
           })
+        )}
+        {(standaloneResolved.length > 0 || standaloneDecorative.length > 0) && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)', fontFamily: 'monospace' }}>
+                Standalone
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+                no surface anchor — decorative, alpha scrim
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginLeft: 4 }}>
+                {standaloneResolved.length + standaloneDecorative.length} token
+                {standaloneResolved.length + standaloneDecorative.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div style={{
+              background: 'var(--p-surface)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              padding: '20px 24px',
+              display: 'flex',
+              flexWrap: 'wrap' as const,
+              gap: 10,
+              width: '100%',
+              boxSizing: 'border-box',
+            }}>
+              {standaloneResolved.map((t) => (
+                <TokenCard
+                  key={t.path}
+                  token={t}
+                  surfaceFg="var(--p-text-secondary)"
+                  usage={usageMap.get(t.path) ?? 'decorative'}
+                  useWcag={useWcag}
+                  onEdit={() => setEditingPath(t.path)}
+                />
+              ))}
+              {standaloneDecorative.map((d) => (
+                <button
+                  key={d.path}
+                  type="button"
+                  onClick={() => setEditingPath(d.path)}
+                  className="swatch-hover"
+                  style={{
+                    width: 168,
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    font: 'inherit',
+                    color: 'inherit',
+                    minHeight: 96,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <span aria-hidden="true" style={{ width: 28, height: 16, borderRadius: 4, background: d.hex }} />
+                  <span style={{
+                    color: 'var(--p-text-secondary)',
+                    fontSize: 10,
+                    opacity: 0.85,
+                    fontFamily: 'monospace',
+                    lineHeight: 1.3,
+                    wordBreak: 'break-all' as const,
+                  }}>
+                    {d.path}
+                  </span>
+                  <span style={{
+                    marginTop: 'auto',
+                    fontSize: 10,
+                    color: 'var(--p-text-tertiary)',
+                    fontFamily: 'monospace',
+                  }}>
+                    {d.stepLabel}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
       {editingPath && <EditTokenModal path={editingPath} onClose={() => setEditingPath(null)} />}

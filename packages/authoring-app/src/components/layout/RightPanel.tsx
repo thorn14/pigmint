@@ -228,20 +228,6 @@ export function RightPanel({ scale, activeStep }: Props) {
                 className="focus-visible-ring"
               />
             </div>
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'baseline',
-              gap: '6px 14px',
-              fontSize: 12,
-              fontFamily: 'monospace',
-              color: 'var(--p-text-secondary)',
-              lineHeight: 1.5,
-            }}>
-              <span style={{ whiteSpace: 'nowrap' }}>L {scale.sourceOklch.l.toFixed(4)}</span>
-              <span style={{ whiteSpace: 'nowrap' }}>C {scale.sourceOklch.c.toFixed(4)}</span>
-              <span style={{ whiteSpace: 'nowrap' }}>H {scale.sourceOklch.h.toFixed(2)}°</span>
-            </div>
           </AppField>
         </div>
 
@@ -445,7 +431,7 @@ export function RightPanel({ scale, activeStep }: Props) {
       <div style={sectionStyle}>
         <SectionLabel>Curve Smoothing</SectionLabel>
         <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginBottom: 10, lineHeight: 1.4 }}>
-          Smooths interior nodes. Leaf nodes are preserved.
+          Smooths interior nodes.
         </p>
         {(
           [
@@ -540,9 +526,6 @@ export function RightPanel({ scale, activeStep }: Props) {
                   <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', whiteSpace: 'nowrap' }}>
                     = {effectiveDeg}°
                   </span>
-                </div>
-                <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', marginTop: 2 }}>
-                  h {Math.round(stepHue)}° → {pName} ({primary}°) · {dist}° away · auto {autoBase}°
                 </div>
               </AppField>
             );

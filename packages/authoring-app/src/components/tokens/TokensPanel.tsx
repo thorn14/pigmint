@@ -119,21 +119,26 @@ function ModalStepSelect({ rampName, rampMap, value, onChange }: {
   );
 }
 
-function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance, onClose, onAddSurface, onAddSemantic, onAddAlpha }: {
+function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance, initialSurface, onClose, onAddSurface, onAddSemantic, onAddAlpha }: {
   rampNames: string[];
   surfaceNames: string[];
   rampMap: Map<string, GeneratedRamp>;
   surfaces: Record<string, PortableSurfaceToken>;
   compliance: 'wcag21' | 'apca';
+  initialSurface?: string;
   onClose: () => void;
   onAddSurface: (name: string, token: PortableSurfaceToken) => void;
   onAddSemantic: (kind: 'foreground' | 'nonText', name: string, token: PortableSemanticToken) => void;
   onAddAlpha: (name: string, token: PortableAlphaToken) => void;
 }) {
-  const [kind, setKind] = useState<TokenKind>('surface');
+  const [kind, setKind] = useState<TokenKind>(initialSurface ? 'foreground' : 'surface');
   const [name, setName] = useState('');
   const [ramp, setRamp] = useState(rampNames[0] ?? '');
-  const [surfaceList, setSurfaceList] = useState<string[]>(surfaceNames[0] ? [surfaceNames[0]] : []);
+  const [surfaceList, setSurfaceList] = useState<string[]>(
+    initialSurface && surfaceNames.includes(initialSurface)
+      ? [initialSurface]
+      : (surfaceNames[0] ? [surfaceNames[0]] : []),
+  );
   const [pref, setPref] = useState<PortableSemanticToken['preference']>('lowest-passing');
   const [decorative, setDecorative] = useState(false);
   const defaultTarget = compliance === 'apca' ? 60 : 5;
@@ -570,7 +575,7 @@ export function TokensPanel() {
     return map;
   }, [scales]);
 
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [addModal, setAddModal] = useState<{ open: boolean; initialSurface?: string }>({ open: false });
   const [view, setView] = useState<'preview' | 'combos'>('preview');
   const VIEW_LABELS: Record<'preview' | 'combos', string> = {
     preview: 'Preview',
@@ -620,7 +625,9 @@ export function TokensPanel() {
       {/* Preview view */}
       {view === 'preview' && (
         <TokensPreview
-          onAdd={rampNames.length > 0 ? () => setShowAddModal(true) : undefined}
+          onAdd={rampNames.length > 0
+            ? (initialSurface) => setAddModal({ open: true, initialSurface })
+            : undefined}
         />
       )}
 
@@ -632,14 +639,15 @@ export function TokensPanel() {
       )}
 
       {/* Add token modal */}
-      {showAddModal && (
+      {addModal.open && (
         <AddTokenModal
           rampNames={rampNames}
           surfaceNames={surfaceNames}
           rampMap={rampMap}
           surfaces={surfaces}
           compliance={compliance}
-          onClose={() => setShowAddModal(false)}
+          initialSurface={addModal.initialSurface}
+          onClose={() => setAddModal({ open: false })}
           onAddSurface={(n, t) => addSurface(n, t, ec())}
           onAddSemantic={(kind, n, t) => addToken(kind, n, t, ec())}
           onAddAlpha={(n, t) => addAlpha(n, t, ec())}

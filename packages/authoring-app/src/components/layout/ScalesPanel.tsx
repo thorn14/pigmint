@@ -298,9 +298,10 @@ interface ScalesPanelProps {
   onEditSteps: () => void;
   onEditLightness: () => void;
   onClose: () => void;
+  dismissOnSelect?: boolean;
 }
 
-export function ScalesPanel({ onEditSteps, onEditLightness, onClose }: ScalesPanelProps) {
+export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSelect = false }: ScalesPanelProps) {
   const scales = usePaletteStore((s) => s.scales);
   const activeScaleId = usePaletteStore((s) => s.activeScaleId);
   const selectedScaleIds = usePaletteStore((s) => s.selectedScaleIds);
@@ -326,7 +327,7 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose }: ScalesPan
 
   function handlePickScale(id: string) {
     setActiveScale(id);
-    onClose();
+    if (dismissOnSelect) onClose();
   }
 
   function handleAddScale() {
