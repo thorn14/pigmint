@@ -348,7 +348,7 @@ export default function App() {
       ? 'scales'
       : null;
 
-  const canvasAsBg = mode === 'primitives' && scale !== null;
+  const canvasAsBg = mode === 'primitives' && !!scale;
 
   return (
     <div
