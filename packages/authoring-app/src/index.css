@@ -6,16 +6,12 @@
 
 html {
   color-scheme: light;
-  height: 100%;
-  overflow: hidden;
   overscroll-behavior: none;
 }
 
 body {
   position: relative;
   margin: 0;
-  height: 100%;
-  overflow: hidden;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -338,7 +334,7 @@ input[type="submit"]:not(:disabled):active {
   box-sizing: border-box;
   touch-action: none;
   user-select: none;
-  padding-block: 6px;
+  padding-block: 14px;
 }
 
 .app-slider-root-vertical .app-slider-control {
@@ -381,13 +377,22 @@ input[type="submit"]:not(:disabled):active {
 }
 
 .app-slider-thumb {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--app-slider-thumb);
   border: none;
   box-shadow: 0 0 0 1px var(--p-bg), 0 0 0 2px var(--app-slider-thumb);
   box-sizing: border-box;
+  position: relative;
+}
+
+/* Expand the touch hit area to 44×44 without changing the visual thumb size */
+.app-slider-thumb::before {
+  content: '';
+  position: absolute;
+  inset: -13px;
+  border-radius: 50%;
 }
 
 /* P3 gradient layer — only shown on Display-P3 capable displays. */
@@ -427,6 +432,16 @@ input,
 textarea,
 select {
   text-transform: none;
+}
+
+/* Chrome auto-zooms typeable controls when font-size < 16px on touch viewports.
+   `!important` is required to beat inline `fontSize: 12/13` set across the app. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* Hover ring for clickable swatches (combo cards, token preview cards).

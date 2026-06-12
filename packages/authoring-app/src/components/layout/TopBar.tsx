@@ -45,12 +45,13 @@ function PaletteSelector() {
         onValueChange={handleValueChange}
         size="compact"
         className="focus-visible-ring"
+        leadingIcon={<ColorWheelIcon size={16} />}
         style={{
-          width: 160,
-          maxWidth: 200,
+          width: 170,
+          maxWidth: 210,
           flexShrink: 0,
           height: 30,
-          padding: '0 12px',
+          padding: '0 8px',
           borderRadius: 6,
           color: 'var(--p-text)',
           fontSize: 12,
@@ -82,10 +83,6 @@ interface Props {
   srgbPreview: boolean;
   onToggleSrgbPreview: () => void;
 }
-
-const divider = (
-  <div style={{ width: 1, height: 20, background: 'var(--p-border)', flexShrink: 0 }} />
-);
 
 const menuItemStyle: React.CSSProperties = {
   padding: '8px 12px',
@@ -342,12 +339,6 @@ export function TopBar({ onExport, onImport, onSave, onPreview, mode, onModeChan
         overflow: 'visible',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <ColorWheelIcon size={22} />
-      </div>
-
-      {divider}
-
       <PaletteSelector />
 
       <div style={{ flex: 1 }} />
@@ -386,8 +377,6 @@ export function TopBar({ onExport, onImport, onSave, onPreview, mode, onModeChan
           ] as const).map((m) => ({ value: m.value, label: m.label }))}
         />
       )}
-
-      {divider}
 
       <span
         aria-live="polite"

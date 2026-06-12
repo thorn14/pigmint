@@ -22,7 +22,7 @@ const contentStyle: CSSProperties = {
   borderTop: '1px solid var(--p-border)',
   boxShadow: '0 -8px 32px rgba(0,0,0,0.25)',
   outline: 'none',
-  maxHeight: '92vh',
+  maxHeight: '75dvh',
 };
 
 const handleStyle: CSSProperties = {
@@ -49,7 +49,11 @@ export function AppBottomSheet({ children, onOpenChange }: Props) {
     <Drawer.Root open onOpenChange={onOpenChange} handleOnly modal={false}>
       <Drawer.Portal>
         <Drawer.Overlay style={overlayStyle} />
-        <Drawer.Content style={contentStyle} aria-describedby={undefined}>
+        <Drawer.Content
+          style={contentStyle}
+          aria-describedby={undefined}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <Drawer.Handle style={handleStyle} />
           <Drawer.Title style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>
             Panel

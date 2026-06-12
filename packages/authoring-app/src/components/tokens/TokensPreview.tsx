@@ -69,8 +69,8 @@ function TokenCard({
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        gap: 4,
-        padding: '10px 12px',
+        gap: 8,
+        padding: 12,
         background: 'transparent',
         border: 'none',
         borderRadius: 8,
@@ -78,7 +78,6 @@ function TokenCard({
         textAlign: 'left',
         font: 'inherit',
         color: 'inherit',
-        minHeight: 96,
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
@@ -111,12 +110,9 @@ function TokenCard({
         {token.path}
       </span>
       <div style={{
-        marginTop: 'auto',
-        paddingTop: 6,
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 4,
+        gap: 16,
       }}>
         {badge ? (
           <span style={{
@@ -303,9 +299,21 @@ export function TokensPreview({ onAdd }: Props = {}) {
     if (!resolution.ok) return out;
     for (const t of resolution.tokens) {
       if (t.mode !== effectiveMode || t.resolvedAgainst === null) continue;
-      const arr = out.get(t.resolvedAgainst);
-      if (arr) arr.push(t);
-      else out.set(t.resolvedAgainst, [t]);
+      // The resolver picks one primary surface per token, but a foreground/nonText/alpha
+      // token can declare multiple surfaces. Show it under every declared surface so
+      // the preview matches the vocab; editing one card edits the shared record.
+      const declared =
+        vocabRaw?.foreground[t.path]?.surfaces
+        ?? vocabRaw?.nonText[t.path]?.surfaces
+        ?? vocabRaw?.alpha?.[t.path]?.surfaces;
+      const surfaceKeys = declared && declared.length > 0
+        ? Array.from(new Set(declared.map((s) => `{${s}}`)))
+        : [t.resolvedAgainst];
+      for (const key of surfaceKeys) {
+        const arr = out.get(key);
+        if (arr) arr.push(t);
+        else out.set(key, [t]);
+      }
     }
     return out;
   }, [resolution, effectiveMode, vocabRaw]);
@@ -364,7 +372,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
             type="button"
             onClick={() => onAdd!()}
             style={{
-              padding: '8px 14px',
+              padding: '8px 12px',
               fontSize: 13,
               fontWeight: 600,
               background: 'var(--p-accent, #6366f1)',
@@ -467,55 +475,36 @@ export function TokensPreview({ onAdd }: Props = {}) {
                   boxSizing: 'border-box',
                 }}
               >
-                {/* Info row — sits inside the swatch, uses contrast color */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: surfaceFg }}>
+                {/* Header — name + details stacked, Add button to the right */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: surfaceFg }}>
                   <button
                     type="button"
                     onClick={() => setEditingPath(surfaceKey)}
                     title="Click to edit surface"
                     style={{
+                      flex: 1,
+                      minWidth: 0,
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: 2,
                       padding: 0,
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
                       font: 'inherit',
                       color: 'inherit',
+                      textAlign: 'left',
                     }}
                   >
                     <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', color: surfaceFg }}>
                       {surfaceKey}
                     </span>
-                  </button>
-                  <span style={{ fontSize: 11, opacity: 0.7, fontFamily: 'monospace', color: surfaceFg }}>
-                    {bgHex}
-                  </span>
-                  {stepLabel && (
-                    <span style={{ fontSize: 11, opacity: 0.7, fontFamily: 'monospace', color: surfaceFg }}>
-                      {stepLabel}
+                    <span style={{ display: 'flex', gap: 8, fontSize: 11, opacity: 0.7, fontFamily: 'monospace', color: surfaceFg }}>
+                      <span>{bgHex}</span>
+                      {stepLabel && <span>{stepLabel}</span>}
                     </span>
-                  )}
-                </div>
-                {/* Tokens + floating Add */}
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap' as const,
-                  alignItems: 'flex-start',
-                  gap: 10,
-                  minHeight: tokens.length === 0 ? 48 : undefined,
-                }}>
-                  {tokens.map((t) => (
-                    <TokenCard
-                      key={t.path}
-                      token={t}
-                      surfaceFg={surfaceFg}
-                      usage={usageMap.get(t.path) ?? 'text'}
-                      useWcag={useWcag}
-                      onEdit={() => setEditingPath(t.path)}
-                    />
-                  ))}
+                  </button>
                   {onAdd && (() => {
                     const isLightSurface = surfaceFg === '#000000';
                     const btnBg = isLightSurface ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.14)';
@@ -538,7 +527,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                           borderRadius: 6,
                           color: surfaceFg,
                           cursor: 'pointer',
-                          alignSelf: 'center',
+                          flexShrink: 0,
                         }}
                       >
                         <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>+</span>
@@ -547,6 +536,27 @@ export function TokensPreview({ onAdd }: Props = {}) {
                     );
                   })()}
                 </div>
+                {/* Tokens */}
+                {tokens.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap' as const,
+                    alignItems: 'flex-start',
+                    columnGap: 0,
+                    rowGap: 10,
+                  }}>
+                    {tokens.map((t) => (
+                      <TokenCard
+                        key={t.path}
+                        token={t}
+                        surfaceFg={surfaceFg}
+                        usage={usageMap.get(t.path) ?? 'text'}
+                        useWcag={useWcag}
+                        onEdit={() => setEditingPath(t.path)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })
@@ -597,8 +607,8 @@ export function TokensPreview({ onAdd }: Props = {}) {
                     flexShrink: 0,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 4,
-                    padding: '10px 12px',
+                    gap: 8,
+                    padding: 12,
                     background: 'transparent',
                     border: 'none',
                     borderRadius: 8,
@@ -606,7 +616,6 @@ export function TokensPreview({ onAdd }: Props = {}) {
                     textAlign: 'left',
                     font: 'inherit',
                     color: 'inherit',
-                    minHeight: 96,
                     boxSizing: 'border-box',
                   }}
                 >
@@ -622,7 +631,6 @@ export function TokensPreview({ onAdd }: Props = {}) {
                     {d.path}
                   </span>
                   <span style={{
-                    marginTop: 'auto',
                     fontSize: 10,
                     color: 'var(--p-text-tertiary)',
                     fontFamily: 'monospace',

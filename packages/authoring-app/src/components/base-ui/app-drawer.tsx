@@ -1,4 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog';
+import { useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
 const backdropStyle: CSSProperties = {
@@ -47,15 +48,18 @@ type Props = {
  * this only while open and uses `onOpenChange(false)` to close (Escape, backdrop).
  */
 export function AppDrawer({ children, onOpenChange }: Props) {
+  const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog.Root open onOpenChange={onOpenChange} modal>
       <Dialog.Portal>
         <Dialog.Backdrop className="app-dialog-backdrop" style={backdropStyle} />
         <Dialog.Viewport style={viewportStyle}>
           <Dialog.Popup
+            ref={popupRef}
+            tabIndex={-1}
             className="app-drawer-popup focus-visible-ring"
             style={popupStyle}
-            initialFocus={true}
+            initialFocus={popupRef}
             finalFocus={true}
           >
             {children}

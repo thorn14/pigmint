@@ -18,12 +18,14 @@ type Props = {
   modal?: boolean;
   placeholder?: ReactNode;
   id?: string;
+  /** Rendered inside the trigger before the value (e.g. a brand mark to save space). */
+  leadingIcon?: ReactNode;
 };
 
 const compactTrigger: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
+  justifyContent: 'flex-start',
   gap: 6,
   padding: '3px 6px',
   fontSize: 12,
@@ -62,6 +64,7 @@ export function AppStringSelect({
   modal = false,
   placeholder = '—',
   id,
+  leadingIcon,
 }: Props) {
   const triggerStyle: CSSProperties = {
     ...(size === 'compact' ? compactTrigger : defaultTrigger),
@@ -82,6 +85,11 @@ export function AppStringSelect({
       }}
     >
       <Select.Trigger id={id} className={className} style={triggerStyle} aria-label={ariaLabel} disabled={disabled}>
+        {leadingIcon != null && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }} aria-hidden="true">
+            {leadingIcon}
+          </span>
+        )}
         <Select.Value placeholder={placeholder}>
           {(v) => {
             if (v == null) return placeholder;
@@ -95,13 +103,20 @@ export function AppStringSelect({
           viewBox="0 0 10 6"
           fill="currentColor"
           aria-hidden="true"
-          style={{ flexShrink: 0, color: 'var(--p-text-tertiary)' }}
+          style={{ flexShrink: 0, marginLeft: 'auto', color: 'var(--p-text-tertiary)' }}
         >
           <path d="M0 0h10L5 6z" />
         </svg>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner side="bottom" align="start" sideOffset={4} className="app-select-positioner" style={{ zIndex: 60_000 }}>
+        <Select.Positioner
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          className="app-select-positioner"
+          style={{ zIndex: 60_000 }}
+        >
           <Select.Popup
             className="focus-visible-ring"
             style={{

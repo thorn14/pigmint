@@ -440,7 +440,33 @@ export function RightPanel({ scale, activeStep }: Props) {
                     label={label}
                     htmlFor={endId}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        aria-label={`Decrease ${label.toLowerCase()} hue shift`}
+                        onClick={() => {
+                          const v = Math.max(-90, Math.min(90, adjust - 1));
+                          updateHueShift(scale.id, key, v);
+                        }}
+                        className="focus-visible-ring"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 16,
+                          lineHeight: 1,
+                          background: 'var(--p-surface)',
+                          border: '1px solid var(--p-border)',
+                          borderRadius: 6,
+                          color: 'var(--p-text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        −
+                      </button>
                       <input
                         id={endId}
                         name={key}
@@ -455,7 +481,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                         style={{
                           ...inputStyle,
                           width: 52,
-                          textAlign: 'right',
+                          textAlign: 'center',
                           fontFamily: 'monospace',
                           fontSize: 12,
                           padding: '3px 6px',
@@ -463,6 +489,32 @@ export function RightPanel({ scale, activeStep }: Props) {
                         }}
                         className="focus-visible-ring"
                       />
+                      <button
+                        type="button"
+                        aria-label={`Increase ${label.toLowerCase()} hue shift`}
+                        onClick={() => {
+                          const v = Math.max(-90, Math.min(90, adjust + 1));
+                          updateHueShift(scale.id, key, v);
+                        }}
+                        className="focus-visible-ring"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 16,
+                          lineHeight: 1,
+                          background: 'var(--p-surface)',
+                          border: '1px solid var(--p-border)',
+                          borderRadius: 6,
+                          color: 'var(--p-text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        +
+                      </button>
                       <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', whiteSpace: 'nowrap' }}>
                         = {effectiveDeg}°
                       </span>

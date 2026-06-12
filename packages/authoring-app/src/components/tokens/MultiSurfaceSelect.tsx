@@ -38,7 +38,7 @@ export function MultiSurfaceSelect({
   variant = 'default', requireMin = 1, placeholder, title,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 320 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +48,24 @@ export function MultiSurfaceSelect({
 
   function reposition() {
     const rect = btnRef.current?.getBoundingClientRect();
-    if (rect) setPos({ top: rect.bottom + 2, left: rect.left, width: rect.width });
+    if (!rect) return;
+    const margin = 8;
+    const desiredMax = 320;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const spaceBelow = vh - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    let top: number;
+    let maxHeight: number;
+    if (spaceBelow >= 160 || spaceBelow >= spaceAbove) {
+      top = rect.bottom + 2;
+      maxHeight = Math.min(desiredMax, Math.max(120, spaceBelow));
+    } else {
+      maxHeight = Math.min(desiredMax, Math.max(120, spaceAbove));
+      top = rect.top - maxHeight - 2;
+    }
+    const left = Math.max(margin, Math.min(rect.left, vw - rect.width - margin));
+    setPos({ top, left, width: rect.width, maxHeight });
   }
 
   useLayoutEffect(() => {
@@ -145,12 +162,13 @@ export function MultiSurfaceSelect({
             top: pos.top,
             left: pos.left,
             minWidth: pos.width,
+            maxWidth: 'calc(100vw - 16px)',
             background: 'var(--p-bg)',
             border: '1px solid var(--p-border)',
             borderRadius: 6,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
             zIndex: 300,
-            maxHeight: 320,
+            maxHeight: pos.maxHeight,
             overflowY: 'auto',
           }}
         >
