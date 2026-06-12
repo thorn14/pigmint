@@ -619,6 +619,22 @@ export function TokensPanel() {
 
         <div style={{ flex: 1 }} />
         {error && <span style={{ fontSize: 12, color: 'var(--p-danger)' }}>{error}</span>}
+        <button
+          type="button"
+          onClick={() => setAddModal({ open: true })}
+          disabled={rampNames.length === 0}
+          title={rampNames.length === 0 ? 'Create a palette scale first' : 'Add a token'}
+          style={{
+            ...btn,
+            background: rampNames.length === 0 ? 'var(--p-surface)' : 'var(--p-accent, #6366f1)',
+            borderColor: rampNames.length === 0 ? 'var(--p-border)' : 'var(--p-accent, #6366f1)',
+            color: rampNames.length === 0 ? 'var(--p-text-tertiary)' : '#fff',
+            fontWeight: 600,
+            cursor: rampNames.length === 0 ? 'default' : 'pointer',
+          }}
+        >
+          + Add token
+        </button>
       </div>
 
 

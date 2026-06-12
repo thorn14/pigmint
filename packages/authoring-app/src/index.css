@@ -6,11 +6,17 @@
 
 html {
   color-scheme: light;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
   position: relative;
   margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: monospace;

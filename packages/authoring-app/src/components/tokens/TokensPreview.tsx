@@ -346,12 +346,40 @@ export function TokensPreview({ onAdd }: Props = {}) {
   // ─── Empty states ──────────────────────────────────────────────────────────
 
   if (!vocabRaw) {
+    const canAdd = Boolean(onAdd) && scales.length > 0;
     return (
       <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--p-text-tertiary)', fontSize: 13,
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 12, padding: 24,
+        color: 'var(--p-text-tertiary)', fontSize: 13, textAlign: 'center',
       }}>
-        Load a tokens.yaml to see the preview
+        <span>
+          {scales.length === 0
+            ? 'Create a palette scale first, then add tokens.'
+            : 'No tokens yet.'}
+        </span>
+        {canAdd && (
+          <button
+            type="button"
+            onClick={() => onAdd!()}
+            style={{
+              padding: '8px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              background: 'var(--p-accent, #6366f1)',
+              border: '1px solid var(--p-accent, #6366f1)',
+              borderRadius: 6,
+              color: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            + Add your first token
+          </button>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+          or import a tokens.yaml
+        </span>
       </div>
     );
   }

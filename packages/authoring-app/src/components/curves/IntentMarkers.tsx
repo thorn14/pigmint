@@ -283,6 +283,7 @@ export function IntentMarkers({
                   r={markerRadius + 5}
                   fill="transparent"
                   stroke="none"
+                  style={{ touchAction: 'none' }}
                   ref={(node) => {
                     if (node) hitCircleRefs.current.set(gkey, node);
                     else hitCircleRefs.current.delete(gkey);

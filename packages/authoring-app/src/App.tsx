@@ -356,7 +356,7 @@ export default function App() {
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        height: '100dvh',
         background: 'var(--p-bg)',
         color: 'var(--p-text)',
       }}

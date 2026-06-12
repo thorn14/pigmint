@@ -87,7 +87,7 @@ const DEFAULT_STATE: PersistedIntentState = {
   engineCompliance: 'wcag21',
   engineModes: ['light', 'dark'],
   engineCvd: [],
-  engineResolver: { mode: 'stepped' },
+  engineResolver: { mode: 'continuous' },
   overrides: {},
 };
 

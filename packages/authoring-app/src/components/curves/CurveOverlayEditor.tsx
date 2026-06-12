@@ -454,7 +454,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
                   fill="none"
                   stroke="transparent"
                   strokeWidth={12}
-                  style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                  style={{ cursor: 'grab', pointerEvents: 'stroke', touchAction: 'none' }}
                   onPointerDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -498,7 +498,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
                   return (
                     <g
                       key={i}
-                      style={{ pointerEvents: 'all' }}
+                      style={{ pointerEvents: 'all', touchAction: 'none' }}
                       onPointerDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
