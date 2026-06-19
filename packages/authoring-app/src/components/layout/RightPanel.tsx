@@ -431,7 +431,6 @@ export function RightPanel({ scale, activeStep }: Props) {
               {ends.map(({ key, label, stepHue }) => {
                 const adjust = scale.hueShift[key];
                 const autoBase = Math.round(autoHueShiftBase(stepHue));
-                const effectiveDeg = Math.round(autoBase + adjust);
                 const endId = key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId;
                 return (
                   <AppField
