@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AppStringSelect } from '../base-ui';
 import { useIntentStore } from '../../store/intentStore';
@@ -25,7 +25,8 @@ const APCA_LEVELS: { key: ApcaLevel; label: string; sub: string }[] = [
   { key: 'lc45', label: 'Lc 45+', sub: '|Lc| ≥ 45' },
 ];
 
-const COLS = 7;
+const MIN_CARD_WIDTH = 140;
+const MAX_COLS = 7;
 const ROW_HEIGHT = 120;
 const ROW_GAP = 8;
 
@@ -206,6 +207,21 @@ export function AccessibleCombos() {
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<WcagMapEntry | ApcaMapEntry | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState(MAX_COLS);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width;
+      // floor((W + gap) / (minCard + gap)) keeps each track ≥ minCard while collapsing gracefully.
+      const next = Math.max(1, Math.min(MAX_COLS, Math.floor((width + ROW_GAP) / (MIN_CARD_WIDTH + ROW_GAP))));
+      setCols(next);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const rampMap = useMemo(() => {
     const map = new Map<string, GeneratedRamp>();
@@ -280,13 +296,14 @@ export function AccessibleCombos() {
     ? WCAG_LEVELS.find((l) => l.key === wcagLevel)!
     : APCA_LEVELS.find((l) => l.key === apcaLevel)!;
 
-  const rowCount = Math.ceil(entries.length / COLS);
+  const rowCount = Math.ceil(entries.length / cols);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT + ROW_GAP,
     overscan: 5,
+    getItemKey: (index) => `${cols}:${index}`,
   });
 
   return (
@@ -341,6 +358,7 @@ export function AccessibleCombos() {
           </span>
         </div>
 
+        <div ref={gridRef}>
         {entries.length === 0 ? (
           <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', padding: '4px 0' }}>
             No pairs match these filters
@@ -348,8 +366,8 @@ export function AccessibleCombos() {
         ) : (
           <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
             {rowVirtualizer.getVirtualItems().map((vRow) => {
-              const startIdx = vRow.index * COLS;
-              const rowEntries = entries.slice(startIdx, startIdx + COLS);
+              const startIdx = vRow.index * cols;
+              const rowEntries = entries.slice(startIdx, startIdx + cols);
               return (
                 <div
                   key={vRow.index}
@@ -360,7 +378,7 @@ export function AccessibleCombos() {
                     right: 0,
                     height: ROW_HEIGHT,
                     display: 'grid',
-                    gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     gap: ROW_GAP,
                   }}
                 >
@@ -376,6 +394,7 @@ export function AccessibleCombos() {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {selectedEntry && (
