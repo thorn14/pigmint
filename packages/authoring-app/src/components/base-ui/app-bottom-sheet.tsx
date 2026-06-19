@@ -1,19 +1,30 @@
-import { Drawer } from 'vaul';
+import { Dialog } from '@base-ui/react/dialog';
+import { useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
-const overlayStyle: CSSProperties = {
+const backdropStyle: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  minHeight: '100dvh',
+  zIndex: 50,
+  background: 'rgba(0,0,0,0.5)',
+  touchAction: 'none',
+};
+
+const viewportStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
   zIndex: 50,
-  background: 'rgba(0,0,0,0.5)',
+  pointerEvents: 'none' as const,
+  overscrollBehavior: 'contain',
 };
 
-const contentStyle: CSSProperties = {
+const popupStyle: CSSProperties = {
+  pointerEvents: 'auto' as const,
   position: 'fixed',
   left: 0,
   right: 0,
   bottom: 0,
-  zIndex: 50,
   display: 'flex',
   flexDirection: 'column',
   background: 'var(--p-bg)',
@@ -21,8 +32,10 @@ const contentStyle: CSSProperties = {
   borderTopRightRadius: 12,
   borderTop: '1px solid var(--p-border)',
   boxShadow: '0 -8px 32px rgba(0,0,0,0.25)',
-  outline: 'none',
   maxHeight: '75dvh',
+  minHeight: 0,
+  minWidth: 0,
+  overflow: 'hidden',
 };
 
 const handleStyle: CSSProperties = {
@@ -40,29 +53,33 @@ type Props = {
 };
 
 /**
- * Bottom-anchored sheet built on vaul. Mounted only while open by the parent,
- * mirroring AppDrawer's pattern. Use ResponsivePanel to swap between this and
- * AppDrawer based on viewport width.
+ * Bottom-anchored sheet using Base UI Dialog. Mounted only while open by the
+ * parent — mirrors AppDrawer's pattern. Slides up via the `.app-bottom-sheet-popup`
+ * data-state CSS in index.css. No drag-to-dismiss; close via backdrop tap, Escape,
+ * or an explicit close button.
  */
 export function AppBottomSheet({ children, onOpenChange }: Props) {
+  const popupRef = useRef<HTMLDivElement>(null);
   return (
-    <Drawer.Root open onOpenChange={onOpenChange} handleOnly modal={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay style={overlayStyle} />
-        <Drawer.Content
-          style={contentStyle}
-          aria-describedby={undefined}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <Drawer.Handle style={handleStyle} />
-          <Drawer.Title style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>
-            Panel
-          </Drawer.Title>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {children}
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+    <Dialog.Root open onOpenChange={onOpenChange} modal>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="app-dialog-backdrop" style={backdropStyle} />
+        <Dialog.Viewport style={viewportStyle}>
+          <Dialog.Popup
+            ref={popupRef}
+            tabIndex={-1}
+            className="app-bottom-sheet-popup focus-visible-ring"
+            style={popupStyle}
+            initialFocus={popupRef}
+            finalFocus={true}
+          >
+            <div style={handleStyle} aria-hidden="true" />
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {children}
+            </div>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -5,7 +5,7 @@ const backdropStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
   minHeight: '100dvh',
-  zIndex: 50,
+  zIndex: 1000,
   background: 'rgba(0,0,0,0.5)',
   touchAction: 'none',
 };
@@ -13,7 +13,7 @@ const backdropStyle: CSSProperties = {
 const viewportStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
-  zIndex: 50,
+  zIndex: 1000,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
