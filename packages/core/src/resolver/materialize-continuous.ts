@@ -11,7 +11,7 @@ const QUANTA_MAX = 1000;
 /**
  * F1: When continuous resolver picks a dense index between named steps, the DTCG alias
  * used to point at the nearest *named* step while the actual oklch differed. This pass
- * synthesizes a real primitive per quantized position and rewrites `nearestPrimitive`.
+ * synthesizes a real primitive per quantized position (named `c0` … `c1000`) and rewrites `nearestPrimitive`.
  */
 export function shouldMaterializeContinuous(config: ProjectConfig): boolean {
   const r = config.engine.resolver;
@@ -25,7 +25,7 @@ export function positionQuantaKey(position: number): number {
 }
 
 export function materializedStepNameForQuanta(q: number): string {
-  return `${NAME_PREFIX}${String(q).padStart(4, '0')}`;
+  return `${NAME_PREFIX}${q}`;
 }
 
 /**
@@ -126,7 +126,7 @@ export function materializeContinuousRamps(
     const baseRamp = rampByName.get(t.source.ramp);
     if (!baseRamp) return t;
 
-    if (ref.step.startsWith(NAME_PREFIX) && /^\d{4}$/.test(ref.step.slice(1))) {
+    if (ref.step.startsWith(NAME_PREFIX) && /^\d+$/.test(ref.step.slice(1))) {
       const st = baseRamp.steps.find((s) => s.name === ref.step);
       if (st && st.hex.toLowerCase() === t.hex.toLowerCase()) return t;
     }

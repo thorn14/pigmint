@@ -29,10 +29,10 @@ const TAB_SPECS: readonly TabSpec[] = [
   {
     id: 'colors',
     label: 'Colors',
-    filename: 'colors.json',
+    filename: 'primitives.json',
     mimeType: 'application/json',
     description:
-      'Primitive color ramps in W3C Design Tokens format. One group per scale, with hex and display-p3 values for every step. Use this when you want the raw color values without semantic tokens.',
+      'Primitive color ramps in W3C Design Tokens format. One group per scale, with hex and display-p3 values for every step plus the OKLCH source in `$extensions.oklch`. Use this when you want the raw color values without semantic tokens.',
   },
   {
     id: 'tokens-yaml',

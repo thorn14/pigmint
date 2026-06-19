@@ -227,8 +227,8 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     expect(contSnap).toBeGreaterThan(1e-6);
     expect(contBtn.contrast?.wcag21 ?? 0).toBeGreaterThanOrEqual(3);
 
-    // F1: off-grid continuous picks get `c0000`–`c1000` primitives, not the nearest 11-step name.
-    expect(contBtn.source.nearestPrimitive).toMatch(/^blue\.c\d{4}$/);
+    // F1: off-grid continuous picks get `c0`–`c1000` primitives, not the nearest 11-step name.
+    expect(contBtn.source.nearestPrimitive).toMatch(/^blue\.c\d+$/);
     const blueRamp = continuous.ramps.find((r) => r.scaleName === 'blue')!;
     const stepName = contBtn.source.nearestPrimitive?.split('.').pop();
     const step = blueRamp.steps.find((s) => s.name === stepName);

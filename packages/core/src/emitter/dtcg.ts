@@ -30,9 +30,14 @@ export interface PrimitiveRamp {
   [step: string]: PrimitiveToken | 'color';
 }
 
+export interface PrimitiveTokenExtensions {
+  oklch?: { l: number; c: number; h: number; alpha?: number };
+}
+
 export interface PrimitiveToken {
   $value: DtcgColorValue;
   $description?: string;
+  $extensions?: PrimitiveTokenExtensions;
 }
 
 export interface DtcgColorValue {
@@ -94,12 +99,26 @@ function primitiveValue(step: GeneratedStep): DtcgColorValue {
   };
 }
 
+function buildOklchExtension(step: GeneratedStep): { l: number; c: number; h: number; alpha?: number } {
+  const { l, c, h, alpha } = step.oklch;
+  const out: { l: number; c: number; h: number; alpha?: number } = {
+    l: round6(l),
+    c: round6(c),
+    h: round6(h),
+  };
+  if (alpha !== undefined && alpha < 1) out.alpha = round4(alpha);
+  return out;
+}
+
 function buildPrimitives(ramps: GeneratedRamp[]): Record<string, PrimitiveRamp> {
   const out: Record<string, PrimitiveRamp> = {};
   for (const ramp of ramps) {
     const group: PrimitiveRamp = { $type: 'color' };
     for (const step of ramp.steps) {
-      group[step.name] = { $value: primitiveValue(step) };
+      group[step.name] = {
+        $value: primitiveValue(step),
+        $extensions: { oklch: buildOklchExtension(step) },
+      };
     }
     out[ramp.scaleName] = group;
   }
@@ -290,4 +309,8 @@ export function emitDtcg(input: EmitInput): DtcgContainer {
 
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
+}
+
+function round6(n: number): number {
+  return Math.round(n * 1000000) / 1000000;
 }

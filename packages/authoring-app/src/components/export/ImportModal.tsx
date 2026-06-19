@@ -29,7 +29,7 @@ const TAB_SPECS: readonly TabSpec[] = [
   {
     id: 'colors',
     label: 'Colors',
-    filename: 'colors.json',
+    filename: 'primitives.json',
     description:
       'Import primitive color ramps from a W3C Design Tokens JSON file (also accepts Figma Variables and lukasoppermann/design-tokens formats). Each top-level group becomes a scale.',
   },

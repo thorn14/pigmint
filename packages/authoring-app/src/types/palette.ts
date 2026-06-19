@@ -62,5 +62,9 @@ export interface W3CTokenValue {
   $value: W3CColorValue;
   $type?: 'color';
   $description?: string;
+  $extensions?: {
+    oklch?: { l: number; c: number; h: number; alpha?: number };
+    [k: string]: unknown;
+  };
 }
 export type W3CTokenGroup = { [k: string]: W3CTokenValue | W3CTokenGroup };

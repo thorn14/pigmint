@@ -49,7 +49,7 @@ export interface ResolveAllInput {
 
 export interface ResolveAllOutput {
   tokens: ResolvedToken[];
-  /** Stepped ramps plus any synthesized `c0000`–`c1000` primitives (continuous + F1). */
+  /** Stepped ramps plus any synthesized `c0`–`c1000` primitives (continuous + F1). */
   ramps: GeneratedRamp[];
   surfaceByModeAndPath: Record<string, Record<string, string>>;
 }

@@ -118,7 +118,7 @@ ramps:
   #   fromFile: ./primitives.json   # or load pre-computed steps
 
 output:
-  primitives: ./primitives.json    # optional — inspect raw ramp steps
+  primitives: ./primitives.json    # optional — inspect raw ramp steps (DTCG colorSpace/components + $extensions.oklch source)
   dtcg: ./tokens.json              # full resolved token output
 
 # Optional adapter emission
@@ -154,7 +154,7 @@ engine:
 ```
 
 - `stepped` snaps every token to a real ramp step (matches Tailwind/Figma scales).
-- `continuous` lets the resolver synthesize an off-grid OKLCH triplet when no step is a perfect fit. With `materializeInterpolatedPrimitives: true` (default), the off-grid picks are emitted as additional primitives in the DTCG output so downstream adapters can reference them by name.
+- `continuous` lets the resolver synthesize an off-grid OKLCH triplet when no step is a perfect fit. With `materializeInterpolatedPrimitives: true` (default), the off-grid picks are emitted as additional primitives in the DTCG output, named `c0` through `c1000` (the unpadded quanta of the position along the ramp), so downstream adapters can reference them by name.
 
 The View → Resolver toggle in the authoring app is bound to this field.
 

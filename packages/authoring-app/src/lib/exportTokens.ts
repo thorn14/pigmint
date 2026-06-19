@@ -35,6 +35,21 @@ function buildColorValue(step: GeneratedStep): W3CColorValue {
   return value;
 }
 
+function round6(v: number): number {
+  return parseFloat(v.toFixed(6));
+}
+
+function buildOklchExtension(step: GeneratedStep): { l: number; c: number; h: number; alpha?: number } {
+  const { l, c, h, alpha } = step.oklch;
+  const out: { l: number; c: number; h: number; alpha?: number } = {
+    l: round6(l),
+    c: round6(c),
+    h: round6(h),
+  };
+  if (alpha !== undefined && alpha < 1) out.alpha = parseFloat(alpha.toFixed(4));
+  return out;
+}
+
 export function exportToW3CTokens(ramps: GeneratedRamp[]): W3CTokenGroup {
   const root: W3CTokenGroup = {};
   // Track emitted group keys so scales with duplicate *canonical* names don't
@@ -49,6 +64,7 @@ export function exportToW3CTokens(ramps: GeneratedRamp[]): W3CTokenGroup {
     for (const step of ramp.steps) {
       const token: W3CTokenValue = {
         $value: buildColorValue(step),
+        $extensions: { oklch: buildOklchExtension(step) },
       };
       group[step.name] = token;
     }

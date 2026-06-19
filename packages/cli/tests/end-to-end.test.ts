@@ -41,7 +41,15 @@ describe('end-to-end: primitives-only build via CLI', () => {
     expect(Object.keys(primitives).sort()).toEqual(['blue', 'neutral']);
     const blue = primitives.blue as Record<string, unknown>;
     expect(blue.$type).toBe('color');
-    expect((blue['500'] as { $value: unknown }).$value).toBeDefined();
+    const blue500 = blue['500'] as { $value: Record<string, unknown>; $extensions?: Record<string, unknown> };
+    expect(blue500.$value).toBeDefined();
+    expect(blue500.$value.colorSpace).toMatch(/^(srgb|display-p3)$/);
+    expect(Array.isArray(blue500.$value.components)).toBe(true);
+    const oklch = blue500.$extensions?.oklch as { l: number; c: number; h: number } | undefined;
+    expect(oklch).toBeDefined();
+    expect(typeof oklch!.l).toBe('number');
+    expect(typeof oklch!.c).toBe('number');
+    expect(typeof oklch!.h).toBe('number');
   });
 });
 

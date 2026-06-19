@@ -69,7 +69,7 @@ engine:
   resolver:
     mode: continuous                       # "stepped" (default) | "continuous"
     fallbackSteps: 11                      # ≥ 2; used when mode: continuous
-    materializeInterpolatedPrimitives: true # emit synthesized off-grid primitives in DTCG
+    materializeInterpolatedPrimitives: true # emit synthesized off-grid primitives in DTCG (named c0…c1000)
 
 defaults:
   vocabulary: ./tokens.yaml
@@ -326,7 +326,7 @@ pigmint build --config ./path/to/pigmint.yaml
 
 # Outputs:
 #   tokens.json       — DTCG token file with receipts (the main artifact)
-#   primitives.json   — raw ramp steps (if output.primitives is set)
+#   primitives.json   — raw ramp steps (if output.primitives is set); each $value is DTCG-compliant (colorSpace/components/hex) with the OKLCH source mirrored in $extensions.oklch
 #   Any adapter outputs declared in adapters:
 ```
 
