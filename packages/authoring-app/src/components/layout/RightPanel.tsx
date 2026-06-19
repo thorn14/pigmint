@@ -3,7 +3,7 @@ import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { formatCss } from 'culori';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
+import { getContrast, getApcaContrast, sourceWithChromaToHex, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { canonicalScaleName } from '../../lib/scaleNaming';
 import { AppField, AppSlider, ConfirmDialog } from '../base-ui';
@@ -428,9 +428,8 @@ export function RightPanel({ scale, activeStep }: Props) {
           ] as const;
           return (
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              {ends.map(({ key, label, stepHue }) => {
+              {ends.map(({ key, label }) => {
                 const adjust = scale.hueShift[key];
-                const autoBase = Math.round(autoHueShiftBase(stepHue));
                 const endId = key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId;
                 return (
                   <AppField
