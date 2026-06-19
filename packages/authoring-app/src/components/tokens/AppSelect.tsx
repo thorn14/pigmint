@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { getRelativeLuminance } from '../../lib/colorMath';
 
 export type AppSelectOption = {
   value: string;
@@ -12,6 +13,14 @@ export type AppSelectOption = {
   trailing?: string;
   disabled?: boolean;
 };
+
+function pillContrast(hex: string) {
+  const light = getRelativeLuminance(hex) > 0.5;
+  return {
+    fg: light ? '#000' : '#fff',
+    pill: light ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
+  };
+}
 
 function Dot({ hex, alpha, size = 14 }: { hex?: string; alpha?: number; size?: number }) {
   if (!hex) return <span style={{ width: size, height: size, flexShrink: 0 }} />;
@@ -128,6 +137,14 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
         minWidth: 0,
       };
 
+  const colorFill = !isCompact && current?.hex !== undefined;
+  const fillStyle: React.CSSProperties | undefined = colorFill
+    ? (() => {
+        const { fg } = pillContrast(current!.hex!);
+        return { background: current!.hex, color: fg };
+      })()
+    : undefined;
+
   return (
     <div style={{ position: 'relative', minWidth: 0 }}>
       <button
@@ -136,28 +153,53 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
         disabled={disabled}
         title={title}
         onClick={() => !disabled && setOpen((v) => !v)}
-        style={{ ...baseTrigger, ...triggerStyle }}
+        style={{ ...baseTrigger, ...fillStyle, ...triggerStyle }}
       >
-        {hasSwatches && <Dot hex={current?.hex} alpha={current?.alpha} size={isCompact ? 12 : 16} />}
-        <span style={{
-          fontFamily: 'monospace',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          minWidth: 0,
-          flex: 1,
-          textAlign: 'left',
-          color: current ? 'var(--p-text)' : 'var(--p-text-tertiary)',
-        }}>
-          {current?.label ?? placeholder ?? '—'}
-        </span>
+        {hasSwatches && !colorFill && (
+          <Dot hex={current?.hex} alpha={current?.alpha} size={isCompact ? 12 : 16} />
+        )}
+        {colorFill ? (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: 6,
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: pillContrast(current!.hex!).pill,
+            color: pillContrast(current!.hex!).fg,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+            flex: '0 1 auto',
+            textAlign: 'left',
+          }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{current!.label}</span>
+            <span style={{ opacity: 0.75, paddingLeft: 8 }}>{current!.hex}</span>
+          </span>
+        ) : (
+          <span style={{
+            fontFamily: 'monospace',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+            flex: 1,
+            textAlign: 'left',
+            color: current ? 'var(--p-text)' : 'var(--p-text-tertiary)',
+          }}>
+            {current?.label ?? placeholder ?? '—'}
+          </span>
+        )}
         <svg
           width="10"
           height="6"
           viewBox="0 0 10 6"
           fill="currentColor"
           aria-hidden="true"
-          style={{ flexShrink: 0, opacity: 0.6 }}
+          style={{ flexShrink: 0, opacity: 0.6, marginLeft: 'auto' }}
         >
           <path d="M0 0h10L5 6z" />
         </svg>
@@ -189,6 +231,8 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
           {options.map((opt, i) => {
             const active = opt.value === value;
             const isDisabled = opt.disabled;
+            const optFill = opt.hex !== undefined;
+            const optContrast = optFill ? pillContrast(opt.hex!) : undefined;
             return (
               <button
                 key={opt.value}
@@ -198,30 +242,55 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px', width: '100%', textAlign: 'left',
-                  background: active ? 'var(--p-surface)' : 'transparent',
+                  background: optFill ? opt.hex : (active ? 'var(--p-surface)' : 'transparent'),
                   border: 'none',
                   borderBottom: i < options.length - 1 ? '1px solid var(--p-border)' : 'none',
                   cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  color: 'var(--p-text)', fontSize: 12,
+                  color: optContrast?.fg ?? 'var(--p-text)', fontSize: 12,
                   opacity: isDisabled ? 0.45 : 1,
                 }}
               >
-                {hasSwatches && <Dot hex={opt.hex} alpha={opt.alpha} size={18} />}
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontWeight: active ? 600 : 400,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  minWidth: 0, flex: 1,
-                }}>
-                  {opt.label}
-                </span>
-                {opt.trailing && (
+                {hasSwatches && !optFill && <Dot hex={opt.hex} alpha={opt.alpha} size={18} />}
+                {optFill ? (
                   <span style={{
-                    fontSize: 10, color: 'var(--p-text-secondary)',
-                    fontFamily: 'monospace', marginLeft: 'auto', flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    gap: 6,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    background: optContrast!.pill,
+                    color: optContrast!.fg,
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    fontWeight: active ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    flex: '0 1 auto',
                   }}>
-                    {opt.trailing}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{opt.label}</span>
+                    <span style={{ opacity: 0.75, paddingLeft: 8 }}>{opt.trailing ?? opt.hex}</span>
                   </span>
+                ) : (
+                  <>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontWeight: active ? 600 : 400,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      minWidth: 0, flex: 1,
+                    }}>
+                      {opt.label}
+                    </span>
+                    {opt.trailing && (
+                      <span style={{
+                        fontSize: 10, color: 'var(--p-text-secondary)',
+                        fontFamily: 'monospace', marginLeft: 'auto', flexShrink: 0,
+                      }}>
+                        {opt.trailing}
+                      </span>
+                    )}
+                  </>
                 )}
               </button>
             );

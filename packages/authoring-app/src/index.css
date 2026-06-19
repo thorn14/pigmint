@@ -25,10 +25,11 @@ body {
 :root {
   /* Foundation — pure literals, flipped per theme */
   --p-bg: #ffffff;
+  --p-bg-glass: rgba(255, 255, 255, 0.75);
   --p-text: #000000;
   /* Grays — overlay form of pure black on white */
   --p-surface: rgba(0, 0, 0, 0.05);
-  --p-border: rgba(0, 0, 0, 0.18);
+  --p-border: rgba(0, 0, 0, 0.08);
   --p-text-secondary: rgba(0, 0, 0, 0.6);
   --p-text-tertiary: rgba(0, 0, 0, 0.4);
   /* Semantic — solid */
@@ -44,9 +45,10 @@ body {
 [data-theme="dark"] {
   color-scheme: dark;
   --p-bg: #000000;
+  --p-bg-glass: rgba(0, 0, 0, 0.75);
   --p-text: #ffffff;
   --p-surface: rgba(255, 255, 255, 0.08);
-  --p-border: rgba(255, 255, 255, 0.18);
+  --p-border: rgba(255, 255, 255, 0.08);
   --p-text-secondary: rgba(255, 255, 255, 0.6);
   --p-text-tertiary: rgba(255, 255, 255, 0.4);
   --p-accent: #6b7280;
@@ -78,11 +80,6 @@ input[type="color"].p-color-input::-webkit-color-swatch {
 input[type="color"].p-color-input::-moz-color-swatch {
   border: none;
   border-radius: inherit;
-}
-
-input[type="range"][style*="writing-mode"] {
-  appearance: slider-vertical;
-  -webkit-appearance: slider-vertical;
 }
 
 /* Horizontal `range`: explicit track fill so dark theme doesn’t get a default bright track. */
@@ -342,6 +339,11 @@ input[type="submit"]:not(:disabled):active {
   touch-action: none;
   user-select: none;
   padding-block: 14px;
+}
+
+.app-slider-root:not(.app-slider-root-vertical) {
+  padding-inline: 9px;
+  box-sizing: border-box;
 }
 
 .app-slider-root-vertical .app-slider-control {

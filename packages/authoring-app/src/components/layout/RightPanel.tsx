@@ -515,9 +515,6 @@ export function RightPanel({ scale, activeStep }: Props) {
                       >
                         +
                       </button>
-                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', whiteSpace: 'nowrap' }}>
-                        = {effectiveDeg}°
-                      </span>
                     </div>
                   </AppField>
                 );

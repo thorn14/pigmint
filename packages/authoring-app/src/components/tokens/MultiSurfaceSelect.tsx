@@ -2,6 +2,15 @@ import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GeneratedRamp, PortableSurfaceToken } from '@pigmint/core';
 import { surfaceHex } from './tokenOptions';
+import { getRelativeLuminance } from '../../lib/colorMath';
+
+function pillContrast(hex: string) {
+  const light = getRelativeLuminance(hex) > 0.5;
+  return {
+    fg: light ? '#000' : '#fff',
+    pill: light ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
+  };
+}
 
 function Dot({ hex, size = 14 }: { hex?: string; size?: number }) {
   if (!hex) return <span style={{ width: size, height: size, flexShrink: 0 }} />;
@@ -129,6 +138,12 @@ export function MultiSurfaceSelect({
         minWidth: 0,
       };
 
+  const colorFill = !isCompact && primaryHex !== undefined;
+  const fill = colorFill ? pillContrast(primaryHex!) : undefined;
+  const fillStyle: React.CSSProperties | undefined = fill
+    ? { background: primaryHex, color: fill.fg }
+    : undefined;
+
   return (
     <div style={{ position: 'relative', minWidth: 0 }}>
       <button
@@ -136,22 +151,54 @@ export function MultiSurfaceSelect({
         type="button"
         title={title ?? (selected.length > 1 ? selected.join(', ') : undefined)}
         onClick={() => setOpen((v) => !v)}
-        style={baseTrigger}
+        style={{ ...baseTrigger, ...fillStyle }}
       >
-        <Dot hex={primaryHex} size={isCompact ? 12 : 16} />
-        <span style={{
-          fontFamily: 'monospace',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          minWidth: 0,
-          flex: 1,
-          textAlign: 'left',
-          color: selected.length > 0 ? 'var(--p-text)' : 'var(--p-text-tertiary)',
-        }}>
-          {triggerLabel}
-        </span>
-        <span style={{ opacity: 0.4, fontSize: 9, flexShrink: 0 }}>▾</span>
+        {!colorFill && <Dot hex={primaryHex} size={isCompact ? 12 : 16} />}
+        {colorFill ? (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: 6,
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: fill!.pill,
+            color: fill!.fg,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+            flex: '0 1 auto',
+            textAlign: 'left',
+          }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{triggerLabel}</span>
+            <span style={{ opacity: 0.75, paddingLeft: 8 }}>{primaryHex}</span>
+          </span>
+        ) : (
+          <span style={{
+            fontFamily: 'monospace',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+            flex: 1,
+            textAlign: 'left',
+            color: selected.length > 0 ? 'var(--p-text)' : 'var(--p-text-tertiary)',
+          }}>
+            {triggerLabel}
+          </span>
+        )}
+        <svg
+          width="10"
+          height="6"
+          viewBox="0 0 10 6"
+          fill="currentColor"
+          aria-hidden="true"
+          style={{ flexShrink: 0, opacity: 0.6, marginLeft: 'auto' }}
+        >
+          <path d="M0 0h10L5 6z" />
+        </svg>
       </button>
 
       {open && createPortal(
@@ -177,23 +224,13 @@ export function MultiSurfaceSelect({
               No surfaces
             </div>
           )}
-          {surfaceNames.length > 0 && (
-            <div style={{
-              padding: '6px 10px',
-              fontSize: 10,
-              color: 'var(--p-text-tertiary)',
-              textTransform: 'uppercase' as const,
-              letterSpacing: '0.05em',
-              borderBottom: '1px solid var(--p-border)',
-            }}>
-              First selected = primary contrast surface
-            </div>
-          )}
           {surfaceNames.map((name, i) => {
             const checked = selected.includes(name);
             const order = checked ? selected.indexOf(name) + 1 : 0;
             const isLastRequired = checked && selected.length <= requireMin;
             const hex = surfaceHex(surfaces[name], rampMap);
+            const optFill = hex !== undefined;
+            const optContrast = optFill ? pillContrast(hex!) : undefined;
             return (
               <button
                 key={name}
@@ -204,39 +241,53 @@ export function MultiSurfaceSelect({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px', width: '100%', textAlign: 'left',
-                  background: checked ? 'var(--p-surface)' : 'transparent',
+                  background: optFill ? hex : (checked ? 'var(--p-surface)' : 'transparent'),
                   border: 'none',
                   borderBottom: i < surfaceNames.length - 1 ? '1px solid var(--p-border)' : 'none',
                   cursor: isLastRequired ? 'not-allowed' : 'pointer',
-                  color: 'var(--p-text)', fontSize: 12,
+                  color: optContrast?.fg ?? 'var(--p-text)', fontSize: 12,
                   opacity: isLastRequired ? 0.7 : 1,
                 }}
               >
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   width: 16, height: 16, flexShrink: 0,
-                  border: '1px solid ' + (checked ? 'var(--p-accent, #6366f1)' : 'var(--p-border)'),
+                  border: '1px solid ' + (checked ? 'var(--p-accent, #6366f1)' : (optContrast ? optContrast.fg : 'var(--p-border)')),
                   borderRadius: 3,
                   background: checked ? 'var(--p-accent, #6366f1)' : 'transparent',
                   color: '#fff', fontSize: 9, fontWeight: 700,
                 }}>
                   {checked ? (order === 1 ? '★' : order) : ''}
                 </span>
-                <Dot hex={hex} size={18} />
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontWeight: checked ? 600 : 400,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  minWidth: 0, flex: 1,
-                }}>
-                  {name}
-                </span>
-                {hex && (
+                {optFill ? (
                   <span style={{
-                    fontSize: 10, color: 'var(--p-text-secondary)',
-                    fontFamily: 'monospace', marginLeft: 'auto', flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    gap: 6,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    background: optContrast!.pill,
+                    color: optContrast!.fg,
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    fontWeight: checked ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    flex: '0 1 auto',
                   }}>
-                    {hex}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                    <span style={{ opacity: 0.75, paddingLeft: 8 }}>{hex}</span>
+                  </span>
+                ) : (
+                  <span style={{
+                    fontFamily: 'monospace',
+                    fontWeight: checked ? 600 : 400,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    minWidth: 0, flex: 1,
+                  }}>
+                    {name}
                   </span>
                 )}
               </button>
