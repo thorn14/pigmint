@@ -91,6 +91,28 @@ describe('vocabStore renames', () => {
     expect(v.alpha?.wash?.baseRamp).toBe('slate');
   });
 
+  it('renameRamp ignores empty names so base refs are never corrupted', () => {
+    const vocab: PortableVocabulary = {
+      surfaces: { page: { ramp: 'gray', step: 0 } },
+      foreground: { text: { ramp: 'gray', surfaces: ['page'], preference: 'lowest-passing' } },
+      nonText: {},
+      alpha: { scrim: { base: '{color.primitive.gray.900}', value: 0.4, referenceSurface: 'page' } },
+    };
+    useVocabStore.getState().clear();
+    useVocabStore.getState().loadFromVocab(vocab, ENGINE);
+    // Clearing the name field mid-edit must not rewrite refs to an empty ramp.
+    useVocabStore.getState().renameRamp('gray', '', ENGINE);
+    useVocabStore.getState().renameRamp('', 'slate', ENGINE);
+    let v = useVocabStore.getState().raw!;
+    expect(v.foreground.text?.ramp).toBe('gray');
+    expect(v.alpha?.scrim?.base).toBe('{color.primitive.gray.900}');
+    // A real (non-empty) rename afterwards still works end-to-end.
+    useVocabStore.getState().renameRamp('gray', 'slate', ENGINE);
+    v = useVocabStore.getState().raw!;
+    expect(v.foreground.text?.ramp).toBe('slate');
+    expect(v.alpha?.scrim?.base).toBe('{color.primitive.slate.900}');
+  });
+
   it('renameRamp is a no-op when old === new', () => {
     useVocabStore.getState().renameRamp('gray', 'gray', ENGINE);
     const v = useVocabStore.getState().raw!;

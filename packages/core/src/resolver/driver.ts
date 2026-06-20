@@ -251,6 +251,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
           referenceSurfacePath: refSurfacePath,
           surfaceHex,
           surfaceRef,
+          exempt: Boolean(entry.decorative),
         },
         ramps,
       );
@@ -305,6 +306,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         surfaceRef: it.context.surfaceRef,
         thresholdElevation: binding.thresholdElevation,
         ...(it.context.denseRamp ? { denseRamp: it.context.denseRamp } : {}),
+        exempt: Boolean(it.context.entry.decorative),
       });
       resolvedByPath.set(it.path, applyDecorativeExemption(it.context.entry, token));
     }

@@ -195,6 +195,11 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
 
     renameRamp(oldName, newName, engineConfig) {
       if (oldName === newName) return;
+      // Never remap to/from an empty name: an empty `newName` would rewrite alpha
+      // base refs to `{color.primitive..900}`, which can no longer be matched and
+      // so is unrepairable by later keystrokes. The Scale-name field withholds
+      // empty values, but guard here too as the single safe entry point.
+      if (oldName.trim() === '' || newName.trim() === '') return;
       // Reuse the same ramp-rewriting the ramp-deletion path uses; a rename is a
       // single old→new remap. Case-insensitive, covers ramp/baseRamp/base refs.
       set(applyMutation(get().raw, (v) => remapPortableVocabularyRamps(v, [oldName], newName), engineConfig));
