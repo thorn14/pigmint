@@ -17,6 +17,7 @@ import {
   type AlphaPref,
 } from './tokenShared';
 import { AppSelect, type AppSelectOption } from './AppSelect';
+import { ContrastInput } from './ContrastInput';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
 import { ResponsivePanel, ConfirmDialog } from '../base-ui';
 import {
@@ -433,15 +434,11 @@ function SemanticFields({
       {token.decorative ? (
         <div style={field}>
           <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
-          <input
-            type="number"
-            min={bounds.min} max={bounds.max} step={bounds.step}
+          <ContrastInput
+            bounds={bounds}
             style={inp}
             value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              if (Number.isFinite(v)) updateToken(section, name, { targetContrast: v }, ec());
-            }}
+            onCommit={(v) => updateToken(section, name, { targetContrast: v }, ec())}
           />
         </div>
       ) : (
@@ -457,15 +454,11 @@ function SemanticFields({
           {token.preference === 'preferred-contrast' ? (
             <div style={field}>
               <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
-              <input
-                type="number"
-                min={bounds.min} max={bounds.max} step={bounds.step}
+              <ContrastInput
+                bounds={bounds}
                 style={inp}
                 value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (Number.isFinite(v)) updateToken(section, name, { targetContrast: v }, ec());
-                }}
+                onCommit={(v) => updateToken(section, name, { targetContrast: v }, ec())}
               />
             </div>
           ) : (
@@ -676,15 +669,11 @@ function AlphaFields({
           {token.decorative ? (
             <div style={field}>
               <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
-              <input
-                type="number"
-                min={bounds.min} max={bounds.max} step={bounds.step}
+              <ContrastInput
+                bounds={bounds}
                 style={inp}
                 value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (Number.isFinite(v)) updateAlpha(name, { targetContrast: v }, ec());
-                }}
+                onCommit={(v) => updateAlpha(name, { targetContrast: v }, ec())}
               />
             </div>
           ) : (
@@ -700,15 +689,11 @@ function AlphaFields({
               {token.preference === 'preferred-contrast' && (
                 <div style={field}>
                   <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
-                  <input
-                    type="number"
-                    min={bounds.min} max={bounds.max} step={bounds.step}
+                  <ContrastInput
+                    bounds={bounds}
                     style={inp}
                     value={token.targetContrast ?? (compliance === 'apca' ? 60 : 5)}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (Number.isFinite(v)) updateAlpha(name, { targetContrast: v }, ec());
-                    }}
+                    onCommit={(v) => updateAlpha(name, { targetContrast: v }, ec())}
                   />
                 </div>
               )}

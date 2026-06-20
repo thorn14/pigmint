@@ -24,6 +24,8 @@ export interface ResolveInput {
   surfaceRef: string;
   thresholdElevation?: ThresholdElevation;
   denseRamp?: GeneratedRamp;
+  /** Decorative tokens skip the a11y floor, so preferred-contrast pins to the target. */
+  exempt?: boolean;
 }
 
 export interface ResolveResult {
@@ -233,9 +235,12 @@ export function pickStepPreferredContrast(
   threshold: Threshold,
   target: number,
   elevate?: ThresholdElevation,
+  exempt = false,
 ): { index: number; ratio: number } | null {
   const kind = threshold.kind;
-  const required = passThreshold(threshold, elevate);
+  // Decorative tokens skip the a11y check, so every step counts as "passing" and
+  // the pick is simply the step closest to the target (no compliance floor).
+  const required = exempt ? -Infinity : passThreshold(threshold, elevate);
   let bestPassing: { index: number; ratio: number; dist: number } | null = null;
   let bestAny: { index: number; ratio: number; dist: number } | null = null;
   for (let i = 0; i < ramp.steps.length; i++) {
@@ -487,7 +492,7 @@ export function makeResolveResultFromPicked(
 }
 
 export function resolveToken(input: ResolveInput): ResolveResult {
-  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp } = input;
+  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp, exempt } = input;
 
   if (intent.consistency !== 'independent') {
     throw new ResolveError(
@@ -524,7 +529,7 @@ export function resolveToken(input: ResolveInput): ResolveResult {
         tokenPath,
       );
     }
-    picked = pickStepPreferredContrast(pickRamp, surfaceHex, intent.threshold, target, thresholdElevation);
+    picked = pickStepPreferredContrast(pickRamp, surfaceHex, intent.threshold, target, thresholdElevation, exempt);
   } else if (intent.preference === 'anchored') {
     const anchor = intent.constraints?.anchor;
     if (typeof anchor !== 'number' || !Number.isFinite(anchor)) {

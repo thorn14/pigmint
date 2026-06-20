@@ -69,6 +69,23 @@ describe('pickStepPreferredContrast', () => {
     expect(got!.ratio).toBeCloseTo(max, 5);
   });
 
+  it('exempt mode (decorative) ignores the floor and pins to a sub-threshold target', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    const surface = '#ffffff';
+    const target = 2; // below the AA text floor (4.5)
+    const exemptPick = pickStepPreferredContrast(blue, surface, aaTextWcag, target, undefined, true);
+    const flooredPick = pickStepPreferredContrast(blue, surface, aaTextWcag, target, undefined, false);
+    expect(exemptPick).not.toBeNull();
+    // Exempt pick is the step closest to the target across ALL steps (no floor).
+    for (const step of blue.steps) {
+      const r = getWcagContrast(step.hex, surface).ratio;
+      expect(Math.abs(exemptPick!.ratio - target)).toBeLessThanOrEqual(Math.abs(r - target) + 1e-9);
+    }
+    // It lands below the floor, whereas the normal (floored) pick stays compliant.
+    expect(exemptPick!.ratio).toBeLessThan(4.5);
+    expect(flooredPick!.ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('falls back to the closest non-passing step when nothing meets the threshold', () => {
     // White-on-white: no step can pass AA text contrast against white
     const grayish = makeRamp('#f5f5f5', 'gray');
@@ -100,6 +117,29 @@ describe('resolveToken with preferred-contrast preference', () => {
     expect(token.contrast?.wcag21).toBeDefined();
     // Ratio should be close to 6 (within roughly the ramp's step granularity).
     expect(Math.abs((token.contrast!.wcag21 ?? 0) - 6)).toBeLessThan(3);
+  });
+
+  it('resolves below the floor when exempt (decorative pins to the target)', () => {
+    const blue = makeRamp('#3366cc', 'blue');
+    const intent: FormalIntent = {
+      threshold: aaTextWcag,
+      preference: 'preferred-contrast',
+      consistency: 'independent',
+      surfaceContext: 'primary',
+      constraints: { targetContrast: 2 },
+    };
+    const { token } = resolveToken({
+      tokenPath: 'color.decorative.x',
+      mode: 'light',
+      intent,
+      ramp: blue,
+      surfaceHex: '#ffffff',
+      surfaceRef: '{color.surface.main.bg}',
+      exempt: true,
+    });
+    // Without exempt this would floor at ~4.6; with exempt it pins near the target.
+    expect(token.contrast?.wcag21).toBeLessThan(4.5);
+    expect(Math.abs((token.contrast!.wcag21 ?? 0) - 2)).toBeLessThan(2);
   });
 
   it('throws when targetContrast is missing', () => {

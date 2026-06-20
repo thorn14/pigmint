@@ -112,6 +112,24 @@ function pushHistory(state: any) {
   state._future = [];
 }
 
+/**
+ * Token ramp refs follow scale names (rewritten live on rename), but the vocab
+ * lives in a separate store that undo/redo don't snapshot. After a scales swap,
+ * realign ramp refs to the restored names so tokens stay connected. Only ramps
+ * whose name actually changed are touched, leaving unrelated vocab edits intact.
+ */
+function reconcileVocabRampNames(prevNames: Map<string, string>, nextScales: ColorScale[]) {
+  const is = useIntentStore.getState();
+  const cfg = { compliance: is.engineCompliance, target: is.engineTarget, modes: is.engineModes };
+  const vocab = useVocabStore.getState();
+  for (const s of nextScales) {
+    const prev = prevNames.get(s.id);
+    if (prev !== undefined && prev !== s.name) {
+      vocab.renameRamp(prev, s.name, cfg);
+    }
+  }
+}
+
 const DEFAULT_HEX = '#1894f8';
 
 function makeDefaultScale(sourceHex: string, name?: string): ColorScale {
@@ -565,12 +583,26 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       }
     }),
 
-    updateScaleName: (id, name) => set((state) => {
-      const scale = state.scales.find((s) => s.id === id);
-      if (!scale) return;
-      pushHistory(state);
-      scale.name = name;
-    }),
+    updateScaleName: (id, name) => {
+      const oldName = usePaletteStore.getState().scales.find((s) => s.id === id)?.name;
+      if (oldName === undefined) return;
+      set((state) => {
+        const scale = state.scales.find((s) => s.id === id);
+        if (!scale) return;
+        pushHistory(state);
+        scale.name = name;
+      });
+      // Tokens reference ramps by name, so the rename must follow through to the
+      // vocab or the link breaks. Mirrors the ramp-deletion remap in removeScale.
+      if (oldName !== name) {
+        const is = useIntentStore.getState();
+        useVocabStore.getState().renameRamp(oldName, name, {
+          compliance: is.engineCompliance,
+          target: is.engineTarget,
+          modes: is.engineModes,
+        });
+      }
+    },
 
     updateStepNaming: (id, naming) => set((state) => {
       pushHistory(state);
@@ -967,35 +999,47 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       }
     }),
 
-    undo: () => set((state) => {
-      const snapshot = state._past.pop();
+    undo: () => {
+      const st = usePaletteStore.getState();
+      const snapshot = st._past[st._past.length - 1];
       if (!snapshot) return;
-      state._future.push({
-        scales: current(state.scales) as ColorScale[],
-        activeScaleId: state.activeScaleId,
-        selectedScaleIds: state.selectedScaleIds.slice(),
+      const prevNames = new Map(st.scales.map((s) => [s.id, s.name] as const));
+      set((state) => {
+        state._past.pop();
+        state._future.push({
+          scales: current(state.scales) as ColorScale[],
+          activeScaleId: state.activeScaleId,
+          selectedScaleIds: state.selectedScaleIds.slice(),
+        });
+        if (state._future.length > 100) state._future.shift();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        state.scales = snapshot.scales as any;
+        state.activeScaleId = snapshot.activeScaleId;
+        state.selectedScaleIds = snapshot.selectedScaleIds.slice();
       });
-      if (state._future.length > 100) state._future.shift();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.scales = snapshot.scales as any;
-      state.activeScaleId = snapshot.activeScaleId;
-      state.selectedScaleIds = snapshot.selectedScaleIds.slice();
-    }),
+      reconcileVocabRampNames(prevNames, snapshot.scales);
+    },
 
-    redo: () => set((state) => {
-      const snapshot = state._future.pop();
+    redo: () => {
+      const st = usePaletteStore.getState();
+      const snapshot = st._future[st._future.length - 1];
       if (!snapshot) return;
-      state._past.push({
-        scales: current(state.scales) as ColorScale[],
-        activeScaleId: state.activeScaleId,
-        selectedScaleIds: state.selectedScaleIds.slice(),
+      const prevNames = new Map(st.scales.map((s) => [s.id, s.name] as const));
+      set((state) => {
+        state._future.pop();
+        state._past.push({
+          scales: current(state.scales) as ColorScale[],
+          activeScaleId: state.activeScaleId,
+          selectedScaleIds: state.selectedScaleIds.slice(),
+        });
+        if (state._past.length > 100) state._past.shift();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        state.scales = snapshot.scales as any;
+        state.activeScaleId = snapshot.activeScaleId;
+        state.selectedScaleIds = snapshot.selectedScaleIds.slice();
       });
-      if (state._past.length > 100) state._past.shift();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.scales = snapshot.scales as any;
-      state.activeScaleId = snapshot.activeScaleId;
-      state.selectedScaleIds = snapshot.selectedScaleIds.slice();
-    }),
+      reconcileVocabRampNames(prevNames, snapshot.scales);
+    },
 
     beginCurveEdit: (scaleId: string) => set((state) => {
       void scaleId;

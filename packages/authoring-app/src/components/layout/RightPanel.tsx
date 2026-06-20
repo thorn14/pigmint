@@ -74,6 +74,22 @@ export function RightPanel({ scale, activeStep }: Props) {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // --- Name input draft ---
+  // Keep the displayed name in a local draft so clearing the field (e.g. select-all
+  // + delete before retyping) never pushes an empty name to the store. An empty name
+  // would desync token ramp refs from the scale; we only commit non-empty values and
+  // revert to the last committed name on blur.
+  const [nameDraft, setNameDraft] = useState(scale.name);
+  const nameFocused = useRef(false);
+  useEffect(() => {
+    if (!nameFocused.current) setNameDraft(scale.name);
+  }, [scale.name]);
+
+  function commitName() {
+    nameFocused.current = false;
+    if (nameDraft.trim() === '') setNameDraft(scale.name);
+  }
+
   // --- Hex input draft ---
   const [hexDraft, setHexDraft] = useState(scale.sourceHex);
   const hexFocused = useRef(false);
@@ -150,8 +166,14 @@ export function RightPanel({ scale, activeStep }: Props) {
             id={nameId}
             name="scale-name"
             type="text"
-            value={scale.name}
-            onChange={(e) => updateScaleName(scale.id, e.target.value)}
+            value={nameDraft}
+            onFocus={() => { nameFocused.current = true; }}
+            onChange={(e) => {
+              const v = e.target.value;
+              setNameDraft(v);
+              if (v.trim() !== '') updateScaleName(scale.id, v);
+            }}
+            onBlur={commitName}
             style={{
               ...inputStyle,
               ...(nameConflict ? { borderColor: 'var(--p-warning)' } : {}),

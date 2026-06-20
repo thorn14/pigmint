@@ -31,6 +31,8 @@ export interface AlphaResolveInput {
   surfaceHex?: string;
   /** For non-decorative tokens: canonical path of the contrast surface. */
   surfaceRef?: string;
+  /** Decorative tokens skip the a11y floor, so step selection ignores `passThreshold`. */
+  exempt?: boolean;
 }
 
 export interface AlphaResolveResult {
@@ -76,9 +78,12 @@ function resolveFixedAlpha(
   referenceSurfacePath: string,
   surfaceHex: string,
   surfaceRef: string,
+  exempt = false,
 ): AlphaResolveResult {
   const { threshold } = intent;
-  const required = passThreshold(threshold);
+  // Decorative tokens skip the a11y check, so every step counts as "passing" and
+  // preferred-contrast pins to the target rather than the lowest compliant step.
+  const required = exempt ? -Infinity : passThreshold(threshold);
 
   let best: { index: number; metric: number } | null = null;
 
@@ -279,7 +284,7 @@ export function resolveAlphaToken(
   input: AlphaResolveInput,
   ramps: GeneratedRamp[],
 ): AlphaResolveResult {
-  const { tokenPath, mode, usage, modifier, ramp, referenceSurfaceHex, referenceSurfacePath, surfaceHex, surfaceRef } = input;
+  const { tokenPath, mode, usage, modifier, ramp, referenceSurfaceHex, referenceSurfacePath, surfaceHex, surfaceRef, exempt } = input;
 
   const isFixedAlpha = typeof modifier.value === 'number';
   const alpha = isFixedAlpha ? (modifier.value as number) : (modifier.value as [number, number])[0]!;
@@ -296,6 +301,7 @@ export function resolveAlphaToken(
       referenceSurfacePath,
       surfaceHex,
       surfaceRef,
+      exempt,
     );
   }
 
