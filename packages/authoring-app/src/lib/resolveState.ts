@@ -53,6 +53,7 @@ export interface ResolveVocabContext {
   tokenRamp: Record<string, string>;
   surfacePaths?: Set<string>;
   surfaceSteps?: Map<string, SurfaceStepDecl>;
+  semanticSteps?: Map<string, SurfaceStepDecl>;
 }
 
 export function runResolve(
@@ -75,7 +76,7 @@ export function runResolve(
   } catch (err) {
     return { ok: false, error: `Ramp generation failed: ${(err as Error).message}` };
   }
-  const { vocabulary, tokenRamp, surfacePaths, surfaceSteps } = vocabCtx;
+  const { vocabulary, tokenRamp, surfacePaths, surfaceSteps, semanticSteps } = vocabCtx;
   if (Object.keys(tokenRamp).length === 0) {
     return { ok: false, error: 'Vocabulary has no tokens; add surfaces and foreground/nonText tokens.' };
   }
@@ -107,6 +108,7 @@ export function runResolve(
       tokenRamp: tokenRampForResolve,
       scales,
       ...(surfacePaths ? { surfacePaths, surfaceSteps } : {}),
+      ...(semanticSteps ? { semanticSteps } : {}),
     });
     return { ok: true, tokens, ramps, dtcgRamps, vocabulary };
   } catch (err) {

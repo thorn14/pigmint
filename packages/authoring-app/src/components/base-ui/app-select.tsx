@@ -112,6 +112,7 @@ export function AppStringSelect({
         <Select.Positioner
           side="bottom"
           align="start"
+          alignItemWithTrigger={false}
           sideOffset={4}
           collisionPadding={8}
           className="app-select-positioner"

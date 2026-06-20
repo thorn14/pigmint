@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
 import type { PortableSemanticToken, GeneratedRamp } from '@pigmint/core';
@@ -14,7 +14,7 @@ type FgKind = 'foreground' | 'nonText';
 // Combo-to-token only supports preferences that map cleanly to a 2-color
 // pairing — anchor/level-up etc. require additional context the dialog
 // doesn't collect.
-const PREFS: PortableSemanticToken['preference'][] = ['lowest-passing', 'highest-contrast', 'matched-to-set'];
+const PREFS: PortableSemanticToken['preference'][] = ['lowest-passing', 'highest-contrast'];
 const PREF_OPTIONS: AppSelectOption[] = PREFS.map((p) => ({ value: p, label: p }));
 const FG_KIND_OPTIONS: AppSelectOption[] = [
   { value: 'foreground', label: 'Foreground' },
@@ -125,11 +125,6 @@ export function ComboToTokenModal({
   const [error, setError] = useState('');
 
   const bgNameRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const id = setTimeout(() => bgNameRef.current?.focus(), 50);
-    return () => clearTimeout(id);
-  }, []);
 
   const contrastLabel = isWcag
     ? `${(entry as WcagMapEntry).ratio}:1`

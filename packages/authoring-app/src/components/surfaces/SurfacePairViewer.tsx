@@ -255,8 +255,9 @@ export function SurfacePairViewer() {
     : {});
   const surfacePaths = useVocabStore((s) => s.surfacePaths);
   const surfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const semanticSteps = useVocabStore((s) => s.semanticSteps);
   const vocabCtx = vocabEntries
-    ? { vocabulary: vocabEntries, tokenRamp: vocabTokenRamp, surfacePaths: surfacePaths ?? undefined, surfaceSteps: surfaceSteps ?? undefined }
+    ? { vocabulary: vocabEntries, tokenRamp: vocabTokenRamp, surfacePaths: surfacePaths ?? undefined, surfaceSteps: surfaceSteps ?? undefined, semanticSteps: semanticSteps ?? undefined }
     : null;
 
   const state = useMemo(

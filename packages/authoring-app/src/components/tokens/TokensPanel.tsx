@@ -170,10 +170,6 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
     setAlphaStep(last);
   }, [ramp, rampMap]);
 
-  useEffect(() => {
-    nameRef.current?.focus();
-  }, []);
-
   // Composite preview for alpha scrim
   const alphaRamp = rampMap.get(ramp);
   const alphaBaseHex = alphaRamp?.steps[Math.max(0, Math.min(alphaStep, (alphaRamp.steps.length ?? 1) - 1))]?.hex;
@@ -196,6 +192,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
       if (surfaceList.length === 0) { setError('At least one surface is required'); return; }
       const token: PortableSemanticToken = { ramp, surfaces: surfaceList, preference: pref, consistency: derivedConsistency(pref) };
       if (pref === 'preferred-contrast') token.targetContrast = targetContrast;
+      if (pref === 'pin-to-step') { token.lightStep = lightStep; token.darkStep = darkStep; }
       if (decorative) token.decorative = true;
       onAddSemantic(kind, n, token);
     } else if (kind === 'alpha') {
@@ -344,7 +341,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                   onChange={(p) => setPref(p as typeof pref)}
                 />
               </div>
-              {pref === 'preferred-contrast' ? (
+              {pref === 'preferred-contrast' && (
                 <div style={field}>
                   <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
                   <ContrastInput
@@ -354,19 +351,17 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                     onCommit={(v) => setTargetContrast(v)}
                   />
                 </div>
-              ) : (
-                <div style={field}>
-                  <span style={label}>Consistency</span>
-                  <span
-                    style={{
-                      ...modalInp,
-                      color: 'var(--p-text-tertiary)',
-                      cursor: 'default',
-                    }}
-                    title="Derived from preference — matched-to-set syncs across ramps; everything else is independent."
-                  >
-                    {derivedConsistency(pref)}
-                  </span>
+              )}
+              {pref === 'pin-to-step' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={field}>
+                    <span style={label}>Light step</span>
+                    <ModalStepSelect rampName={ramp} rampMap={rampMap} value={lightStep} onChange={setLightStep} />
+                  </div>
+                  <div style={field}>
+                    <span style={label}>Dark step</span>
+                    <ModalStepSelect rampName={ramp} rampMap={rampMap} value={darkStep} onChange={setDarkStep} />
+                  </div>
                 </div>
               )}
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>

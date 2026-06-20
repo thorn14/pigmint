@@ -151,6 +151,7 @@ export function ExportModal({ onClose }: Props) {
   const vocabRaw = useVocabStore((s) => s.raw);
   const surfacePaths = useVocabStore((s) => s.surfacePaths);
   const surfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const semanticSteps = useVocabStore((s) => s.semanticSteps);
 
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
@@ -178,6 +179,7 @@ export function ExportModal({ onClose }: Props) {
           ),
           surfacePaths: surfacePaths ?? undefined,
           surfaceSteps: surfaceSteps ?? undefined,
+          semanticSteps: semanticSteps ?? undefined,
         }
       : null;
     const result = buildPigmintTokensJson(
@@ -189,7 +191,7 @@ export function ExportModal({ onClose }: Props) {
       engineResolver,
     );
     return result.ok ? result.json : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
-  }, [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries, vocabRaw, surfacePaths, surfaceSteps]);
+  }, [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries, vocabRaw, surfacePaths, surfaceSteps, semanticSteps]);
 
   const pigmintYaml = useMemo(
     () =>

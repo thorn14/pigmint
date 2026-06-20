@@ -30,6 +30,7 @@ const VALID_PREFERENCES = new Set([
   'median',
   'level-up',
   'preferred-contrast',
+  'pin-to-step',
 ]);
 const VALID_CONSISTENCIES = new Set(['independent', 'matched-across-ramps', 'anchored-to-reference']);
 const VALID_LEVELS = new Set(['AA', 'AAA']);
@@ -160,6 +161,11 @@ function validateSemanticToken(
       `${section}.${name}.decorative must be a boolean`,
       filePath,
     );
+  }
+
+  if (pref === 'pin-to-step') {
+    assertNumber(raw.lightStep, `${section}.${name}.lightStep`, filePath);
+    assertNumber(raw.darkStep, `${section}.${name}.darkStep`, filePath);
   }
 
   if (pref === 'preferred-contrast') {
@@ -418,9 +424,16 @@ function deriveIntent(
   const level = (token.level ?? engineConfig.target) as ComplianceTarget;
   const consistency =
     (token.consistency as FormalIntent['consistency']) ?? 'independent';
+  // `pin-to-step` is not an engine preference — the driver picks the step by index
+  // and only uses this intent's threshold for the contrast receipt. Stash a harmless
+  // placeholder preference so the FormalIntent stays valid.
+  const preference: FormalIntent['preference'] =
+    token.preference === 'pin-to-step'
+      ? 'lowest-passing'
+      : (token.preference as FormalIntent['preference']);
   const intent: FormalIntent = {
     threshold: { kind, level, usage },
-    preference: token.preference as FormalIntent['preference'],
+    preference,
     consistency,
     surfaceContext: 'primary',
   };
@@ -553,6 +566,24 @@ export function buildSurfacePaths(vocab: PortableVocabulary): Set<string> {
   return new Set(Object.keys(vocab.surfaces));
 }
 
+/**
+ * Per-token explicit step declarations for foreground/nonText tokens pinned to a
+ * step (`preference: 'pin-to-step'`). Mirrors `buildSurfaceStepMap` so the driver can
+ * resolve them by index per scheme instead of by contrast.
+ */
+export function buildSemanticStepMap(vocab: PortableVocabulary): Map<string, SurfaceStepDecl> {
+  const map = new Map<string, SurfaceStepDecl>();
+  const collect = (tokens: Record<string, PortableSemanticToken>) => {
+    for (const [name, token] of Object.entries(tokens)) {
+      if (token.preference !== 'pin-to-step') continue;
+      map.set(name, { light: token.lightStep, dark: token.darkStep });
+    }
+  };
+  collect(vocab.foreground);
+  collect(vocab.nonText);
+  return map;
+}
+
 function rampMatchKey(name: string): string {
   return name.trim().toLowerCase() || 'color';
 }
@@ -677,6 +708,8 @@ export interface PortableVocabularyArtifacts {
   tokenRamp: Record<string, string>;
   surfacePaths: Set<string>;
   surfaceSteps: Map<string, SurfaceStepDecl>;
+  /** Pinned-step declarations for foreground/nonText tokens (`preference: 'pin-to-step'`). */
+  semanticSteps: Map<string, SurfaceStepDecl>;
 }
 
 export function buildPortableArtifacts(
@@ -688,5 +721,6 @@ export function buildPortableArtifacts(
     tokenRamp: buildTokenRampFromPortable(vocab),
     surfacePaths: buildSurfacePaths(vocab),
     surfaceSteps: buildSurfaceStepMap(vocab),
+    semanticSteps: buildSemanticStepMap(vocab),
   };
 }

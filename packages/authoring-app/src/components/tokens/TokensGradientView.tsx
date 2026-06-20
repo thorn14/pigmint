@@ -138,6 +138,7 @@ export function TokensGradientView() {
   const vocabRaw = useVocabStore((s) => s.raw);
   const vocabSurfacePaths = useVocabStore((s) => s.surfacePaths);
   const vocabSurfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const vocabSemanticSteps = useVocabStore((s) => s.semanticSteps);
   const activeMarkerMode = useEffectiveMode();
 
   const vocabCtxForMarkers = useMemo(() => {
@@ -152,8 +153,9 @@ export function TokensGradientView() {
         : {},
       surfacePaths: vocabSurfacePaths ?? undefined,
       surfaceSteps: vocabSurfaceSteps ?? undefined,
+      semanticSteps: vocabSemanticSteps ?? undefined,
     };
-  }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps]);
+  }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps, vocabSemanticSteps]);
 
   const ramps = useMemo(() => {
     const map = new Map<string, GeneratedRamp>();

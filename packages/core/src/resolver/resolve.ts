@@ -491,6 +491,52 @@ export function makeResolveResultFromPicked(
   return { token, step };
 }
 
+export interface ResolvePinnedStepInput {
+  tokenPath: string;
+  mode: string;
+  intent: FormalIntent;
+  ramp: GeneratedRamp;
+  stepIndex: number;
+  surfaceHex: string;
+  surfaceRef: string;
+  thresholdElevation?: ThresholdElevation;
+}
+
+/**
+ * `pin-to-step` resolution: the author has chosen an exact ramp step (per scheme),
+ * so we skip contrast-driven step picking and emit that step directly. The full
+ * contrast + compliance receipt is still computed against the surface (via
+ * `makeResolveResultFromPicked`) so the UI can flag a failing pin; the driver applies
+ * decorative exemption afterwards when the token opts out of the a11y floor.
+ */
+export function resolvePinnedStep(input: ResolvePinnedStepInput): ResolveResult {
+  const { tokenPath, mode, intent, ramp, stepIndex, surfaceHex, surfaceRef, thresholdElevation } = input;
+  const steps = ramp.steps;
+  if (steps.length === 0) {
+    throw new ResolveError(`ramp "${ramp.scaleName}" has no steps`, tokenPath);
+  }
+  const clamped = Math.max(0, Math.min(stepIndex, steps.length - 1));
+  const step = steps[clamped];
+  if (!step) {
+    throw new ResolveError(`ramp step index ${clamped} missing`, tokenPath);
+  }
+  const ratio = resolutionMetric(intent.threshold.kind, step.hex, surfaceHex);
+  return makeResolveResultFromPicked(
+    tokenPath,
+    mode,
+    intent,
+    ramp,
+    undefined,
+    surfaceRef,
+    surfaceHex,
+    ramp,
+    { index: clamped, ratio },
+    step,
+    thresholdElevation,
+    'pinned to step',
+  );
+}
+
 export function resolveToken(input: ResolveInput): ResolveResult {
   const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp, exempt } = input;
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
-import { generateRamp } from '../../lib/colorMath';
+import { generateRamp, getWcagContrast, getApcaContrast } from '../../lib/colorMath';
 import { parseStepRef, type GeneratedRamp } from '@pigmint/core';
 import type {
   PortableSurfaceToken,
@@ -43,7 +43,6 @@ const inp: React.CSSProperties = {
   background: 'var(--p-bg)', border: '1px solid var(--p-border)',
   borderRadius: 6, color: 'var(--p-text)', boxSizing: 'border-box',
 };
-const readOnly: React.CSSProperties = { ...inp, color: 'var(--p-text-tertiary)', cursor: 'default' };
 const btn: React.CSSProperties = {
   padding: '6px 12px', fontSize: 12, fontWeight: 500,
   background: 'var(--p-surface)', border: '1px solid var(--p-border)',
@@ -66,6 +65,26 @@ const TYPE_OPTIONS: AppSelectOption[] = [
   { value: 'foreground', label: 'foreground (text)' },
   { value: 'nonText', label: 'nonText (non-text)' },
 ];
+
+const warnText: React.CSSProperties = {
+  fontSize: 11, lineHeight: 1.4, color: 'var(--p-danger, #e55555)',
+};
+
+/** Hex of a surface token's resolved step for a given scheme (light/dark). */
+function surfaceSchemeHex(
+  surfaceToken: PortableSurfaceToken | undefined,
+  rampMap: Map<string, GeneratedRamp>,
+  scheme: 'light' | 'dark',
+): string | undefined {
+  if (!surfaceToken) return undefined;
+  const ramp = rampMap.get(surfaceToken.ramp);
+  if (!ramp) return undefined;
+  const last = ramp.steps.length - 1;
+  const idx = scheme === 'light'
+    ? (surfaceToken.lightStep ?? surfaceToken.step ?? 0)
+    : (surfaceToken.darkStep ?? surfaceToken.step ?? last);
+  return ramp.steps[Math.max(0, Math.min(idx, last))]?.hex;
+}
 
 type Props = {
   path: string;
@@ -202,11 +221,10 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 
 // ─── Shared: name field with commit-on-change ────────────────────────────────
 
-function NameField({ value, onCommit, autoFocus }: { value: string; onCommit: (next: string) => void; autoFocus?: boolean }) {
+function NameField({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { setDraft(value); }, [value]);
-  useEffect(() => { if (autoFocus) ref.current?.select(); }, [autoFocus]);
 
   function commit() {
     const next = draft.trim();
@@ -289,7 +307,7 @@ function SurfaceFields({
 
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect
@@ -346,6 +364,7 @@ function SemanticFields({
   const removeToken = useVocabStore((s) => s.removeToken);
   const renameToken = useVocabStore((s) => s.renameToken);
   const moveToken = useVocabStore((s) => s.moveToken);
+  const target = useIntentStore((s) => s.engineTarget);
 
   function handleRename(next: string) { renameToken(section, name, next, ec()); onRenamed(next); }
 
@@ -364,6 +383,16 @@ function SemanticFields({
     };
     if (preference === 'preferred-contrast' && typeof token.targetContrast !== 'number') {
       updates.targetContrast = compliance === 'apca' ? 60 : 5;
+    }
+    if (preference === 'pin-to-step') {
+      // Seed sensible defaults: a dark step for light mode, a light step for dark mode
+      // (the contrasting end of the ramp against the usual surfaces). Index 0 is lightest.
+      const last = (rampMap.get(token.ramp)?.steps.length ?? 1) - 1;
+      updates.lightStep = token.lightStep ?? last;
+      updates.darkStep = token.darkStep ?? 0;
+    } else if (token.preference === 'pin-to-step') {
+      updates.lightStep = undefined;
+      updates.darkStep = undefined;
     }
     updateToken(section, name, updates, ec());
   }
@@ -397,9 +426,36 @@ function SemanticFields({
     </label>
   );
 
+  // ── pin-to-step: author picks an exact step per scheme. Flag a failing pin
+  //    (against the primary surface) unless the token is decorative (exempt).
+  const pinRamp = rampMap.get(token.ramp);
+  const pinLastIdx = (pinRamp?.steps.length ?? 1) - 1;
+  const pinLightIdx = Math.min(token.lightStep ?? pinLastIdx, pinLastIdx);
+  const pinDarkIdx = Math.min(token.darkStep ?? 0, pinLastIdx);
+  const pinWarning = (() => {
+    if (token.preference !== 'pin-to-step' || token.decorative) return null;
+    const primary = token.surfaces[0];
+    if (!primary || !pinRamp) return null;
+    const isApca = compliance === 'apca';
+    const need = isApca
+      ? (section === 'foreground' ? (target === 'AAA' ? 90 : 60) : (target === 'AAA' ? 60 : 45))
+      : (section === 'foreground' ? (target === 'AAA' ? 7 : 4.5) : (target === 'AAA' ? 4.5 : 3));
+    const metric = (fg: string, bg: string) =>
+      isApca ? Math.abs(getApcaContrast(fg, bg)) : getWcagContrast(fg, bg).ratio;
+    const failing: string[] = [];
+    for (const [scheme, idx] of [['light', pinLightIdx], ['dark', pinDarkIdx]] as const) {
+      const fg = pinRamp.steps[idx]?.hex;
+      const bg = surfaceSchemeHex(surfaces[primary], rampMap, scheme);
+      if (fg && bg && metric(fg, bg) + 1e-9 < need) failing.push(scheme);
+    }
+    if (failing.length === 0) return null;
+    const where = failing.join(' & ');
+    return `Pinned step doesn't meet ${target} (${isApca ? 'APCA' : 'WCAG'}) on "${primary}" in ${where} mode — check this.`;
+  })();
+
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Type</span>
         <AppSelect
@@ -451,7 +507,7 @@ function SemanticFields({
               onChange={(p) => handlePrefChange(p as Pref)}
             />
           </div>
-          {token.preference === 'preferred-contrast' ? (
+          {token.preference === 'preferred-contrast' && (
             <div style={field}>
               <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
               <ContrastInput
@@ -461,13 +517,29 @@ function SemanticFields({
                 onCommit={(v) => updateToken(section, name, { targetContrast: v }, ec())}
               />
             </div>
-          ) : (
-            <div style={field}>
-              <span style={label}>Consistency</span>
-              <span style={readOnly} title="Derived from preference — matched-to-set syncs across ramps; everything else is independent.">
-                {consistency}
-              </span>
-            </div>
+          )}
+          {token.preference === 'pin-to-step' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={field}>
+                  <span style={label}>Light step</span>
+                  <AppSelect
+                    options={stepOptions(pinRamp)}
+                    value={String(pinLightIdx)}
+                    onChange={(v) => updateToken(section, name, { lightStep: Number(v) }, ec())}
+                  />
+                </div>
+                <div style={field}>
+                  <span style={label}>Dark step</span>
+                  <AppSelect
+                    options={stepOptions(pinRamp)}
+                    value={String(pinDarkIdx)}
+                    onChange={(v) => updateToken(section, name, { darkStep: Number(v) }, ec())}
+                  />
+                </div>
+              </div>
+              {pinWarning && <span style={warnText}>{pinWarning}</span>}
+            </>
           )}
         </>
       )}
@@ -506,7 +578,7 @@ function DecorativeFields({
 
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect
@@ -609,7 +681,7 @@ function AlphaFields({
 
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect

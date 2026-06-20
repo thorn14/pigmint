@@ -213,6 +213,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
   const vocabRaw          = useVocabStore((s) => s.raw);
   const vocabSurfacePaths = useVocabStore((s) => s.surfacePaths);
   const vocabSurfaceSteps = useVocabStore((s) => s.surfaceSteps);
+  const vocabSemanticSteps = useVocabStore((s) => s.semanticSteps);
 
   const useWcag = engineCompliance !== 'apca';
   const [editingPath, setEditingPath] = useState<string | null>(null);
@@ -231,8 +232,9 @@ export function TokensPreview({ onAdd }: Props = {}) {
       ),
       surfacePaths: vocabSurfacePaths ?? undefined,
       surfaceSteps: vocabSurfaceSteps ?? undefined,
+      semanticSteps: vocabSemanticSteps ?? undefined,
     };
-  }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps]);
+  }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps, vocabSemanticSteps]);
 
   const resolution = useMemo(
     () => runResolve(scales, engineModes, engineTarget, engineCompliance, vocabCtx, engineResolver),
