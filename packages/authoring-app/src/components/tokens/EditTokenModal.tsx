@@ -17,6 +17,7 @@ import {
   type AlphaPref,
 } from './tokenShared';
 import { AppSelect, type AppSelectOption } from './AppSelect';
+import { pinStepErrors, pinStepErrorSummary, hasPinStepErrors } from './pinValidation';
 import { ContrastInput } from './ContrastInput';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
 import { ResponsivePanel, ConfirmDialog } from '../base-ui';
@@ -43,7 +44,6 @@ const inp: React.CSSProperties = {
   background: 'var(--p-bg)', border: '1px solid var(--p-border)',
   borderRadius: 6, color: 'var(--p-text)', boxSizing: 'border-box',
 };
-const readOnly: React.CSSProperties = { ...inp, color: 'var(--p-text-tertiary)', cursor: 'default' };
 const btn: React.CSSProperties = {
   padding: '6px 12px', fontSize: 12, fontWeight: 500,
   background: 'var(--p-surface)', border: '1px solid var(--p-border)',
@@ -66,6 +66,15 @@ const TYPE_OPTIONS: AppSelectOption[] = [
   { value: 'foreground', label: 'foreground (text)' },
   { value: 'nonText', label: 'nonText (non-text)' },
 ];
+
+const errText: React.CSSProperties = {
+  fontSize: 11, lineHeight: 1.4, color: 'var(--p-danger, #e55555)',
+};
+const errBanner: React.CSSProperties = {
+  fontSize: 12, lineHeight: 1.4, color: 'var(--p-danger, #e55555)',
+  background: 'rgba(229,85,85,0.10)', border: '1px solid rgba(229,85,85,0.4)',
+  borderRadius: 6, padding: '8px 10px',
+};
 
 type Props = {
   path: string;
@@ -202,11 +211,10 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 
 // ─── Shared: name field with commit-on-change ────────────────────────────────
 
-function NameField({ value, onCommit, autoFocus }: { value: string; onCommit: (next: string) => void; autoFocus?: boolean }) {
+function NameField({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { setDraft(value); }, [value]);
-  useEffect(() => { if (autoFocus) ref.current?.select(); }, [autoFocus]);
 
   function commit() {
     const next = draft.trim();
@@ -237,17 +245,28 @@ function Footer({
   onClose,
   confirmTitle,
   confirmMessage,
+  doneDisabled,
+  doneDisabledHint,
 }: {
   onDelete: () => void;
   onClose: () => void;
   confirmTitle: string;
   confirmMessage: React.ReactNode;
+  doneDisabled?: boolean;
+  doneDisabledHint?: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
       <button style={dangerBtn} onClick={() => setConfirming(true)}>Delete</button>
-      <button style={primaryBtn} onClick={onClose}>Done</button>
+      <button
+        style={{ ...primaryBtn, ...(doneDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+        onClick={onClose}
+        disabled={doneDisabled}
+        title={doneDisabled ? doneDisabledHint : undefined}
+      >
+        Done
+      </button>
       {confirming && (
         <ConfirmDialog
           title={confirmTitle}
@@ -289,7 +308,7 @@ function SurfaceFields({
 
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect
@@ -346,6 +365,7 @@ function SemanticFields({
   const removeToken = useVocabStore((s) => s.removeToken);
   const renameToken = useVocabStore((s) => s.renameToken);
   const moveToken = useVocabStore((s) => s.moveToken);
+  const target = useIntentStore((s) => s.engineTarget);
 
   function handleRename(next: string) { renameToken(section, name, next, ec()); onRenamed(next); }
 
@@ -364,6 +384,16 @@ function SemanticFields({
     };
     if (preference === 'preferred-contrast' && typeof token.targetContrast !== 'number') {
       updates.targetContrast = compliance === 'apca' ? 60 : 5;
+    }
+    if (preference === 'pin-to-step') {
+      // Seed sensible defaults: a dark step for light mode, a light step for dark mode
+      // (the contrasting end of the ramp against the usual surfaces). Index 0 is lightest.
+      const last = (rampMap.get(token.ramp)?.steps.length ?? 1) - 1;
+      updates.lightStep = token.lightStep ?? last;
+      updates.darkStep = token.darkStep ?? 0;
+    } else if (token.preference === 'pin-to-step') {
+      updates.lightStep = undefined;
+      updates.darkStep = undefined;
     }
     updateToken(section, name, updates, ec());
   }
@@ -397,9 +427,31 @@ function SemanticFields({
     </label>
   );
 
+  // ── pin-to-step: author picks an exact step per scheme. A non-decorative pin
+  //    that fails the contrast floor against its primary surface is an error
+  //    (shown top-of-form + inline) and blocks "Done".
+  const pinRamp = rampMap.get(token.ramp);
+  const pinLastIdx = (pinRamp?.steps.length ?? 1) - 1;
+  const pinLightIdx = Math.min(token.lightStep ?? pinLastIdx, pinLastIdx);
+  const pinDarkIdx = Math.min(token.darkStep ?? 0, pinLastIdx);
+  const isPinned = token.preference === 'pin-to-step';
+  const pinErrors = isPinned
+    ? pinStepErrors({
+        section, compliance, target,
+        decorative: Boolean(token.decorative),
+        ramp: pinRamp, lightStep: pinLightIdx, darkStep: pinDarkIdx,
+        primarySurfaceName: token.surfaces[0],
+        primarySurface: surfaces[token.surfaces[0] ?? ''],
+        rampMap,
+      })
+    : {};
+  const pinSummary = pinStepErrorSummary(pinErrors);
+  const pinBlocked = hasPinStepErrors(pinErrors);
+
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      {pinSummary && <div style={errBanner} role="alert">{pinSummary}</div>}
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Type</span>
         <AppSelect
@@ -451,7 +503,7 @@ function SemanticFields({
               onChange={(p) => handlePrefChange(p as Pref)}
             />
           </div>
-          {token.preference === 'preferred-contrast' ? (
+          {token.preference === 'preferred-contrast' && (
             <div style={field}>
               <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
               <ContrastInput
@@ -461,12 +513,27 @@ function SemanticFields({
                 onCommit={(v) => updateToken(section, name, { targetContrast: v }, ec())}
               />
             </div>
-          ) : (
-            <div style={field}>
-              <span style={label}>Consistency</span>
-              <span style={readOnly} title="Derived from preference — matched-to-set syncs across ramps; everything else is independent.">
-                {consistency}
-              </span>
+          )}
+          {token.preference === 'pin-to-step' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={field}>
+                <span style={label}>Light step</span>
+                <AppSelect
+                  options={stepOptions(pinRamp)}
+                  value={String(pinLightIdx)}
+                  onChange={(v) => updateToken(section, name, { lightStep: Number(v) }, ec())}
+                />
+                {pinErrors.light && <span style={errText} role="alert">{pinErrors.light}</span>}
+              </div>
+              <div style={field}>
+                <span style={label}>Dark step</span>
+                <AppSelect
+                  options={stepOptions(pinRamp)}
+                  value={String(pinDarkIdx)}
+                  onChange={(v) => updateToken(section, name, { darkStep: Number(v) }, ec())}
+                />
+                {pinErrors.dark && <span style={errText} role="alert">{pinErrors.dark}</span>}
+              </div>
             </div>
           )}
         </>
@@ -474,6 +541,8 @@ function SemanticFields({
       <Footer
         onDelete={handleDelete}
         onClose={onClose}
+        doneDisabled={pinBlocked}
+        doneDisabledHint="Fix the failing pinned step or mark the token Decorative."
         confirmTitle={`Delete ${section === 'foreground' ? 'foreground' : 'non-text'} token`}
         confirmMessage={<>Delete <strong>{name}</strong>? This cannot be undone.</>}
       />
@@ -506,7 +575,7 @@ function DecorativeFields({
 
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect
@@ -609,7 +678,7 @@ function AlphaFields({
 
   return (
     <>
-      <NameField value={name} autoFocus onCommit={handleRename} />
+      <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
         <AppSelect

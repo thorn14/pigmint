@@ -1,4 +1,4 @@
-import { resolveToken, type ThresholdElevation } from './resolve.js';
+import { resolveToken, resolvePinnedStep, type ThresholdElevation } from './resolve.js';
 import { assertValidFormalIntent } from './intent-validate.js';
 import { materializeContinuousRamps } from './materialize-continuous.js';
 import {
@@ -45,6 +45,8 @@ export interface ResolveAllInput {
   surfacePaths?: Set<string>;
   /** Portable vocabulary: per-surface explicit step declarations by mode scheme. */
   surfaceSteps?: Map<string, SurfaceStepDecl>;
+  /** Portable vocabulary: per-token pinned step declarations for `pin-to-step` foreground/nonText tokens. */
+  semanticSteps?: Map<string, SurfaceStepDecl>;
 }
 
 export interface ResolveAllOutput {
@@ -259,9 +261,50 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
     }
 
     const alphaPathSet = new Set(alphaEntries.map((e) => e.path));
+
+    // Pinned (`pin-to-step`) foreground/nonText tokens: emit the author-chosen step by
+    // index per scheme, but still compute the contrast/compliance receipt against the
+    // surface so a failing pin can be flagged. Decorative tokens are then exempted.
+    const pinnedPathSet = new Set<string>();
+    if (input.semanticSteps && input.semanticSteps.size > 0) {
+      for (const entry of nonSurfaces) {
+        if (alphaPathSet.has(entry.path)) continue;
+        if (entry.usage === 'decorative') continue;
+        const decl = input.semanticSteps.get(entry.path);
+        if (!decl) continue;
+        pinnedPathSet.add(entry.path);
+        if (!entry.defaultIntent || !entry.primarySurface) {
+          throw new DriverError(
+            `pinned token ${entry.path} needs defaultIntent + primarySurface`,
+          );
+        }
+        const rampName = requireTokenRamp(tokenRamp, entry.path);
+        const ramp = requireRamp(ramps, rampName);
+        const modeSurfaces = surfaceByModeAndPath[binding.mode];
+        if (!modeSurfaces) throw new DriverError(`mode ${binding.mode} has no surface map`);
+        const surfaceRef = resolveSurfaceReference(entry, modeSurfaces);
+        const stepIndex =
+          binding.scheme === 'light'
+            ? (decl.light ?? decl.default ?? 0)
+            : (decl.dark ?? decl.default ?? ramp.steps.length - 1);
+        const { token } = resolvePinnedStep({
+          tokenPath: entry.path,
+          mode: binding.mode,
+          intent: entry.defaultIntent,
+          ramp,
+          stepIndex,
+          surfaceHex: surfaceRef.hex,
+          surfaceRef: `{${surfaceRef.path}}`,
+          thresholdElevation: binding.thresholdElevation,
+        });
+        tokens.push(applyDecorativeExemption(entry, token));
+      }
+    }
+
     const items: { path: string; context: NonSurfaceContext; intent: FormalIntent }[] = [];
     for (const entry of nonSurfaces) {
       if (alphaPathSet.has(entry.path)) continue;
+      if (pinnedPathSet.has(entry.path)) continue;
       if (entry.usage === 'decorative') continue;
       if (!entry.defaultIntent || !entry.primarySurface) {
         throw new DriverError(

@@ -5,6 +5,7 @@ import {
   portableToVocabularyEntries,
   buildSurfacePaths,
   buildSurfaceStepMap,
+  buildSemanticStepMap,
   remapPortableVocabularyRamps,
   type PortableVocabulary,
   type PortableSurfaceToken,
@@ -22,6 +23,7 @@ export interface VocabState {
   entries: VocabularyEntry[] | null;
   surfacePaths: Set<string> | null;
   surfaceSteps: Map<string, SurfaceStepDecl> | null;
+  semanticSteps: Map<string, SurfaceStepDecl> | null;
   error: string | null;
 }
 
@@ -52,11 +54,12 @@ interface VocabActions {
   clear(): void;
 }
 
-function deriveArtifacts(vocab: PortableVocabulary, engineConfig: EngineConfig): Pick<VocabState, 'entries' | 'surfacePaths' | 'surfaceSteps'> {
+function deriveArtifacts(vocab: PortableVocabulary, engineConfig: EngineConfig): Pick<VocabState, 'entries' | 'surfacePaths' | 'surfaceSteps' | 'semanticSteps'> {
   return {
     entries: portableToVocabularyEntries(vocab, engineConfig),
     surfacePaths: buildSurfacePaths(vocab),
     surfaceSteps: buildSurfaceStepMap(vocab),
+    semanticSteps: buildSemanticStepMap(vocab),
   };
 }
 
@@ -133,6 +136,7 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
     entries: null,
     surfacePaths: null,
     surfaceSteps: null,
+    semanticSteps: null,
     error: null,
 
     loadFromText(yamlText, engineConfig) {
@@ -149,7 +153,7 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
     // Called when loading FROM the palette store (palette switch, init). Does NOT sync back.
     loadFromVocab(vocab, engineConfig) {
       if (!vocab) {
-        set({ raw: null, entries: null, surfacePaths: null, surfaceSteps: null, error: null });
+        set({ raw: null, entries: null, surfacePaths: null, surfaceSteps: null, semanticSteps: null, error: null });
         return;
       }
       set({ raw: vocab, error: null, ...deriveArtifacts(vocab, engineConfig) });
@@ -320,7 +324,7 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
 
     clear() {
       syncToPalette(null);
-      set({ raw: null, entries: null, surfacePaths: null, surfaceSteps: null, error: null });
+      set({ raw: null, entries: null, surfacePaths: null, surfaceSteps: null, semanticSteps: null, error: null });
     },
   };
 });

@@ -297,7 +297,8 @@ export interface PortableSemanticToken {
     | 'midpoint'
     | 'median'
     | 'level-up'
-    | 'preferred-contrast';
+    | 'preferred-contrast'
+    | 'pin-to-step';
   consistency?: 'independent' | 'matched-across-ramps' | 'anchored-to-reference';
   level?: 'AA' | 'AAA';
   interactions?: Partial<Record<string, { offset: number }>>;
@@ -305,6 +306,10 @@ export interface PortableSemanticToken {
   decorative?: boolean;
   /** Target contrast metric when `preference === 'preferred-contrast'`. */
   targetContrast?: number;
+  /** Light-mode ramp step index when `preference === 'pin-to-step'`. */
+  lightStep?: number;
+  /** Dark-mode ramp step index when `preference === 'pin-to-step'`. */
+  darkStep?: number;
 }
 
 export interface PortableDecorativeToken {

@@ -4,13 +4,17 @@ export type Pref = PortableSemanticToken['preference'];
 export type Cons = NonNullable<PortableSemanticToken['consistency']>;
 export type AlphaPref = NonNullable<PortableAlphaToken['preference']>;
 
+// TODO: `matched-to-set` is retired from the authoring UI only — the engine still
+// supports `matched-to-set` / `matched-across-ramps` (core Preference/Consistency
+// types, group-resolve.ts, intent-validate.ts, defaults/vocabulary-v1.ts, examples,
+// tests). A full engine-level removal is deferred future work.
 export const PREFS: readonly Pref[] = [
   'lowest-passing',
   'midpoint',
   'median',
   'level-up',
   'highest-contrast',
-  'matched-to-set',
+  'pin-to-step',
   'preferred-contrast',
 ];
 

@@ -99,6 +99,7 @@ export {
   portableToVocabularyEntries,
   buildSurfacePaths,
   buildSurfaceStepMap,
+  buildSemanticStepMap,
   buildTokenRampFromPortable,
   remapPortableVocabularyRamps,
   coerceTokenRampToPaletteScales,
