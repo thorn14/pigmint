@@ -21,6 +21,16 @@ const LEVEL_BADGE: Record<ComplianceLevel, { bg: string; text: string; label: st
   'exempt':      { bg: 'var(--p-surface)',   text: 'var(--p-text-tertiary)', label: 'Exempt'  },
 };
 
+// Responsive swatch grid: cards reflow to fill the available width and shrink to
+// fit more columns on narrow panels (where fixed-width cards forced one per row).
+const tokenGrid: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+  alignItems: 'start',
+  columnGap: 0,
+  rowGap: 10,
+};
+
 // ─── Token card ───────────────────────────────────────────────────────────────
 
 function TokenCard({
@@ -65,8 +75,7 @@ function TokenCard({
       onClick={onEdit}
       className="swatch-hover"
       style={{
-        width: 168,
-        flexShrink: 0,
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
@@ -538,13 +547,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                 </div>
                 {/* Tokens */}
                 {tokens.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap' as const,
-                    alignItems: 'flex-start',
-                    columnGap: 0,
-                    rowGap: 10,
-                  }}>
+                  <div style={tokenGrid}>
                     {tokens.map((t) => (
                       <TokenCard
                         key={t.path}
@@ -576,13 +579,11 @@ export function TokensPreview({ onAdd }: Props = {}) {
               </span>
             </div>
             <div style={{
+              ...tokenGrid,
               background: 'var(--p-surface)',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
               padding: '20px 24px',
-              display: 'flex',
-              flexWrap: 'wrap' as const,
-              gap: 10,
               width: '100%',
               boxSizing: 'border-box',
             }}>
@@ -603,8 +604,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                   onClick={() => setEditingPath(d.path)}
                   className="swatch-hover"
                   style={{
-                    width: 168,
-                    flexShrink: 0,
+                    width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 8,
