@@ -18,6 +18,7 @@ import {
   type TokenKind,
 } from './tokenShared';
 import { AppSelect } from './AppSelect';
+import { pinStepErrors, pinStepErrorSummary, hasPinStepErrors } from './pinValidation';
 import { ContrastInput } from './ContrastInput';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
 import { ResponsivePanel } from '../base-ui';
@@ -147,6 +148,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
   const [error, setError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
   const bounds = contrastBounds(compliance);
+  const target = useIntentStore((s) => s.engineTarget);
 
   const rampObj = rampMap.get(ramp);
   const rampLastIdx = (rampObj?.steps.length ?? 1) - 1;
@@ -181,10 +183,27 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
     ? alphaCompositeHex(alphaBaseHex, alphaValue, alphaRefHex)
     : undefined;
 
+  // pin-to-step validation: a non-decorative pinned step that fails the contrast
+  // floor against its primary surface is an error (shown top + inline, blocks Add).
+  const isPinned = (kind === 'foreground' || kind === 'nonText') && pref === 'pin-to-step';
+  const pinErrors = isPinned
+    ? pinStepErrors({
+        section: kind as 'foreground' | 'nonText',
+        compliance, target, decorative,
+        ramp: rampObj, lightStep, darkStep,
+        primarySurfaceName: surfaceList[0],
+        primarySurface: surfaces[surfaceList[0] ?? ''],
+        rampMap,
+      })
+    : {};
+  const pinSummary = pinStepErrorSummary(pinErrors);
+  const pinBlocked = hasPinStepErrors(pinErrors);
+
   function commit() {
     const n = name.trim();
     if (!n) { setError('Name is required'); return; }
     if (!ramp) { setError('Ramp is required'); return; }
+    if (pinBlocked) { setError('Pinned step fails the contrast floor — fix it or mark Decorative.'); return; }
 
     if (kind === 'surface') {
       onAddSurface(n, { ramp, lightStep, darkStep });
@@ -281,6 +300,18 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '16px' }}>
+          {(pinSummary || error) && (
+            <div
+              role="alert"
+              style={{
+                fontSize: 12, lineHeight: 1.4, color: 'var(--p-danger, #e55555)',
+                background: 'rgba(229,85,85,0.10)', border: '1px solid rgba(229,85,85,0.4)',
+                borderRadius: 6, padding: '8px 10px',
+              }}
+            >
+              {pinSummary ?? error}
+            </div>
+          )}
           <div style={field}>
             <span style={label}>Name</span>
             <input
@@ -338,7 +369,13 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                 <AppSelect
                   options={prefOptions()}
                   value={pref}
-                  onChange={(p) => setPref(p as typeof pref)}
+                  onChange={(p) => {
+                    const next = p as typeof pref;
+                    setPref(next);
+                    // Seed a contrasting default for foreground/nonText text:
+                    // dark step in light mode, light step in dark mode (index 0 is lightest).
+                    if (next === 'pin-to-step') { setLightStep(rampLastIdx); setDarkStep(0); }
+                  }}
                 />
               </div>
               {pref === 'preferred-contrast' && (
@@ -357,10 +394,12 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                   <div style={field}>
                     <span style={label}>Light step</span>
                     <ModalStepSelect rampName={ramp} rampMap={rampMap} value={lightStep} onChange={setLightStep} />
+                    {pinErrors.light && <span style={{ fontSize: 11, lineHeight: 1.4, color: 'var(--p-danger, #e55555)' }} role="alert">{pinErrors.light}</span>}
                   </div>
                   <div style={field}>
                     <span style={label}>Dark step</span>
                     <ModalStepSelect rampName={ramp} rampMap={rampMap} value={darkStep} onChange={setDarkStep} />
+                    {pinErrors.dark && <span style={{ fontSize: 11, lineHeight: 1.4, color: 'var(--p-danger, #e55555)' }} role="alert">{pinErrors.dark}</span>}
                   </div>
                 </div>
               )}
@@ -503,9 +542,6 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
             </>
           )}
 
-          {error && (
-          <span style={{ fontSize: 12, color: 'var(--p-danger)' }}>{error}</span>
-        )}
       </div>
 
       <div style={{
@@ -524,9 +560,13 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
             borderColor: 'var(--p-accent, #6366f1)',
             color: '#fff',
             fontWeight: 600,
+            ...(((kind === 'foreground' || kind === 'nonText') && surfaceNames.length === 0) || pinBlocked
+              ? { opacity: 0.5, cursor: 'not-allowed' }
+              : {}),
           }}
           onClick={commit}
-          disabled={(kind === 'foreground' || kind === 'nonText') && surfaceNames.length === 0}
+          disabled={((kind === 'foreground' || kind === 'nonText') && surfaceNames.length === 0) || pinBlocked}
+          title={pinBlocked ? 'Fix the failing pinned step or mark the token Decorative.' : undefined}
         >
           Add
         </button>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
-import { generateRamp, getWcagContrast, getApcaContrast } from '../../lib/colorMath';
+import { generateRamp } from '../../lib/colorMath';
 import { parseStepRef, type GeneratedRamp } from '@pigmint/core';
 import type {
   PortableSurfaceToken,
@@ -17,6 +17,7 @@ import {
   type AlphaPref,
 } from './tokenShared';
 import { AppSelect, type AppSelectOption } from './AppSelect';
+import { pinStepErrors, pinStepErrorSummary, hasPinStepErrors } from './pinValidation';
 import { ContrastInput } from './ContrastInput';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
 import { ResponsivePanel, ConfirmDialog } from '../base-ui';
@@ -66,25 +67,14 @@ const TYPE_OPTIONS: AppSelectOption[] = [
   { value: 'nonText', label: 'nonText (non-text)' },
 ];
 
-const warnText: React.CSSProperties = {
+const errText: React.CSSProperties = {
   fontSize: 11, lineHeight: 1.4, color: 'var(--p-danger, #e55555)',
 };
-
-/** Hex of a surface token's resolved step for a given scheme (light/dark). */
-function surfaceSchemeHex(
-  surfaceToken: PortableSurfaceToken | undefined,
-  rampMap: Map<string, GeneratedRamp>,
-  scheme: 'light' | 'dark',
-): string | undefined {
-  if (!surfaceToken) return undefined;
-  const ramp = rampMap.get(surfaceToken.ramp);
-  if (!ramp) return undefined;
-  const last = ramp.steps.length - 1;
-  const idx = scheme === 'light'
-    ? (surfaceToken.lightStep ?? surfaceToken.step ?? 0)
-    : (surfaceToken.darkStep ?? surfaceToken.step ?? last);
-  return ramp.steps[Math.max(0, Math.min(idx, last))]?.hex;
-}
+const errBanner: React.CSSProperties = {
+  fontSize: 12, lineHeight: 1.4, color: 'var(--p-danger, #e55555)',
+  background: 'rgba(229,85,85,0.10)', border: '1px solid rgba(229,85,85,0.4)',
+  borderRadius: 6, padding: '8px 10px',
+};
 
 type Props = {
   path: string;
@@ -255,17 +245,28 @@ function Footer({
   onClose,
   confirmTitle,
   confirmMessage,
+  doneDisabled,
+  doneDisabledHint,
 }: {
   onDelete: () => void;
   onClose: () => void;
   confirmTitle: string;
   confirmMessage: React.ReactNode;
+  doneDisabled?: boolean;
+  doneDisabledHint?: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
       <button style={dangerBtn} onClick={() => setConfirming(true)}>Delete</button>
-      <button style={primaryBtn} onClick={onClose}>Done</button>
+      <button
+        style={{ ...primaryBtn, ...(doneDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+        onClick={onClose}
+        disabled={doneDisabled}
+        title={doneDisabled ? doneDisabledHint : undefined}
+      >
+        Done
+      </button>
       {confirming && (
         <ConfirmDialog
           title={confirmTitle}
@@ -426,35 +427,30 @@ function SemanticFields({
     </label>
   );
 
-  // ── pin-to-step: author picks an exact step per scheme. Flag a failing pin
-  //    (against the primary surface) unless the token is decorative (exempt).
+  // ── pin-to-step: author picks an exact step per scheme. A non-decorative pin
+  //    that fails the contrast floor against its primary surface is an error
+  //    (shown top-of-form + inline) and blocks "Done".
   const pinRamp = rampMap.get(token.ramp);
   const pinLastIdx = (pinRamp?.steps.length ?? 1) - 1;
   const pinLightIdx = Math.min(token.lightStep ?? pinLastIdx, pinLastIdx);
   const pinDarkIdx = Math.min(token.darkStep ?? 0, pinLastIdx);
-  const pinWarning = (() => {
-    if (token.preference !== 'pin-to-step' || token.decorative) return null;
-    const primary = token.surfaces[0];
-    if (!primary || !pinRamp) return null;
-    const isApca = compliance === 'apca';
-    const need = isApca
-      ? (section === 'foreground' ? (target === 'AAA' ? 90 : 60) : (target === 'AAA' ? 60 : 45))
-      : (section === 'foreground' ? (target === 'AAA' ? 7 : 4.5) : (target === 'AAA' ? 4.5 : 3));
-    const metric = (fg: string, bg: string) =>
-      isApca ? Math.abs(getApcaContrast(fg, bg)) : getWcagContrast(fg, bg).ratio;
-    const failing: string[] = [];
-    for (const [scheme, idx] of [['light', pinLightIdx], ['dark', pinDarkIdx]] as const) {
-      const fg = pinRamp.steps[idx]?.hex;
-      const bg = surfaceSchemeHex(surfaces[primary], rampMap, scheme);
-      if (fg && bg && metric(fg, bg) + 1e-9 < need) failing.push(scheme);
-    }
-    if (failing.length === 0) return null;
-    const where = failing.join(' & ');
-    return `Pinned step doesn't meet ${target} (${isApca ? 'APCA' : 'WCAG'}) on "${primary}" in ${where} mode — check this.`;
-  })();
+  const isPinned = token.preference === 'pin-to-step';
+  const pinErrors = isPinned
+    ? pinStepErrors({
+        section, compliance, target,
+        decorative: Boolean(token.decorative),
+        ramp: pinRamp, lightStep: pinLightIdx, darkStep: pinDarkIdx,
+        primarySurfaceName: token.surfaces[0],
+        primarySurface: surfaces[token.surfaces[0] ?? ''],
+        rampMap,
+      })
+    : {};
+  const pinSummary = pinStepErrorSummary(pinErrors);
+  const pinBlocked = hasPinStepErrors(pinErrors);
 
   return (
     <>
+      {pinSummary && <div style={errBanner} role="alert">{pinSummary}</div>}
       <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Type</span>
@@ -519,33 +515,34 @@ function SemanticFields({
             </div>
           )}
           {token.preference === 'pin-to-step' && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={field}>
-                  <span style={label}>Light step</span>
-                  <AppSelect
-                    options={stepOptions(pinRamp)}
-                    value={String(pinLightIdx)}
-                    onChange={(v) => updateToken(section, name, { lightStep: Number(v) }, ec())}
-                  />
-                </div>
-                <div style={field}>
-                  <span style={label}>Dark step</span>
-                  <AppSelect
-                    options={stepOptions(pinRamp)}
-                    value={String(pinDarkIdx)}
-                    onChange={(v) => updateToken(section, name, { darkStep: Number(v) }, ec())}
-                  />
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={field}>
+                <span style={label}>Light step</span>
+                <AppSelect
+                  options={stepOptions(pinRamp)}
+                  value={String(pinLightIdx)}
+                  onChange={(v) => updateToken(section, name, { lightStep: Number(v) }, ec())}
+                />
+                {pinErrors.light && <span style={errText} role="alert">{pinErrors.light}</span>}
               </div>
-              {pinWarning && <span style={warnText}>{pinWarning}</span>}
-            </>
+              <div style={field}>
+                <span style={label}>Dark step</span>
+                <AppSelect
+                  options={stepOptions(pinRamp)}
+                  value={String(pinDarkIdx)}
+                  onChange={(v) => updateToken(section, name, { darkStep: Number(v) }, ec())}
+                />
+                {pinErrors.dark && <span style={errText} role="alert">{pinErrors.dark}</span>}
+              </div>
+            </div>
           )}
         </>
       )}
       <Footer
         onDelete={handleDelete}
         onClose={onClose}
+        doneDisabled={pinBlocked}
+        doneDisabledHint="Fix the failing pinned step or mark the token Decorative."
         confirmTitle={`Delete ${section === 'foreground' ? 'foreground' : 'non-text'} token`}
         confirmMessage={<>Delete <strong>{name}</strong>? This cannot be undone.</>}
       />
