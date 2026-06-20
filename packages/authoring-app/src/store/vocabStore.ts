@@ -5,6 +5,7 @@ import {
   portableToVocabularyEntries,
   buildSurfacePaths,
   buildSurfaceStepMap,
+  remapPortableVocabularyRamps,
   type PortableVocabulary,
   type PortableSurfaceToken,
   type PortableSemanticToken,
@@ -32,6 +33,8 @@ interface VocabActions {
   updateSurface(name: string, updates: Partial<PortableSurfaceToken>, engineConfig: EngineConfig): void;
   removeSurface(name: string, engineConfig: EngineConfig): void;
   renameSurface(oldName: string, newName: string, engineConfig: EngineConfig): void;
+
+  renameRamp(oldName: string, newName: string, engineConfig: EngineConfig): void;
 
   addToken(section: 'foreground' | 'nonText', name: string, token: PortableSemanticToken, engineConfig: EngineConfig): void;
   updateToken(section: 'foreground' | 'nonText', name: string, updates: Partial<PortableSemanticToken>, engineConfig: EngineConfig): void;
@@ -188,6 +191,13 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
         if (renamed === v.surfaces) return v;
         return rewriteSurfaceRefs({ ...v, surfaces: renamed }, oldName, trimmed);
       }, engineConfig));
+    },
+
+    renameRamp(oldName, newName, engineConfig) {
+      if (oldName === newName) return;
+      // Reuse the same ramp-rewriting the ramp-deletion path uses; a rename is a
+      // single old→new remap. Case-insensitive, covers ramp/baseRamp/base refs.
+      set(applyMutation(get().raw, (v) => remapPortableVocabularyRamps(v, [oldName], newName), engineConfig));
     },
 
     addToken(section, name, token, engineConfig) {

@@ -18,6 +18,7 @@ import {
   type TokenKind,
 } from './tokenShared';
 import { AppSelect } from './AppSelect';
+import { ContrastInput } from './ContrastInput';
 import { MultiSurfaceSelect } from './MultiSurfaceSelect';
 import { ResponsivePanel } from '../base-ui';
 import {
@@ -346,15 +347,11 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
               {pref === 'preferred-contrast' ? (
                 <div style={field}>
                   <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
-                  <input
-                    type="number"
-                    min={bounds.min} max={bounds.max} step={bounds.step}
+                  <ContrastInput
+                    bounds={bounds}
                     style={modalInp}
                     value={targetContrast}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (Number.isFinite(v)) setTargetContrast(v);
-                    }}
+                    onCommit={(v) => setTargetContrast(v)}
                   />
                 </div>
               ) : (
@@ -477,15 +474,11 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                   {alphaPref === 'preferred-contrast' && (
                     <div style={field}>
                       <span style={label}>Target {compliance === 'apca' ? 'APCA |Lc|' : 'WCAG ratio'}</span>
-                      <input
-                        type="number"
-                        min={bounds.min} max={bounds.max} step={bounds.step}
+                      <ContrastInput
+                        bounds={bounds}
                         style={modalInp}
                         value={targetContrast}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          if (Number.isFinite(v)) setTargetContrast(v);
-                        }}
+                        onCommit={(v) => setTargetContrast(v)}
                       />
                     </div>
                   )}

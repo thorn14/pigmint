@@ -565,12 +565,26 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       }
     }),
 
-    updateScaleName: (id, name) => set((state) => {
-      const scale = state.scales.find((s) => s.id === id);
-      if (!scale) return;
-      pushHistory(state);
-      scale.name = name;
-    }),
+    updateScaleName: (id, name) => {
+      const oldName = usePaletteStore.getState().scales.find((s) => s.id === id)?.name;
+      if (oldName === undefined) return;
+      set((state) => {
+        const scale = state.scales.find((s) => s.id === id);
+        if (!scale) return;
+        pushHistory(state);
+        scale.name = name;
+      });
+      // Tokens reference ramps by name, so the rename must follow through to the
+      // vocab or the link breaks. Mirrors the ramp-deletion remap in removeScale.
+      if (oldName !== name) {
+        const is = useIntentStore.getState();
+        useVocabStore.getState().renameRamp(oldName, name, {
+          compliance: is.engineCompliance,
+          target: is.engineTarget,
+          modes: is.engineModes,
+        });
+      }
+    },
 
     updateStepNaming: (id, naming) => set((state) => {
       pushHistory(state);
