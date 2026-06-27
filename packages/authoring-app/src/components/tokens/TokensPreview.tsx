@@ -34,10 +34,9 @@ const tokenGrid: React.CSSProperties = {
 
 // ─── Token card ───────────────────────────────────────────────────────────────
 
-// 'border' is a presentation variant of nonText: such tokens are drawn as a box
-// with a 3px border in the token color + the name inside, so the swatch literally
-// demonstrates the border instead of looking identical to a background fill.
-type TokenUsage = 'text' | 'nonText' | 'decorative' | 'border';
+// nonText tokens (borders, fills, icons — indistinguishable in the data) are all
+// shown as a filled swatch; a no-fill version can be too low-contrast to read.
+type TokenUsage = 'text' | 'nonText' | 'decorative';
 
 function TokenCard({
   token,
@@ -75,18 +74,15 @@ function TokenCard({
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
 
-  const isBorder = usage === 'border';
   const isFilled = usage === 'nonText';
   // Decorative/alpha keep the small outline glyph rather than a value number.
   const isGlyph = usage === 'decorative';
-  // Contrast-safe text color when content sits on a filled swatch.
+  // Contrast-safe text color when content sits on the filled swatch.
   const fillTextColor = getRelativeLuminance(token.hex) > 0.5 ? '#000000' : '#ffffff';
 
-  // Border tokens wrap the whole card in a 3px border in the token color (no
-  // fill); background tokens fill the whole card with the token color and use
-  // black/white contrast text. Either way the layout matches the foreground
-  // card: color value on top, then the token name, then the contrast badge.
-  const cardBorder = isBorder || isFilled ? `3px solid ${colorValue}` : 'none';
+  // nonText tokens fill the whole card with the token color and use black/white
+  // contrast text. The layout matches the foreground card: color value on top,
+  // then the token name, then the contrast badge.
   const cardBg = isFilled ? colorValue : 'transparent';
   const cardText = isFilled ? fillTextColor : surfaceFg;
   const valueColor = isFilled ? fillTextColor : colorValue;
@@ -103,7 +99,7 @@ function TokenCard({
         gap: 8,
         padding: 12,
         background: cardBg,
-        border: cardBorder,
+        border: 'none',
         borderRadius: 8,
         cursor: 'pointer',
         textAlign: 'left',
@@ -308,13 +304,13 @@ export function TokensPreview({ onAdd }: Props = {}) {
     return map;
   }, [resolution, effectiveMode, surfacePathSet]);
 
-  // token path → usage variant. nonText tokens whose name reads as a border
-  // (e.g. color.border.main, borderMain) get the dedicated 'border' presentation.
+  // token path → usage variant. nonText is a single bucket (borders, fills,
+  // icons) — all rendered as a filled swatch; we don't infer subtypes by name.
   const usageMap = useMemo(() => {
     const map = new Map<string, TokenUsage>();
     if (!vocabRaw) return map;
     for (const name of Object.keys(vocabRaw.foreground)) map.set(name, 'text');
-    for (const name of Object.keys(vocabRaw.nonText)) map.set(name, /border/i.test(name) ? 'border' : 'nonText');
+    for (const name of Object.keys(vocabRaw.nonText)) map.set(name, 'nonText');
     for (const name of Object.keys(vocabRaw.decorative ?? {})) map.set(name, 'decorative');
     return map;
   }, [vocabRaw]);
