@@ -171,10 +171,23 @@ export function EditTokenModal({ path: initialPath, onClose }: Props) {
         <div style={{ flex: 1 }} />
         <CloseButton onClose={onClose} />
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
-        {body}
-      </div>
+      {body}
     </ResponsivePanel>
+  );
+}
+
+/**
+ * Shared body layout for each token kind: scrolling field area plus a footer
+ * pinned to the bottom of the drawer (matches the Add-token drawer).
+ */
+function FieldSet({ children, footer }: { children: React.ReactNode; footer: React.ReactNode }) {
+  return (
+    <>
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
+        {children}
+      </div>
+      {footer}
+    </>
   );
 }
 
@@ -254,7 +267,11 @@ function Footer({
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', gap: 8,
+      padding: '12px 16px', borderTop: '1px solid var(--p-border)',
+      background: 'var(--p-surface)', flexShrink: 0,
+    }}>
       <button style={dangerBtn} onClick={() => setConfirming(true)}>Delete</button>
       <button
         style={{ ...primaryBtn, ...(doneDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
@@ -304,7 +321,16 @@ function SurfaceFields({
   function handleDelete() { removeSurface(name, ec()); onClose(); }
 
   return (
-    <>
+    <FieldSet
+      footer={
+        <Footer
+          onDelete={handleDelete}
+          onClose={onClose}
+          confirmTitle="Delete surface token"
+          confirmMessage={<>Delete surface token <strong>{name}</strong>? This cannot be undone.</>}
+        />
+      }
+    >
       <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
@@ -332,13 +358,7 @@ function SurfaceFields({
           />
         </div>
       </div>
-      <Footer
-        onDelete={handleDelete}
-        onClose={onClose}
-        confirmTitle="Delete surface token"
-        confirmMessage={<>Delete surface token <strong>{name}</strong>? This cannot be undone.</>}
-      />
-    </>
+    </FieldSet>
   );
 }
 
@@ -447,7 +467,18 @@ function SemanticFields({
   const pinBlocked = hasPinStepErrors(pinErrors);
 
   return (
-    <>
+    <FieldSet
+      footer={
+        <Footer
+          onDelete={handleDelete}
+          onClose={onClose}
+          doneDisabled={pinBlocked}
+          doneDisabledHint="Fix the failing pinned step or mark the token Decorative."
+          confirmTitle={`Delete ${section === 'foreground' ? 'foreground' : 'non-text'} token`}
+          confirmMessage={<>Delete <strong>{name}</strong>? This cannot be undone.</>}
+        />
+      }
+    >
       {pinSummary && <div style={errBanner} role="alert">{pinSummary}</div>}
       <NameField value={name} onCommit={handleRename} />
       <div style={field}>
@@ -536,15 +567,7 @@ function SemanticFields({
           )}
         </>
       )}
-      <Footer
-        onDelete={handleDelete}
-        onClose={onClose}
-        doneDisabled={pinBlocked}
-        doneDisabledHint="Fix the failing pinned step or mark the token Decorative."
-        confirmTitle={`Delete ${section === 'foreground' ? 'foreground' : 'non-text'} token`}
-        confirmMessage={<>Delete <strong>{name}</strong>? This cannot be undone.</>}
-      />
-    </>
+    </FieldSet>
   );
 }
 
@@ -572,7 +595,16 @@ function DecorativeFields({
   function handleDelete() { removeToken('decorative', name, ec()); onClose(); }
 
   return (
-    <>
+    <FieldSet
+      footer={
+        <Footer
+          onDelete={handleDelete}
+          onClose={onClose}
+          confirmTitle="Delete decorative token"
+          confirmMessage={<>Delete decorative token <strong>{name}</strong>? This cannot be undone.</>}
+        />
+      }
+    >
       <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
@@ -590,13 +622,7 @@ function DecorativeFields({
           onChange={(v) => addDecorative(name, { ramp: token.ramp, step: Number(v) }, ec())}
         />
       </div>
-      <Footer
-        onDelete={handleDelete}
-        onClose={onClose}
-        confirmTitle="Delete decorative token"
-        confirmMessage={<>Delete decorative token <strong>{name}</strong>? This cannot be undone.</>}
-      />
-    </>
+    </FieldSet>
   );
 }
 
@@ -675,7 +701,16 @@ function AlphaFields({
   ];
 
   return (
-    <>
+    <FieldSet
+      footer={
+        <Footer
+          onDelete={handleDelete}
+          onClose={onClose}
+          confirmTitle="Delete alpha token"
+          confirmMessage={<>Delete alpha token <strong>{name}</strong>? This cannot be undone.</>}
+        />
+      }
+    >
       <NameField value={name} onCommit={handleRename} />
       <div style={field}>
         <span style={label}>Ramp</span>
@@ -777,12 +812,6 @@ function AlphaFields({
           onChange={(v) => updateAlpha(name, { referenceSurface: v || undefined }, ec())}
         />
       </div>
-      <Footer
-        onDelete={handleDelete}
-        onClose={onClose}
-        confirmTitle="Delete alpha token"
-        confirmMessage={<>Delete alpha token <strong>{name}</strong>? This cannot be undone.</>}
-      />
-    </>
+    </FieldSet>
   );
 }

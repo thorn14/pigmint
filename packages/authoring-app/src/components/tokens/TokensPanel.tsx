@@ -550,7 +550,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
       <div style={{
         display: 'flex',
         gap: 8,
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
         padding: '12px 16px',
         borderTop: '1px solid var(--p-border)',
         background: 'var(--p-surface)',
