@@ -30,6 +30,7 @@ body {
   /* Grays — overlay form of pure black on white */
   --p-surface: rgba(0, 0, 0, 0.05);
   --p-border: rgba(0, 0, 0, 0.08);
+  --p-border-strong: rgba(0, 0, 0, 0.45);
   --p-text-secondary: rgba(0, 0, 0, 0.6);
   /* Semantic — solid */
   --p-accent: #4b556350;
@@ -48,6 +49,7 @@ body {
   --p-text: #ffffff;
   --p-surface: rgba(255, 255, 255, 0.08);
   --p-border: rgba(255, 255, 255, 0.08);
+  --p-border-strong: rgba(255, 255, 255, 0.45);
   --p-text-secondary: rgba(255, 255, 255, 0.6);
   --p-accent: #6b7280;
   --p-success: #3fb950;
@@ -462,5 +464,20 @@ select {
   outline-color: rgba(255, 255, 255, 0.7);
 }
 [data-theme="light"] .swatch-hover:hover {
+  outline-color: rgba(0, 0, 0, 0.55);
+}
+
+/* Keyboard-only focus ring — same look as swatch-hover but only on :focus-visible.
+   Used by the Sample view, where a mouse-hover ring would distract from the
+   composition but Tab navigation still needs to be visible. */
+.swatch-focus {
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+  transition: outline-color 0.12s ease-out;
+}
+.swatch-focus:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.7);
+}
+[data-theme="light"] .swatch-focus:focus-visible {
   outline-color: rgba(0, 0, 0, 0.55);
 }

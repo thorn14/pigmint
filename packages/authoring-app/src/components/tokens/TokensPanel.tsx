@@ -4,6 +4,7 @@ import { useIntentStore } from '../../store/intentStore';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
+import { TokensSampleView } from './TokensSampleView';
 import { AccessibleCombos } from '../accessibility/AccessibleCombos';
 import { alphaCompositeHex } from '@pigmint/core';
 import type {
@@ -604,10 +605,11 @@ export function TokensPanel() {
   }, [scales]);
 
   const [addModal, setAddModal] = useState<{ open: boolean; initialSurface?: string }>({ open: false });
-  const [view, setView] = useState<'preview' | 'combos'>('preview');
-  const VIEW_LABELS: Record<'preview' | 'combos', string> = {
+  const [view, setView] = useState<'preview' | 'combos' | 'sample'>('preview');
+  const VIEW_LABELS: Record<'preview' | 'combos' | 'sample', string> = {
     preview: 'Swatches',
     combos: 'Discover',
+    sample: 'Sample',
   };
 
   return (
@@ -628,7 +630,7 @@ export function TokensPanel() {
           padding: 2,
           gap: 2,
         }}>
-          {(['preview', 'combos'] as const).map((v) => {
+          {(['preview', 'combos', 'sample'] as const).map((v) => {
             const active = view === v;
             return (
               <button key={v} onClick={() => setView(v)} style={{
@@ -681,6 +683,9 @@ export function TokensPanel() {
           <AccessibleCombos />
         </div>
       )}
+
+      {/* Sample view */}
+      {view === 'sample' && <TokensSampleView />}
 
       {/* Add token modal */}
       {addModal.open && (
