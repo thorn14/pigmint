@@ -4,7 +4,7 @@ import { Tabs } from '@base-ui/react/tabs';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
-import { parseW3CTokens, type ImportedScale } from '../../lib/importTokens';
+import { parseW3CTokens, parseColorList, detectFormat, type ImportedScale } from '../../lib/importTokens';
 import {
   parsePigmintPrimitives,
   parsePigmintYaml,
@@ -31,7 +31,7 @@ const TAB_SPECS: readonly TabSpec[] = [
     label: 'Colors',
     filename: 'primitives.json',
     description:
-      'Import primitive color ramps from a W3C Design Tokens JSON file (also accepts Figma Variables and lukasoppermann/design-tokens formats). Each top-level group becomes a scale.',
+      'Import primitive color ramps from a W3C Design Tokens JSON file (also accepts Figma Variables and lukasoppermann/design-tokens formats). Each top-level group becomes a scale. You can also paste a plain list of color values to build one scale. Expects JSON — paste YAML in the Tokens or Pigmint tab.',
   },
   {
     id: 'tokens',
@@ -148,8 +148,21 @@ function ColorsPanel({ onClose, registerImport }: PanelProps) {
       registerImport(null, 'Import', false);
       return;
     }
+    const fmt = detectFormat(text);
     try {
-      const scales = parseW3CTokens(text);
+      let scales: ImportedScale[];
+      if (fmt === 'json') {
+        scales = parseW3CTokens(text);
+      } else if (fmt === 'yaml') {
+        throw new Error(
+          'This looks like YAML, not JSON. Use the Tokens or Pigmint tab for YAML files — ' +
+          'or paste W3C / Figma tokens JSON here. To build a ramp from raw colors, paste a ' +
+          'plain list of color values (e.g. #ffffff, #1a1a1a, oklch(…)).',
+        );
+      } else {
+        // Not JSON and not obviously YAML — treat as a plain list of color values.
+        scales = [parseColorList(text)];
+      }
       setPreview(scales);
       registerImport(
         () => {
@@ -187,18 +200,18 @@ function ColorsPanel({ onClose, registerImport }: PanelProps) {
           onChange={handleFileUpload}
           style={{ display: 'none' }}
         />
-        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste JSON below</span>
+        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste JSON / a list of colors below</span>
       </div>
 
       <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-        Token JSON
+        Token JSON or color values
       </label>
       <textarea
         id={textareaId}
         name="import-colors-json"
         value={json}
         onChange={(e) => handleParse(e.target.value)}
-        placeholder="Paste design token JSON here…"
+        placeholder="Paste design token JSON here, or a plain list of colors (e.g. #ffffff, #1a1a1a, oklch(…))…"
         spellCheck={false}
         className="focus-visible-ring"
         style={textareaStyle}
@@ -281,7 +294,12 @@ function TokensPanel({ onClose, registerImport }: PanelProps) {
           loadFromText(next, engineConfig());
           onClose();
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to parse YAML');
+          const base = err instanceof Error ? err.message : 'Failed to parse YAML';
+          setError(
+            detectFormat(next) === 'json'
+              ? `${base} — this looks like JSON. Primitive color JSON goes in the Colors tab; this tab expects a tokens.yaml.`
+              : base,
+          );
         }
       },
       'Import vocabulary',
@@ -386,7 +404,12 @@ function PigmintPanel({ onClose, registerImport }: PanelProps) {
         true,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to parse');
+      const base = e instanceof Error ? e.message : 'Failed to parse';
+      setError(
+        detectFormat(next) === 'json'
+          ? `${base} — this looks like JSON. Primitive color JSON goes in the Colors tab; this tab expects a pigmint.yaml.`
+          : base,
+      );
       registerImport(null, 'Import', false);
     }
   }

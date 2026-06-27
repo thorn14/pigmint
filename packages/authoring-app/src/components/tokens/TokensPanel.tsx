@@ -532,7 +532,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                 <span style={label}>Reference surface <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></span>
                 <AppSelect
                   options={[
-                    { value: '', label: 'auto (bgMain / bgInverse per mode)' },
+                    { value: '', label: 'auto (main surface in light, inverse in dark)' },
                     ...surfaceOptions(surfaceNames, surfaces, rampMap),
                   ]}
                   value={alphaRefSurface}
@@ -606,7 +606,7 @@ export function TokensPanel() {
   const [addModal, setAddModal] = useState<{ open: boolean; initialSurface?: string }>({ open: false });
   const [view, setView] = useState<'preview' | 'combos'>('preview');
   const VIEW_LABELS: Record<'preview' | 'combos', string> = {
-    preview: 'Preview',
+    preview: 'Swatches',
     combos: 'Discover',
   };
 
@@ -666,7 +666,7 @@ export function TokensPanel() {
       </div>
 
 
-      {/* Preview view */}
+      {/* Swatches view */}
       {view === 'preview' && (
         <TokensPreview
           onAdd={rampNames.length > 0

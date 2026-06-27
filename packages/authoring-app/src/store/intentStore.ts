@@ -54,13 +54,13 @@ export interface PersistedIntentState {
   engineCvd: CvdProfile[];
   engineResolver: ResolverConfig;
   overrides: IntentOverrides;
+  highContrast: boolean;
 }
 
 export type AppTheme = 'light' | 'dark';
 
 interface IntentState extends PersistedIntentState {
   appTheme: AppTheme;
-  highContrast: boolean;
 }
 
 interface IntentActions {
@@ -89,6 +89,7 @@ const DEFAULT_STATE: PersistedIntentState = {
   engineCvd: [],
   engineResolver: { mode: 'continuous' },
   overrides: {},
+  highContrast: false,
 };
 
 function sanitizeModes(raw: unknown): EngineMode[] {
@@ -157,6 +158,7 @@ function loadFromStorage(): PersistedIntentState {
           parsed.overrides && typeof parsed.overrides === 'object'
             ? (parsed.overrides as IntentOverrides)
             : {},
+        highContrast: parsed.highContrast === true,
       };
     }
   } catch {
@@ -182,6 +184,7 @@ function snapshot(state: PersistedIntentState): PersistedIntentState {
     engineCvd: [...state.engineCvd],
     engineResolver: { ...state.engineResolver },
     overrides: { ...state.overrides },
+    highContrast: state.highContrast,
   };
 }
 
@@ -189,7 +192,6 @@ export const useIntentStore = create<IntentState & IntentActions>()(
   immer((set) => ({
     ...loadFromStorage(),
     appTheme: 'light' as AppTheme,
-    highContrast: false,
 
     setEngineTarget: (target) =>
       set((state) => {
@@ -315,6 +317,17 @@ export const useIntentStore = create<IntentState & IntentActions>()(
     setHighContrast: (hc) =>
       set((state) => {
         state.highContrast = hc;
+        // Turning HC on auto-enables the matching engine mode so the preview can
+        // actually resolve at HC thresholds — otherwise the toggle is a no-op.
+        // Light vs dark is derived from appTheme when the mode is read.
+        if (hc) {
+          const hcMode: EngineMode =
+            state.appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
+          if (!state.engineModes.includes(hcMode)) {
+            state.engineModes = sanitizeModes([...state.engineModes, hcMode]);
+          }
+        }
+        persist(snapshot(state));
       }),
   })),
 );

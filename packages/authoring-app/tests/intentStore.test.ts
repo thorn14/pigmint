@@ -178,4 +178,16 @@ describe('intentStore', () => {
     useIntentStore.getState().setMaterializeInterpolatedPrimitives(undefined);
     expect(useIntentStore.getState().engineResolver).toEqual({ mode: 'continuous' });
   });
+
+  it('enabling high contrast auto-adds the matching engine mode', () => {
+    useIntentStore.getState().loadState({ engineModes: ['light'] });
+    useIntentStore.getState().setHighContrast(true);
+    const state = useIntentStore.getState();
+    expect(state.highContrast).toBe(true);
+    // light theme → light-high-contrast must be present so the preview can resolve it
+    expect(state.engineModes).toContain('light-high-contrast');
+
+    useIntentStore.getState().setHighContrast(false);
+    expect(useIntentStore.getState().highContrast).toBe(false);
+  });
 });

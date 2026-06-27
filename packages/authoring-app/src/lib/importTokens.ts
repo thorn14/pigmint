@@ -266,6 +266,52 @@ function parseFigmaVariables(data: Record<string, unknown>): ImportedScale[] {
   return groupsToScales(groups);
 }
 
+/**
+ * Cheap heuristic to tell which textual format a paste/upload is, so each import
+ * tab can give a helpful "wrong tab" message instead of a generic parse error.
+ */
+export function detectFormat(text: string): 'json' | 'yaml' | 'unknown' {
+  const trimmed = text.trim();
+  if (!trimmed) return 'unknown';
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return 'json';
+  if (trimmed.startsWith('---')) return 'yaml';
+  // Top-level `key:` mapping lines (optionally with a value) are the YAML tell.
+  const lines = trimmed.split('\n').map((l) => l.replace(/\s+$/, ''));
+  const topLevelKey = lines.some((l) => /^[A-Za-z_][\w-]*\s*:(\s|$)/.test(l));
+  if (topLevelKey) return 'yaml';
+  return 'unknown';
+}
+
+/**
+ * Parse a plain list of color values (newline / comma / whitespace separated)
+ * into a single scale. Unparseable entries are skipped; throws only when nothing
+ * parses. Lets users paste e.g. `#fff, #1a1a1a, oklch(...)` without structured JSON.
+ */
+export function parseColorList(text: string, name = 'Pasted'): ImportedScale {
+  const tokens = text
+    .split(/[\s,]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const steps: ImportedStep[] = [];
+  let i = 1;
+  for (const tok of tokens) {
+    const parsed = parse(tok);
+    if (!parsed) continue;
+    const hex = formatHex(parsed);
+    if (!hex) continue;
+    steps.push({ name: String(i * 100), hex, oklch: hexToOklchSafe(hex) });
+    i += 1;
+  }
+
+  if (steps.length === 0) {
+    throw new Error('No valid color values found. Paste colors like #ffffff, rgb(…), or oklch(…).');
+  }
+
+  const source = pickSourceStep(steps);
+  return { name, steps, sourceHex: source.hex, sourceOklch: source.oklch };
+}
+
 export function parseW3CTokens(json: string): ImportedScale[] {
   let data: unknown;
   try {

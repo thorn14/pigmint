@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { formatCss } from 'culori';
 import { usePaletteStore } from '../../store/paletteStore';
-import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
+import { useIntentStore, useEffectiveMode, CVD_PROFILE_OPTIONS } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import { generateRamp, getRelativeLuminance } from '../../lib/colorMath';
+import { CvdFilterDefs, cvdFilterCss, CVD_PROFILE_LABELS } from '../../lib/cvdFilter';
 import type { ResolvedToken, ComplianceLevel, GeneratedRamp } from '@pigmint/core';
 import { EditTokenModal } from './EditTokenModal';
 
@@ -33,6 +34,11 @@ const tokenGrid: React.CSSProperties = {
 
 // ─── Token card ───────────────────────────────────────────────────────────────
 
+// 'border' is a presentation variant of nonText: such tokens are drawn as a box
+// with a 3px border in the token color + the name inside, so the swatch literally
+// demonstrates the border instead of looking identical to a background fill.
+type TokenUsage = 'text' | 'nonText' | 'decorative' | 'border';
+
 function TokenCard({
   token,
   surfaceFg,
@@ -42,7 +48,7 @@ function TokenCard({
 }: {
   token: ResolvedToken;
   surfaceFg: string;
-  usage: 'text' | 'nonText' | 'decorative';
+  usage: TokenUsage;
   useWcag: boolean;
   onEdit: () => void;
 }) {
@@ -68,6 +74,15 @@ function TokenCard({
   const colorValue = isTransparent
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
+
+  // Border tokens demonstrate the border itself; background (nonText) tokens are
+  // shown as a filled box. Both label themselves inside the swatch so it's clear
+  // what's being used. Text/decorative/alpha keep their existing compact glyphs.
+  const isBorder = usage === 'border';
+  const isFilled = usage === 'nonText';
+  const nameInside = isBorder || isFilled;
+  // Contrast-safe text color when the name sits on the filled swatch.
+  const fillTextColor = getRelativeLuminance(token.hex) > 0.5 ? '#000000' : '#ffffff';
 
   return (
     <button
@@ -95,6 +110,26 @@ function TokenCard({
         <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
           {stepLabel || '—'}
         </span>
+      ) : nameInside ? (
+        <div
+          style={{
+            width: '100%',
+            minHeight: 46,
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '6px 8px',
+            boxSizing: 'border-box',
+            ...(isBorder
+              ? { border: `3px solid ${colorValue}`, background: 'transparent', color: surfaceFg }
+              : { background: colorValue, color: fillTextColor }),
+          }}
+        >
+          <span style={{ fontSize: 10, fontFamily: 'monospace', lineHeight: 1.25, wordBreak: 'break-all' as const, textAlign: 'center' }}>
+            {token.path}
+          </span>
+        </div>
       ) : (
         <span
           aria-hidden="true"
@@ -102,22 +137,23 @@ function TokenCard({
             width: 28,
             height: 16,
             borderRadius: 4,
-            ...(usage === 'nonText'
-              ? { background: colorValue }
-              : { border: `1.5px solid ${colorValue}`, background: 'transparent' }),
+            border: `1.5px solid ${colorValue}`,
+            background: 'transparent',
           }}
         />
       )}
-      <span style={{
-        color: surfaceFg,
-        fontSize: 10,
-        opacity: 0.85,
-        fontFamily: 'monospace',
-        lineHeight: 1.3,
-        wordBreak: 'break-all' as const,
-      }}>
-        {token.path}
-      </span>
+      {!nameInside && (
+        <span style={{
+          color: surfaceFg,
+          fontSize: 10,
+          opacity: 0.85,
+          fontFamily: 'monospace',
+          lineHeight: 1.3,
+          wordBreak: 'break-all' as const,
+        }}>
+          {token.path}
+        </span>
+      )}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -201,13 +237,13 @@ export function TokensPreview({ onAdd }: Props = {}) {
   const engineTarget     = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver   = useIntentStore((s) => s.engineResolver);
-  const appTheme         = useIntentStore((s) => s.appTheme);
   const highContrast     = useIntentStore((s) => s.highContrast);
   const setHighContrast  = useIntentStore((s) => s.setHighContrast);
+  const engineCvd        = useIntentStore((s) => s.engineCvd);
+  const toggleEngineCvd  = useIntentStore((s) => s.toggleEngineCvd);
   const effectiveMode    = useEffectiveMode();
 
-  const hcVariant        = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
-  const hcAvailable      = engineModes.includes(hcVariant);
+  const cvdFilter        = cvdFilterCss(engineCvd);
 
   const vocabEntries      = useVocabStore((s) => s.entries);
   const vocabRaw          = useVocabStore((s) => s.raw);
@@ -287,12 +323,13 @@ export function TokensPreview({ onAdd }: Props = {}) {
     return map;
   }, [resolution, effectiveMode, surfacePathSet]);
 
-  // token path → 'text' | 'nonText' | 'decorative'
+  // token path → usage variant. nonText tokens whose name reads as a border
+  // (e.g. color.border.main, borderMain) get the dedicated 'border' presentation.
   const usageMap = useMemo(() => {
-    const map = new Map<string, 'text' | 'nonText' | 'decorative'>();
+    const map = new Map<string, TokenUsage>();
     if (!vocabRaw) return map;
     for (const name of Object.keys(vocabRaw.foreground)) map.set(name, 'text');
-    for (const name of Object.keys(vocabRaw.nonText)) map.set(name, 'nonText');
+    for (const name of Object.keys(vocabRaw.nonText)) map.set(name, /border/i.test(name) ? 'border' : 'nonText');
     for (const name of Object.keys(vocabRaw.decorative ?? {})) map.set(name, 'decorative');
     return map;
   }, [vocabRaw]);
@@ -413,9 +450,15 @@ export function TokensPreview({ onAdd }: Props = {}) {
 
   // ─── Preview ───────────────────────────────────────────────────────────────
 
+  const hasAnyTokens =
+    Array.from(grouped.values()).some((arr) => arr.length > 0) ||
+    standaloneResolved.length > 0 ||
+    standaloneDecorative.length > 0;
+
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-      {/* HC toolbar */}
+      <CvdFilterDefs />
+      {/* HC + color-vision-deficiency toolbar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -425,29 +468,59 @@ export function TokensPreview({ onAdd }: Props = {}) {
         flexShrink: 0,
         fontSize: 11,
         color: 'var(--p-text-secondary)',
+        flexWrap: 'wrap' as const,
       }}>
         <span style={{ fontWeight: 600, color: 'var(--p-text)', textTransform: 'capitalize' }}>
           {effectiveMode.replace(/-/g, ' ')}
         </span>
+
+        {/* CVD simulation toggles */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12, flexWrap: 'wrap' as const }}>
+          <span style={{ opacity: 0.7 }}>Simulate vision</span>
+          {CVD_PROFILE_OPTIONS.map((profile) => {
+            const active = engineCvd.includes(profile);
+            return (
+              <button
+                key={profile}
+                type="button"
+                onClick={() => toggleEngineCvd(profile)}
+                aria-pressed={active}
+                title={`Simulate ${CVD_PROFILE_LABELS[profile]}`}
+                className="focus-visible-ring"
+                style={{
+                  fontSize: 10,
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  border: `1px solid ${active ? 'var(--p-accent)' : 'var(--p-border)'}`,
+                  background: active ? 'var(--p-accent)' : 'transparent',
+                  color: active ? '#fff' : 'var(--p-text-secondary)',
+                }}
+              >
+                {CVD_PROFILE_LABELS[profile]}
+              </button>
+            );
+          })}
+        </span>
+
         <label style={{
           display: 'flex', alignItems: 'center', gap: 5,
-          cursor: hcAvailable ? 'pointer' : 'default',
-          opacity: hcAvailable ? 1 : 0.4,
+          cursor: 'pointer',
           marginLeft: 'auto',
           userSelect: 'none',
         }}>
           <input
             type="checkbox"
-            checked={highContrast && hcAvailable}
-            disabled={!hcAvailable}
+            checked={highContrast}
             onChange={(e) => setHighContrast(e.target.checked)}
-            style={{ cursor: hcAvailable ? 'pointer' : 'default', accentColor: 'var(--p-accent)' }}
+            style={{ cursor: 'pointer', accentColor: 'var(--p-accent)' }}
           />
           High contrast
         </label>
       </div>
 
-      {/* Surface groups */}
+      {/* Surface groups — CVD filter applied so swatches read as they would to
+          someone with the selected deficiency. */}
       <div style={{
         flex: 1,
         overflow: 'auto',
@@ -455,8 +528,9 @@ export function TokensPreview({ onAdd }: Props = {}) {
         display: 'flex',
         flexDirection: 'column',
         gap: 32,
+        filter: cvdFilter,
       }}>
-        {onAdd && (
+        {onAdd && !hasAnyTokens && (
           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
             <AddTokenSwatch onAdd={onAdd} />
           </div>
