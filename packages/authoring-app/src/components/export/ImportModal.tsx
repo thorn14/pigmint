@@ -82,7 +82,7 @@ const descriptionStyle: React.CSSProperties = {
 
 const filenameStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--p-text-tertiary)',
+  color: 'var(--p-text-secondary)',
   fontFamily: 'monospace',
 };
 
@@ -200,7 +200,7 @@ function ColorsPanel({ onClose, registerImport }: PanelProps) {
           onChange={handleFileUpload}
           style={{ display: 'none' }}
         />
-        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste JSON / a list of colors below</span>
+        <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>or paste JSON / a list of colors below</span>
       </div>
 
       <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
@@ -338,7 +338,7 @@ function TokensPanel({ onClose, registerImport }: PanelProps) {
           onChange={handleFileUpload}
           style={{ display: 'none' }}
         />
-        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste YAML below</span>
+        <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>or paste YAML below</span>
       </div>
 
       <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
@@ -467,7 +467,7 @@ function PigmintPanel({ onClose, registerImport }: PanelProps) {
           onChange={handleFileUpload}
           style={{ display: 'none' }}
         />
-        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>or paste YAML below</span>
+        <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>or paste YAML below</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -494,14 +494,14 @@ function PigmintPanel({ onClose, registerImport }: PanelProps) {
                 border: '1px solid var(--p-border)',
                 borderRadius: 4,
                 cursor: 'pointer',
-                color: 'var(--p-text-tertiary)',
+                color: 'var(--p-text-secondary)',
               }}
             >
               clear
             </button>
           </span>
         ) : (
-          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
+          <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
             optional — only required for `fromFile` ramps
           </span>
         )}
@@ -706,7 +706,7 @@ export function ImportModal({ onClose }: Props) {
               borderColor: canImport ? 'var(--p-accent)' : 'var(--p-border)',
               borderRadius: 6,
               cursor: canImport ? 'pointer' : 'default',
-              color: canImport ? '#fff' : 'var(--p-text-tertiary)',
+              color: canImport ? '#fff' : 'var(--p-text-secondary)',
               fontWeight: 500,
               opacity: canImport ? 1 : 0.6,
             }}

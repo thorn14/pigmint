@@ -111,7 +111,7 @@ function VirtualizedPre({ text }: { text: string }) {
               display: 'flex',
             }}
           >
-            <span style={{ display: 'inline-block', width: 44, textAlign: 'right', marginRight: 12, color: 'var(--p-text-tertiary)', userSelect: 'none', flexShrink: 0 }}>
+            <span style={{ display: 'inline-block', width: 44, textAlign: 'right', marginRight: 12, color: 'var(--p-text-secondary)', userSelect: 'none', flexShrink: 0 }}>
               {vItem.index + 1}
             </span>
             <span style={{ color: 'var(--p-text-secondary)' }}>{lines[vItem.index]}</span>
@@ -328,7 +328,7 @@ export function ExportModal({ onClose }: Props) {
                   gap: 4,
                 }}
               >
-                <div style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontFamily: 'monospace' }}>
+                <div style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>
                   {spec.filename}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--p-text-secondary)', lineHeight: 1.5 }}>

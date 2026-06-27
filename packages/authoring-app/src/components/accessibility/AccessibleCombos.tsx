@@ -151,7 +151,7 @@ function FilterBar({
       />
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <label htmlFor="combos-level" style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>Level:</label>
+        <label htmlFor="combos-level" style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>Level:</label>
         {useWcag ? (
           <AppStringSelect
             id="combos-level"
@@ -176,7 +176,7 @@ function FilterBar({
       </div>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <label htmlFor="combos-sort" style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>Sort:</label>
+        <label htmlFor="combos-sort" style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>Sort:</label>
         <AppStringSelect
           id="combos-sort"
           name="combos-sort"
@@ -342,7 +342,7 @@ export function AccessibleCombos() {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--p-text)' }}>
             {activeLevel.label}
           </span>
-          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>{activeLevel.sub}</span>
+          <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>{activeLevel.sub}</span>
           <span
             style={{
               marginLeft: 'auto',
@@ -360,7 +360,7 @@ export function AccessibleCombos() {
 
         <div ref={gridRef}>
         {entries.length === 0 ? (
-          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', padding: '4px 0' }}>
+          <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', padding: '4px 0' }}>
             No pairs match these filters
           </span>
         ) : (

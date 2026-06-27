@@ -41,7 +41,7 @@ export function AppField({ label, description, htmlFor, error, children, style, 
         <Field.Description
           style={{
             fontSize: 11,
-            color: 'var(--p-text-tertiary)',
+            color: 'var(--p-text-secondary)',
             lineHeight: 1.45,
           }}
         >

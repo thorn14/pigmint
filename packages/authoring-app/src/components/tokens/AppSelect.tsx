@@ -188,7 +188,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
             minWidth: 0,
             flex: 1,
             textAlign: 'left',
-            color: current ? 'var(--p-text)' : 'var(--p-text-tertiary)',
+            color: current ? 'var(--p-text)' : 'var(--p-text-secondary)',
           }}>
             {current?.label ?? placeholder ?? '—'}
           </span>
@@ -224,7 +224,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
           }}
         >
           {options.length === 0 && (
-            <div style={{ padding: '8px 12px', color: 'var(--p-text-tertiary)', fontSize: 12 }}>
+            <div style={{ padding: '8px 12px', color: 'var(--p-text-secondary)', fontSize: 12 }}>
               No options
             </div>
           )}

@@ -42,7 +42,7 @@ const presetLabelStyle: React.CSSProperties = {
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
-  color: 'var(--p-text-tertiary)',
+  color: 'var(--p-text-secondary)',
   width: 56,
   flexShrink: 0,
 };
@@ -183,7 +183,7 @@ function ScaleItem({
           }}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" style={{ display: 'block' }}>
-            <rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="none" stroke="var(--p-text-tertiary)" strokeWidth="1" />
+            <rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="none" stroke="var(--p-text-secondary)" strokeWidth="1" />
             {isSelected && (
               <path d="M2.5 6L5 8.5L9.5 3.5" fill="none" stroke="var(--p-accent, #6366f1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             )}
@@ -221,7 +221,7 @@ function ScaleItem({
             border: 'none',
             borderRadius: 4,
             cursor: 'pointer',
-            color: hovered ? 'var(--p-text)' : 'var(--p-text-tertiary)',
+            color: hovered ? 'var(--p-text)' : 'var(--p-text-secondary)',
             opacity: hovered ? 1 : 0,
             transition: 'opacity 0.1s, color 0.1s',
             padding: 0,
@@ -243,7 +243,7 @@ function ScaleItem({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-tertiary)',
+            color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-secondary)',
             opacity: scale.lockedFromOverrides ? 1 : (hovered ? 1 : 0),
             transition: 'opacity 0.1s, color 0.1s',
             cursor: 'pointer',
@@ -267,7 +267,7 @@ function ScaleItem({
       >
         <div
           style={{
-            color: 'var(--p-text-tertiary)',
+            color: 'var(--p-text-secondary)',
             flexShrink: 0,
             width: 16,
             height: 16,
@@ -495,7 +495,7 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
                 fontSize: 10,
                 background: 'none',
                 border: 'none',
-                color: 'var(--p-text-tertiary)',
+                color: 'var(--p-text-secondary)',
                 cursor: 'pointer',
                 textTransform: 'none',
                 letterSpacing: 'normal',

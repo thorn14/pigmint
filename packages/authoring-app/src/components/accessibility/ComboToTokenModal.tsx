@@ -193,7 +193,7 @@ export function ComboToTokenModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
             <span style={{ fontSize: 12, color: 'var(--p-text)', fontWeight: 500 }}>
               {entry.fg.ramp} {entry.fg.step}
-              <span style={{ color: 'var(--p-text-tertiary)', fontWeight: 400 }}> on </span>
+              <span style={{ color: 'var(--p-text-secondary)', fontWeight: 400 }}> on </span>
               {entry.bg.ramp} {entry.bg.step}
             </span>
             <span style={{ fontSize: 11, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>
@@ -256,7 +256,7 @@ export function ComboToTokenModal({
               <div style={field}>
                 <span style={lbl}>Existing surface</span>
                 {surfaceNames.length === 0 ? (
-                  <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>
+                  <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontStyle: 'italic' }}>
                     No surfaces yet — switch to New to create one
                   </span>
                 ) : (
@@ -323,7 +323,7 @@ export function ComboToTokenModal({
               <div style={field}>
                 <span style={lbl}>Existing token</span>
                 {allFgTokens.length === 0 ? (
-                  <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>
+                  <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontStyle: 'italic' }}>
                     No foreground or nonText tokens yet — switch to New to create one
                   </span>
                 ) : (

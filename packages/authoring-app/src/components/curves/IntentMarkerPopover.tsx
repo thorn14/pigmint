@@ -134,7 +134,7 @@ export function IntentMarkerPopover({
                   fontWeight: 600,
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
-                  color: 'var(--p-text-tertiary)',
+                  color: 'var(--p-text-secondary)',
                   marginBottom: 6,
                 }}
               >

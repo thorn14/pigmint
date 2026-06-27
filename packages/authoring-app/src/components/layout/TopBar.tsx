@@ -104,7 +104,7 @@ const groupLabelStyle: React.CSSProperties = {
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
-  color: 'var(--p-text-tertiary)',
+  color: 'var(--p-text-secondary)',
 };
 
 const radioItemStyle: React.CSSProperties = {
@@ -306,7 +306,10 @@ function OverflowMenu({
               {saveLabel}
             </Menu.Item>
             <Menu.Item className="app-menu-item focus-visible-ring" style={menuItemStyle} label="Preview" onClick={onPreview}>
-              Preview
+              <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <span>Preview</span>
+                <span style={{ fontSize: 11, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>(p)</span>
+              </span>
             </Menu.Item>
             <Menu.Item className="app-menu-item focus-visible-ring" style={menuItemStyle} label="Import" onClick={onImport}>
               Import

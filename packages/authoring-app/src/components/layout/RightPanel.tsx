@@ -240,7 +240,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               onValueChange={(v: number) => updateSourceAlpha(scale.id, v)}
             />
             {scale.sourceAlpha < 1 && (
-              <div style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: 'var(--p-text-secondary)', marginTop: 4 }}>
                 Steps emit <code style={{ fontFamily: 'monospace' }}>oklch(L C H / {Math.round(scale.sourceAlpha * 100)}%)</code>
               </div>
             )}
@@ -399,7 +399,7 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Curve Smoothing */}
       <div style={sectionStyle}>
         <SectionLabel>Curve Smoothing</SectionLabel>
-        <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginBottom: 10, lineHeight: 1.4 }}>
+        <p style={{ fontSize: 11, color: 'var(--p-text-secondary)', marginBottom: 10, lineHeight: 1.4 }}>
           Smooths interior nodes.
         </p>
         {(
@@ -417,7 +417,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                 <label htmlFor={smoothId} style={{ fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
                   {label}
                 </label>
-                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
+                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-secondary)' }}>
                   {(value * 100).toFixed(0)}%
                 </span>
               </div>
@@ -633,7 +633,7 @@ export function RightPanel({ scale, activeStep }: Props) {
           })()}
 
           {/* OKLCH */}
-          <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-tertiary)', marginBottom: 3 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', marginBottom: 3 }}>
             OKLCH
           </div>
           <div style={{

@@ -39,7 +39,7 @@ export function CurveEditor({ scale }: Props) {
         min={-180}
         max={180}
         step={1}
-        previewColor="var(--p-text-tertiary)"
+        previewColor="var(--p-text-secondary)"
         onChange={(i, v) => updateCurveValue(scale.id, 'hue', i, v)}
       />
     </div>

@@ -184,7 +184,7 @@ export function MultiSurfaceSelect({
             minWidth: 0,
             flex: 1,
             textAlign: 'left',
-            color: selected.length > 0 ? 'var(--p-text)' : 'var(--p-text-tertiary)',
+            color: selected.length > 0 ? 'var(--p-text)' : 'var(--p-text-secondary)',
           }}>
             {triggerLabel}
           </span>
@@ -220,7 +220,7 @@ export function MultiSurfaceSelect({
           }}
         >
           {surfaceNames.length === 0 && (
-            <div style={{ padding: '8px 12px', color: 'var(--p-text-tertiary)', fontSize: 12 }}>
+            <div style={{ padding: '8px 12px', color: 'var(--p-text-secondary)', fontSize: 12 }}>
               No surfaces
             </div>
           )}

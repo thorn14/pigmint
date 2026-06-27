@@ -316,7 +316,7 @@ export function BulkCreatePanel() {
               background: scaleColors.length ? 'var(--p-accent)' : 'var(--p-surface)',
               border: 'none',
               borderRadius: 8,
-              color: scaleColors.length ? '#fff' : 'var(--p-text-tertiary)',
+              color: scaleColors.length ? '#fff' : 'var(--p-text-secondary)',
               cursor: scaleColors.length ? 'pointer' : 'default',
             }}
           >
