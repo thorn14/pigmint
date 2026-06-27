@@ -261,7 +261,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
         alignItems: 'center',
         gap: 8,
       }}>
-        <span>Add token</span>
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add token</span>
         <div style={{ flex: 1 }} />
         <button
           type="button"

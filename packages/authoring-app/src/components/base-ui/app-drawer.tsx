@@ -32,7 +32,7 @@ const popupStyle: CSSProperties = {
   flexDirection: 'column',
   background: 'var(--p-bg)',
   border: '1px solid var(--p-border-strong)',
-  borderRadius: 6,
+  borderRadius: 10,
   boxShadow: '0 8px 32px rgba(0,0,0,0.32)',
   overflow: 'hidden',
   minHeight: 0,

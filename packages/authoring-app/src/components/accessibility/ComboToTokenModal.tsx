@@ -169,7 +169,7 @@ export function ComboToTokenModal({
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Save as tokens</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Save as tokens</span>
         <button onClick={onClose} style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
           color: 'var(--p-text-secondary)', fontSize: 16, lineHeight: 1, padding: '2px 4px',
