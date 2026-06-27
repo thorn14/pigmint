@@ -111,14 +111,19 @@ function TokenCard({
           {stepLabel || '—'}
         </span>
       ) : nameInside ? (
+        // Border tokens: the token color surrounds the swatch (3px border).
+        // Background tokens: the token color fills it, with black/white contrast
+        // text (like the dropdown swatches). Both show the name and the value.
         <div
           style={{
             width: '100%',
             minHeight: 46,
             borderRadius: 6,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 3,
             padding: '6px 8px',
             boxSizing: 'border-box',
             ...(isBorder
@@ -126,7 +131,10 @@ function TokenCard({
               : { background: colorValue, color: fillTextColor }),
           }}
         >
-          <span style={{ fontSize: 10, fontFamily: 'monospace', lineHeight: 1.25, wordBreak: 'break-all' as const, textAlign: 'center' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', lineHeight: 1 }}>
+            {stepLabel || '—'}
+          </span>
+          <span style={{ fontSize: 10, fontFamily: 'monospace', lineHeight: 1.2, wordBreak: 'break-all' as const, textAlign: 'center', opacity: 0.85 }}>
             {token.path}
           </span>
         </div>
