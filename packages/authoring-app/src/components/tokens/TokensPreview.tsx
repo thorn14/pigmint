@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { formatCss } from 'culori';
 import { usePaletteStore } from '../../store/paletteStore';
-import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
+import { useIntentStore, useEffectiveMode, CVD_PROFILE_OPTIONS } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import { generateRamp, getRelativeLuminance } from '../../lib/colorMath';
-import type { ResolvedToken, ComplianceLevel, GeneratedRamp } from '@pigmint/core';
+import { CvdFilterDefs, cvdFilterCss, CVD_PROFILE_LABELS } from '../../lib/cvdFilter';
+import type { ResolvedToken, ComplianceLevel, GeneratedRamp, CvdProfile } from '@pigmint/core';
+import { AppSelect } from './AppSelect';
 import { EditTokenModal } from './EditTokenModal';
 
 
@@ -33,6 +35,10 @@ const tokenGrid: React.CSSProperties = {
 
 // ─── Token card ───────────────────────────────────────────────────────────────
 
+// nonText tokens (borders, fills, icons — indistinguishable in the data) are all
+// shown as a filled swatch; a no-fill version can be too low-contrast to read.
+type TokenUsage = 'text' | 'nonText' | 'decorative';
+
 function TokenCard({
   token,
   surfaceFg,
@@ -42,7 +48,7 @@ function TokenCard({
 }: {
   token: ResolvedToken;
   surfaceFg: string;
-  usage: 'text' | 'nonText' | 'decorative';
+  usage: TokenUsage;
   useWcag: boolean;
   onEdit: () => void;
 }) {
@@ -69,6 +75,19 @@ function TokenCard({
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
 
+  const isFilled = usage === 'nonText';
+  // Decorative/alpha keep the small outline glyph rather than a value number.
+  const isGlyph = usage === 'decorative';
+  // Contrast-safe text color when content sits on the filled swatch.
+  const fillTextColor = getRelativeLuminance(token.hex) > 0.5 ? '#000000' : '#ffffff';
+
+  // nonText tokens fill the whole card with the token color and use black/white
+  // contrast text. The layout matches the foreground card: color value on top,
+  // then the token name, then the contrast badge.
+  const cardBg = isFilled ? colorValue : 'transparent';
+  const cardText = isFilled ? fillTextColor : surfaceFg;
+  const valueColor = isFilled ? fillTextColor : colorValue;
+
   return (
     <button
       type="button"
@@ -80,36 +99,35 @@ function TokenCard({
         flexDirection: 'column',
         gap: 8,
         padding: 12,
-        background: 'transparent',
+        background: cardBg,
         border: 'none',
         borderRadius: 8,
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
-        color: 'inherit',
+        color: cardText,
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
-      {usage === 'text' ? (
-        <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
-          {stepLabel || '—'}
-        </span>
-      ) : (
+      {isGlyph ? (
         <span
           aria-hidden="true"
           style={{
             width: 28,
             height: 16,
             borderRadius: 4,
-            ...(usage === 'nonText'
-              ? { background: colorValue }
-              : { border: `1.5px solid ${colorValue}`, background: 'transparent' }),
+            border: `1.5px solid ${colorValue}`,
+            background: 'transparent',
           }}
         />
+      ) : (
+        <span style={{ color: valueColor, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
+          {stepLabel || '—'}
+        </span>
       )}
       <span style={{
-        color: surfaceFg,
+        color: cardText,
         fontSize: 10,
         opacity: 0.85,
         fontFamily: 'monospace',
@@ -136,7 +154,7 @@ function TokenCard({
             {badge.label}
           </span>
         ) : <span />}
-        <span style={{ fontSize: 10, color: surfaceFg, fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 10, color: cardText, fontFamily: 'monospace' }}>
           {contrastStr}
         </span>
       </div>
@@ -201,13 +219,13 @@ export function TokensPreview({ onAdd }: Props = {}) {
   const engineTarget     = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
   const engineResolver   = useIntentStore((s) => s.engineResolver);
-  const appTheme         = useIntentStore((s) => s.appTheme);
   const highContrast     = useIntentStore((s) => s.highContrast);
   const setHighContrast  = useIntentStore((s) => s.setHighContrast);
+  const engineCvd        = useIntentStore((s) => s.engineCvd);
+  const setEngineCvd     = useIntentStore((s) => s.setEngineCvd);
   const effectiveMode    = useEffectiveMode();
 
-  const hcVariant        = appTheme === 'dark' ? 'dark-high-contrast' : 'light-high-contrast';
-  const hcAvailable      = engineModes.includes(hcVariant);
+  const cvdFilter        = cvdFilterCss(engineCvd);
 
   const vocabEntries      = useVocabStore((s) => s.entries);
   const vocabRaw          = useVocabStore((s) => s.raw);
@@ -287,9 +305,10 @@ export function TokensPreview({ onAdd }: Props = {}) {
     return map;
   }, [resolution, effectiveMode, surfacePathSet]);
 
-  // token path → 'text' | 'nonText' | 'decorative'
+  // token path → usage variant. nonText is a single bucket (borders, fills,
+  // icons) — all rendered as a filled swatch; we don't infer subtypes by name.
   const usageMap = useMemo(() => {
-    const map = new Map<string, 'text' | 'nonText' | 'decorative'>();
+    const map = new Map<string, TokenUsage>();
     if (!vocabRaw) return map;
     for (const name of Object.keys(vocabRaw.foreground)) map.set(name, 'text');
     for (const name of Object.keys(vocabRaw.nonText)) map.set(name, 'nonText');
@@ -413,9 +432,15 @@ export function TokensPreview({ onAdd }: Props = {}) {
 
   // ─── Preview ───────────────────────────────────────────────────────────────
 
+  const hasAnyTokens =
+    Array.from(grouped.values()).some((arr) => arr.length > 0) ||
+    standaloneResolved.length > 0 ||
+    standaloneDecorative.length > 0;
+
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-      {/* HC toolbar */}
+      <CvdFilterDefs />
+      {/* HC + color-vision-deficiency toolbar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -425,29 +450,44 @@ export function TokensPreview({ onAdd }: Props = {}) {
         flexShrink: 0,
         fontSize: 11,
         color: 'var(--p-text-secondary)',
+        flexWrap: 'wrap' as const,
       }}>
-        <span style={{ fontWeight: 600, color: 'var(--p-text)', textTransform: 'capitalize' }}>
-          {effectiveMode.replace(/-/g, ' ')}
-        </span>
+        {/* CVD simulation — single select, defaults to None */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ opacity: 0.7 }}>Simulate vision</span>
+          <AppSelect
+            variant="compact"
+            value={engineCvd[0] ?? ''}
+            onChange={(v) => setEngineCvd(v ? [v as CvdProfile] : [])}
+            title="Simulate a color vision deficiency"
+            options={[
+              { value: '', label: 'None' },
+              ...CVD_PROFILE_OPTIONS.map((profile) => ({
+                value: profile,
+                label: CVD_PROFILE_LABELS[profile],
+              })),
+            ]}
+          />
+        </label>
+
         <label style={{
           display: 'flex', alignItems: 'center', gap: 5,
-          cursor: hcAvailable ? 'pointer' : 'default',
-          opacity: hcAvailable ? 1 : 0.4,
+          cursor: 'pointer',
           marginLeft: 'auto',
           userSelect: 'none',
         }}>
           <input
             type="checkbox"
-            checked={highContrast && hcAvailable}
-            disabled={!hcAvailable}
+            checked={highContrast}
             onChange={(e) => setHighContrast(e.target.checked)}
-            style={{ cursor: hcAvailable ? 'pointer' : 'default', accentColor: 'var(--p-accent)' }}
+            style={{ cursor: 'pointer', accentColor: 'var(--p-accent)' }}
           />
           High contrast
         </label>
       </div>
 
-      {/* Surface groups */}
+      {/* Surface groups — CVD filter applied so swatches read as they would to
+          someone with the selected deficiency. */}
       <div style={{
         flex: 1,
         overflow: 'auto',
@@ -455,8 +495,9 @@ export function TokensPreview({ onAdd }: Props = {}) {
         display: 'flex',
         flexDirection: 'column',
         gap: 32,
+        filter: cvdFilter,
       }}>
-        {onAdd && (
+        {onAdd && !hasAnyTokens && (
           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
             <AddTokenSwatch onAdd={onAdd} />
           </div>
