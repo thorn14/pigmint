@@ -168,7 +168,7 @@ export function EditTokenModal({ path: initialPath, onClose }: Props) {
         gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Edit token</span>
-        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: 11, color: 'var(--p-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {kind}
         </span>
         <div style={{ flex: 1 }} />
@@ -472,7 +472,7 @@ function SemanticFields({
       <div style={field}>
         <span style={label}>Surfaces</span>
         {surfaceNames.length === 0 ? (
-          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>Add a surface first</span>
+          <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontStyle: 'italic' }}>Add a surface first</span>
         ) : (
           <MultiSurfaceSelect
             surfaceNames={surfaceNames}
@@ -700,7 +700,7 @@ function AlphaFields({
         <div style={field}>
           <span style={label}>Surfaces</span>
           {surfaceNames.length === 0 ? (
-            <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>Add a surface first</span>
+            <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontStyle: 'italic' }}>Add a surface first</span>
           ) : (
             <MultiSurfaceSelect
               surfaceNames={surfaceNames}

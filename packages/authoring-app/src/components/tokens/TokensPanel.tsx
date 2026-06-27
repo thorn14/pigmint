@@ -351,7 +351,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
               <div style={field}>
                 <span style={label}>Surfaces</span>
                 {surfaceNames.length === 0 ? (
-                  <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>
+                  <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontStyle: 'italic' }}>
                     Add a surface first
                   </span>
                 ) : (
@@ -437,7 +437,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                     </button>
                   ))}
                 </div>
-                <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+                <span style={{ fontSize: 11, color: 'var(--p-text-secondary)' }}>
                   {alphaSubKind === 'scrim'
                     ? 'Fixed step + alpha — composite and emit. Decorative / exempt.'
                     : 'Fixed alpha — resolver picks the passing step. Contrast-checked.'}
@@ -476,7 +476,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                   <div style={field}>
                     <span style={label}>Contrast surfaces</span>
                     {surfaceNames.length === 0 ? (
-                      <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)', fontStyle: 'italic' }}>Add a surface first</span>
+                      <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontStyle: 'italic' }}>Add a surface first</span>
                     ) : (
                       <MultiSurfaceSelect
                         surfaceNames={surfaceNames}
@@ -656,7 +656,7 @@ export function TokensPanel() {
             ...btn,
             background: rampNames.length === 0 ? 'var(--p-surface)' : 'var(--p-accent, #6366f1)',
             borderColor: rampNames.length === 0 ? 'var(--p-border)' : 'var(--p-accent, #6366f1)',
-            color: rampNames.length === 0 ? 'var(--p-text-tertiary)' : '#fff',
+            color: rampNames.length === 0 ? 'var(--p-text-secondary)' : '#fff',
             fontWeight: 600,
             cursor: rampNames.length === 0 ? 'default' : 'pointer',
           }}

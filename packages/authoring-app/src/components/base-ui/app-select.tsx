@@ -103,7 +103,7 @@ export function AppStringSelect({
           viewBox="0 0 10 6"
           fill="currentColor"
           aria-hidden="true"
-          style={{ flexShrink: 0, marginLeft: 'auto', color: 'var(--p-text-tertiary)' }}
+          style={{ flexShrink: 0, marginLeft: 'auto', color: 'var(--p-text-secondary)' }}
         >
           <path d="M0 0h10L5 6z" />
         </svg>

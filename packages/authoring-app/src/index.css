@@ -31,7 +31,6 @@ body {
   --p-surface: rgba(0, 0, 0, 0.05);
   --p-border: rgba(0, 0, 0, 0.08);
   --p-text-secondary: rgba(0, 0, 0, 0.6);
-  --p-text-tertiary: rgba(0, 0, 0, 0.4);
   /* Semantic — solid */
   --p-accent: #4b556350;
   --p-success: #1a7f37;
@@ -50,7 +49,6 @@ body {
   --p-surface: rgba(255, 255, 255, 0.08);
   --p-border: rgba(255, 255, 255, 0.08);
   --p-text-secondary: rgba(255, 255, 255, 0.6);
-  --p-text-tertiary: rgba(255, 255, 255, 0.4);
   --p-accent: #6b7280;
   --p-success: #3fb950;
   --p-success-subtle: #14532d;

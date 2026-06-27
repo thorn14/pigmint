@@ -6,21 +6,22 @@ import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import { generateRamp, getRelativeLuminance } from '../../lib/colorMath';
 import { CvdFilterDefs, cvdFilterCss, CVD_PROFILE_LABELS } from '../../lib/cvdFilter';
-import type { ResolvedToken, ComplianceLevel, GeneratedRamp, CvdProfile } from '@pigmint/core';
+import type { ResolvedToken, ComplianceLevel, GeneratedRamp, CvdProfile, PortableVocabulary } from '@pigmint/core';
 import { AppSelect } from './AppSelect';
 import { EditTokenModal } from './EditTokenModal';
+import { TokenInfoPopover } from './TokenInfoPopover';
 
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
 
-const LEVEL_BADGE: Record<ComplianceLevel, { bg: string; text: string; label: string }> = {
-  'AAA-text':    { bg: 'var(--p-success-subtle)',  text: 'var(--p-success)',  label: 'AAA'     },
-  'AAA-nonText': { bg: 'var(--p-success-subtle)',  text: 'var(--p-success)',  label: 'AAA'     },
-  'AA-text':     { bg: 'var(--p-success-subtle)',   text: 'var(--p-success)',   label: 'AA'      },
-  'AA-nonText':  { bg: 'var(--p-success-subtle)',   text: 'var(--p-success)',   label: 'AA'      },
-  'apca-pass':   { bg: 'var(--p-success-subtle)',   text: 'var(--p-success)',   label: 'Lc pass' },
-  'fail':        { bg: 'var(--p-danger-subtle)', text: 'var(--p-danger)', label: 'Fail'    },
-  'exempt':      { bg: 'var(--p-surface)',   text: 'var(--p-text-tertiary)', label: 'Exempt'  },
+const LEVEL_LABEL: Record<ComplianceLevel, string> = {
+  'AAA-text':    'AAA',
+  'AAA-nonText': 'AAA',
+  'AA-text':     'AA',
+  'AA-nonText':  'AA',
+  'apca-pass':   'Lc pass',
+  'fail':        'Fail',
+  'exempt':      'Exempt',
 };
 
 // Responsive swatch grid: cards reflow to fill the available width and shrink to
@@ -29,7 +30,7 @@ const tokenGrid: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
   alignItems: 'start',
-  columnGap: 0,
+  columnGap: 8,
   rowGap: 10,
 };
 
@@ -44,16 +45,18 @@ function TokenCard({
   surfaceFg,
   usage,
   useWcag,
+  vocabRaw,
   onEdit,
 }: {
   token: ResolvedToken;
   surfaceFg: string;
   usage: TokenUsage;
   useWcag: boolean;
+  vocabRaw: PortableVocabulary | null;
   onEdit: () => void;
 }) {
   const level = token.compliance?.level ?? null;
-  const badge = level ? LEVEL_BADGE[level] : null;
+  const badgeLabel = level ? LEVEL_LABEL[level] : null;
 
   const contrast = useWcag
     ? (token.contrast?.wcag21 ?? null)
@@ -75,37 +78,37 @@ function TokenCard({
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
 
-  const isFilled = usage === 'nonText';
   // Decorative/alpha keep the small outline glyph rather than a value number.
   const isGlyph = usage === 'decorative';
-  // Contrast-safe text color when content sits on the filled swatch.
-  const fillTextColor = getRelativeLuminance(token.hex) > 0.5 ? '#000000' : '#ffffff';
+  // nonText tokens (borders, fills, icons) show the value next to a flex bar in
+  // the token color — the bar fills the rest of the row so the color is
+  // unambiguous even when the token contrast against the surface is low.
+  const isBar = usage === 'nonText';
 
-  // nonText tokens fill the whole card with the token color and use black/white
-  // contrast text. The layout matches the foreground card: color value on top,
-  // then the token name, then the contrast badge.
-  const cardBg = isFilled ? colorValue : 'transparent';
-  const cardText = isFilled ? fillTextColor : surfaceFg;
-  const valueColor = isFilled ? fillTextColor : colorValue;
+  // Badge: pure black/white text against a translucent overlay, matching the
+  // swatch dropdown pill so the level reads on any surface without color noise.
+  const badgeBg = surfaceFg === '#000000' ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)';
 
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="swatch-hover"
-      style={{
+    <TokenInfoPopover
+      token={token}
+      vocabRaw={vocabRaw}
+      useWcag={useWcag}
+      onEdit={onEdit}
+      triggerClassName="swatch-hover"
+      triggerStyle={{
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
         padding: 12,
-        background: cardBg,
+        background: 'transparent',
         border: 'none',
         borderRadius: 8,
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
-        color: cardText,
+        color: surfaceFg,
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
@@ -121,13 +124,29 @@ function TokenCard({
             background: 'transparent',
           }}
         />
+      ) : isBar ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+          <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace', flexShrink: 0 }}>
+            {stepLabel || '—'}
+          </span>
+          <div
+            aria-hidden="true"
+            style={{
+              flex: 1,
+              minWidth: 3,
+              height: 14,
+              background: colorValue,
+              borderRadius: 3,
+            }}
+          />
+        </div>
       ) : (
-        <span style={{ color: valueColor, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
+        <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
           {stepLabel || '—'}
         </span>
       )}
       <span style={{
-        color: cardText,
+        color: surfaceFg,
         fontSize: 10,
         opacity: 0.85,
         fontFamily: 'monospace',
@@ -141,24 +160,24 @@ function TokenCard({
         alignItems: 'center',
         gap: 16,
       }}>
-        {badge ? (
+        {badgeLabel ? (
           <span style={{
-            background: badge.bg,
-            color: badge.text,
+            background: badgeBg,
+            color: surfaceFg,
             fontSize: 9,
             fontWeight: 700,
-            padding: '1px 5px',
+            padding: '2px 6px',
             borderRadius: 3,
             flexShrink: 0,
           }}>
-            {badge.label}
+            {badgeLabel}
           </span>
         ) : <span />}
-        <span style={{ fontSize: 10, color: cardText, fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 10, color: surfaceFg, fontFamily: 'monospace' }}>
           {contrastStr}
         </span>
       </div>
-    </button>
+    </TokenInfoPopover>
   );
 }
 
@@ -206,7 +225,7 @@ function AddTokenSwatch({ onAdd }: { onAdd: () => void }) {
         <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">+</span>
         <span>Add token</span>
       </div>
-      <div style={{ padding: '0 4px', fontSize: 10, color: 'var(--p-text-tertiary)' }}>
+      <div style={{ padding: '0 4px', fontSize: 10, color: 'var(--p-text-secondary)' }}>
         Surface, foreground, nonText, alpha
       </div>
     </button>
@@ -390,7 +409,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
         flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         gap: 12, padding: 24,
-        color: 'var(--p-text-tertiary)', fontSize: 13, textAlign: 'center',
+        color: 'var(--p-text-secondary)', fontSize: 13, textAlign: 'center',
       }}>
         <span>
           {scales.length === 0
@@ -415,7 +434,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
             + Add your first token
           </button>
         )}
-        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+        <span style={{ fontSize: 11, color: 'var(--p-text-secondary)' }}>
           or import a tokens.yaml
         </span>
       </div>
@@ -503,7 +522,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
           </div>
         )}
         {grouped.size === 0 && standaloneResolved.length === 0 && standaloneDecorative.length === 0 ? (
-          <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
+          <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
             No surfaces yet. Use + Add to create one.
           </span>
         ) : (
@@ -598,6 +617,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                         surfaceFg={surfaceFg}
                         usage={usageMap.get(t.path) ?? 'text'}
                         useWcag={useWcag}
+                        vocabRaw={vocabRaw}
                         onEdit={() => setEditingPath(t.path)}
                       />
                     ))}
@@ -613,10 +633,10 @@ export function TokensPreview({ onAdd }: Props = {}) {
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p-text)', fontFamily: 'monospace' }}>
                 Standalone
               </span>
-              <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+              <span style={{ fontSize: 11, color: 'var(--p-text-secondary)' }}>
                 no surface anchor — decorative, alpha scrim
               </span>
-              <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginLeft: 4 }}>
+              <span style={{ fontSize: 11, color: 'var(--p-text-secondary)', marginLeft: 4 }}>
                 {standaloneResolved.length + standaloneDecorative.length} token
                 {standaloneResolved.length + standaloneDecorative.length !== 1 ? 's' : ''}
               </span>
@@ -637,6 +657,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                   surfaceFg="var(--p-text-secondary)"
                   usage={usageMap.get(t.path) ?? 'decorative'}
                   useWcag={useWcag}
+                  vocabRaw={vocabRaw}
                   onEdit={() => setEditingPath(t.path)}
                 />
               ))}
@@ -675,7 +696,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                   </span>
                   <span style={{
                     fontSize: 10,
-                    color: 'var(--p-text-tertiary)',
+                    color: 'var(--p-text-secondary)',
                     fontFamily: 'monospace',
                   }}>
                     {d.stepLabel}

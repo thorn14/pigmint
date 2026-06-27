@@ -107,7 +107,7 @@ function ModeMatrix({
         <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
           {MODE_LABELS[mode]}
         </h3>
-        <span style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
+        <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
           {surfaces.length} surface{surfaces.length === 1 ? '' : 's'} · {nonSurfaces.length} token{nonSurfaces.length === 1 ? '' : 's'}
         </span>
       </header>
@@ -224,7 +224,7 @@ const cellHeader: React.CSSProperties = {
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
-  color: 'var(--p-text-tertiary)',
+  color: 'var(--p-text-secondary)',
 };
 
 const cellBody: React.CSSProperties = {
@@ -298,7 +298,7 @@ export function SurfacePairViewer() {
         <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
           Surface pairs
         </h2>
-        <p style={{ fontSize: 12, color: 'var(--p-text-tertiary)', margin: '4px 0 0' }}>
+        <p style={{ fontSize: 12, color: 'var(--p-text-secondary)', margin: '4px 0 0' }}>
           Every vocabulary token resolved against its surface, per engine mode.
           {engineCompliance === 'apca' ? (
             <>

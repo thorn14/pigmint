@@ -173,18 +173,18 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
           <p style={{ margin: 0, fontSize: 12, color: 'var(--p-danger)' }}>{error}</p>
         )}
         {mode === 'names' && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-tertiary)', cursor: 'pointer' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
             <AppCheckbox checked={applyToAllNames} onCheckedChange={(c) => setApplyToAllNames(c)} />
             Apply to all scales
           </label>
         )}
         {mode === 'lightness' && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-tertiary)', cursor: 'pointer' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
             <AppCheckbox checked={applyToAllLightness} onCheckedChange={(c) => setApplyToAllLightness(c)} />
             Apply to all scales
           </label>
         )}
-        <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-tertiary)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-secondary)', lineHeight: 1.5 }}>
           {hint}
         </p>
         </div>

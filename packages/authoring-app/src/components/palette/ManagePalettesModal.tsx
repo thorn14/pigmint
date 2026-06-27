@@ -95,7 +95,7 @@ function PaletteRow({ id, name, isActive, canDelete, onRename, onDelete }: RowPr
           border: '1px solid var(--p-border)',
           borderRadius: 5,
           cursor: canDelete ? 'pointer' : 'not-allowed',
-          color: canDelete ? 'var(--p-text-tertiary)' : 'var(--p-text-tertiary)',
+          color: canDelete ? 'var(--p-text-secondary)' : 'var(--p-text-secondary)',
           opacity: canDelete ? 1 : 0.4,
           flexShrink: 0,
         }}
