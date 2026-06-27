@@ -75,14 +75,21 @@ function TokenCard({
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: tokenAlpha }) ?? token.hex)
     : token.hex;
 
-  // Border tokens demonstrate the border itself; background (nonText) tokens are
-  // shown as a filled box. Both label themselves inside the swatch so it's clear
-  // what's being used. Text/decorative/alpha keep their existing compact glyphs.
   const isBorder = usage === 'border';
   const isFilled = usage === 'nonText';
-  const nameInside = isBorder || isFilled;
-  // Contrast-safe text color when the name sits on the filled swatch.
+  // Decorative/alpha keep the small outline glyph rather than a value number.
+  const isGlyph = usage === 'decorative';
+  // Contrast-safe text color when content sits on a filled swatch.
   const fillTextColor = getRelativeLuminance(token.hex) > 0.5 ? '#000000' : '#ffffff';
+
+  // Border tokens wrap the whole card in a 3px border in the token color (no
+  // fill); background tokens fill the whole card with the token color and use
+  // black/white contrast text. Either way the layout matches the foreground
+  // card: color value on top, then the token name, then the contrast badge.
+  const cardBorder = isBorder || isFilled ? `3px solid ${colorValue}` : 'none';
+  const cardBg = isFilled ? colorValue : 'transparent';
+  const cardText = isFilled ? fillTextColor : surfaceFg;
+  const valueColor = isFilled ? fillTextColor : colorValue;
 
   return (
     <button
@@ -95,50 +102,18 @@ function TokenCard({
         flexDirection: 'column',
         gap: 8,
         padding: 12,
-        background: 'transparent',
-        border: 'none',
+        background: cardBg,
+        border: cardBorder,
         borderRadius: 8,
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
-        color: 'inherit',
+        color: cardText,
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
-      {usage === 'text' ? (
-        <span style={{ color: colorValue, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
-          {stepLabel || '—'}
-        </span>
-      ) : nameInside ? (
-        // Border tokens: the token color surrounds the swatch (3px border).
-        // Background tokens: the token color fills it, with black/white contrast
-        // text (like the dropdown swatches). Both show the name and the value.
-        <div
-          style={{
-            width: '100%',
-            minHeight: 46,
-            borderRadius: 6,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 3,
-            padding: '6px 8px',
-            boxSizing: 'border-box',
-            ...(isBorder
-              ? { border: `3px solid ${colorValue}`, background: 'transparent', color: surfaceFg }
-              : { background: colorValue, color: fillTextColor }),
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', lineHeight: 1 }}>
-            {stepLabel || '—'}
-          </span>
-          <span style={{ fontSize: 10, fontFamily: 'monospace', lineHeight: 1.2, wordBreak: 'break-all' as const, textAlign: 'center', opacity: 0.85 }}>
-            {token.path}
-          </span>
-        </div>
-      ) : (
+      {isGlyph ? (
         <span
           aria-hidden="true"
           style={{
@@ -149,19 +124,21 @@ function TokenCard({
             background: 'transparent',
           }}
         />
-      )}
-      {!nameInside && (
-        <span style={{
-          color: surfaceFg,
-          fontSize: 10,
-          opacity: 0.85,
-          fontFamily: 'monospace',
-          lineHeight: 1.3,
-          wordBreak: 'break-all' as const,
-        }}>
-          {token.path}
+      ) : (
+        <span style={{ color: valueColor, fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: 'monospace' }}>
+          {stepLabel || '—'}
         </span>
       )}
+      <span style={{
+        color: cardText,
+        fontSize: 10,
+        opacity: 0.85,
+        fontFamily: 'monospace',
+        lineHeight: 1.3,
+        wordBreak: 'break-all' as const,
+      }}>
+        {token.path}
+      </span>
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -180,7 +157,7 @@ function TokenCard({
             {badge.label}
           </span>
         ) : <span />}
-        <span style={{ fontSize: 10, color: surfaceFg, fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 10, color: cardText, fontFamily: 'monospace' }}>
           {contrastStr}
         </span>
       </div>
