@@ -419,8 +419,9 @@ function SemanticFields({
         type="checkbox"
         checked={Boolean(token.decorative)}
         onChange={(e) => handleDecorativeChange(e.target.checked)}
+        style={{ accentColor: 'var(--p-text)' }}
       />
-      Decorative — pin to target contrast, skip a11y check
+      Decorative
     </label>
   );
 
@@ -729,8 +730,9 @@ function AlphaFields({
               type="checkbox"
               checked={Boolean(token.decorative)}
               onChange={(e) => handleDecorativeChange(e.target.checked)}
+              style={{ accentColor: 'var(--p-text)' }}
             />
-            Decorative — pin to target contrast, skip a11y check
+            Decorative
           </label>
           {token.decorative ? (
             <div style={field}>

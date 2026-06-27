@@ -409,8 +409,9 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                   type="checkbox"
                   checked={decorative}
                   onChange={(e) => setDecorative(e.target.checked)}
+                  style={{ accentColor: 'var(--p-text)' }}
                 />
-                Decorative — skip a11y compliance check
+                Decorative
               </label>
             </>
           )}
@@ -522,8 +523,9 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                       type="checkbox"
                       checked={decorative}
                       onChange={(e) => setDecorative(e.target.checked)}
+                      style={{ accentColor: 'var(--p-text)' }}
                     />
-                    Decorative — skip a11y compliance check
+                    Decorative
                   </label>
                 </>
               )}

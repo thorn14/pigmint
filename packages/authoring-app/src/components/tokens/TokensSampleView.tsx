@@ -276,7 +276,7 @@ export function TokensSampleView() {
             type="checkbox"
             checked={highContrast}
             onChange={(e) => setHighContrast(e.target.checked)}
-            style={{ cursor: 'pointer', accentColor: 'var(--p-accent)' }}
+            style={{ cursor: 'pointer', accentColor: 'var(--p-text)' }}
           />
           High contrast
         </label>
