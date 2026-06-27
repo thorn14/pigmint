@@ -35,7 +35,7 @@ export function AppCheckbox({ className = 'focus-visible-ring', style, ...rest }
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--p-accent)',
+          color: 'var(--p-text)',
         }}
       >
         <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">

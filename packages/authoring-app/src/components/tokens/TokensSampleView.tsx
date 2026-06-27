@@ -132,7 +132,7 @@ export function TokensSampleView() {
   const vocabSurfaceSteps  = useVocabStore((s) => s.surfaceSteps);
   const vocabSemanticSteps = useVocabStore((s) => s.semanticSteps);
 
-  const [phraseSeed, setPhraseSeed] = useState(() => Date.now() & 0x7fffffff);
+  const [phraseSeed] = useState(() => Date.now() & 0x7fffffff);
   const [editingPath, setEditingPath] = useState<string | null>(null);
 
   const vocabCtx = useMemo(() => {
@@ -238,7 +238,7 @@ export function TokensSampleView() {
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
       <CvdFilterDefs />
 
-      {/* Toolbar — mirrors TokensPreview, plus a Refresh phrases button. */}
+      {/* Toolbar — mirrors TokensPreview. */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -267,29 +267,8 @@ export function TokensSampleView() {
           />
         </label>
 
-        <button
-          type="button"
-          onClick={() => setPhraseSeed((s) => (s + 1) | 0)}
-          title="Reshuffle the sample phrases"
-          style={{
-            marginLeft: 'auto',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '4px 10px',
-            fontSize: 11,
-            fontWeight: 500,
-            background: 'transparent',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            color: 'var(--p-text-secondary)',
-            cursor: 'pointer',
-          }}
-        >
-          Refresh phrases
-        </button>
-
         <label style={{
+          marginLeft: 'auto',
           display: 'flex', alignItems: 'center', gap: 5,
           cursor: 'pointer', userSelect: 'none',
         }}>
@@ -297,7 +276,7 @@ export function TokensSampleView() {
             type="checkbox"
             checked={highContrast}
             onChange={(e) => setHighContrast(e.target.checked)}
-            style={{ cursor: 'pointer', accentColor: 'var(--p-accent)' }}
+            style={{ cursor: 'pointer', accentColor: 'var(--p-text)' }}
           />
           High contrast
         </label>

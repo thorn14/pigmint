@@ -261,7 +261,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
         alignItems: 'center',
         gap: 8,
       }}>
-        <span>Add token</span>
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add token</span>
         <div style={{ flex: 1 }} />
         <button
           type="button"
@@ -409,8 +409,9 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                   type="checkbox"
                   checked={decorative}
                   onChange={(e) => setDecorative(e.target.checked)}
+                  style={{ accentColor: 'var(--p-text)' }}
                 />
-                Decorative — skip a11y compliance check
+                Decorative
               </label>
             </>
           )}
@@ -522,8 +523,9 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
                       type="checkbox"
                       checked={decorative}
                       onChange={(e) => setDecorative(e.target.checked)}
+                      style={{ accentColor: 'var(--p-text)' }}
                     />
-                    Decorative — skip a11y compliance check
+                    Decorative
                   </label>
                 </>
               )}
@@ -548,7 +550,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
       <div style={{
         display: 'flex',
         gap: 8,
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
         padding: '12px 16px',
         borderTop: '1px solid var(--p-border)',
         background: 'var(--p-surface)',
@@ -620,8 +622,6 @@ export function TokensPanel() {
         borderBottom: '1px solid var(--p-border)', background: 'var(--p-bg)',
         alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const,
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--p-text)', marginRight: 4 }}>Tokens</span>
-
         {/* View toggle */}
         <div style={{
           display: 'inline-flex',

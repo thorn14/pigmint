@@ -111,12 +111,17 @@ export function ComboToTokenModal({
   ];
 
   const bgIdx = findStepIndex(rampMap, entry.bg.ramp, entry.bg.step);
+  // Seed a new surface with opposite ends of the ramp so it reads as a
+  // light/dark-compatible pair: the chosen bg shade anchors one mode and its
+  // mirror across the ramp center fills the other. (Index 0 is the lightest.)
+  const bgLastIdx = (rampMap.get(entry.bg.ramp)?.steps.length ?? 1) - 1;
+  const bgMirrorIdx = Math.max(0, bgLastIdx - bgIdx);
 
   const [bgMode, setBgMode] = useState<Mode>('new');
   const [fgMode, setFgMode] = useState<Mode>('new');
   const [bgName, setBgName] = useState(`${entry.bg.ramp}.surface`);
-  const [lightStep, setLightStep] = useState(bgIdx);
-  const [darkStep, setDarkStep] = useState(bgIdx);
+  const [lightStep, setLightStep] = useState(Math.min(bgIdx, bgMirrorIdx));
+  const [darkStep, setDarkStep] = useState(Math.max(bgIdx, bgMirrorIdx));
   const [fgName, setFgName] = useState(`${entry.fg.ramp}.text`);
   const [fgKind, setFgKind] = useState<FgKind>('foreground');
   const [pref, setPref] = useState<PortableSemanticToken['preference']>('lowest-passing');
@@ -169,7 +174,7 @@ export function ComboToTokenModal({
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)' }}>Save as tokens</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Save as tokens</span>
         <button onClick={onClose} style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
           color: 'var(--p-text-secondary)', fontSize: 16, lineHeight: 1, padding: '2px 4px',
