@@ -6,7 +6,8 @@ import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
 import { generateRamp, getRelativeLuminance } from '../../lib/colorMath';
 import { CvdFilterDefs, cvdFilterCss, CVD_PROFILE_LABELS } from '../../lib/cvdFilter';
-import type { ResolvedToken, ComplianceLevel, GeneratedRamp } from '@pigmint/core';
+import type { ResolvedToken, ComplianceLevel, GeneratedRamp, CvdProfile } from '@pigmint/core';
+import { AppSelect } from './AppSelect';
 import { EditTokenModal } from './EditTokenModal';
 
 
@@ -221,7 +222,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
   const highContrast     = useIntentStore((s) => s.highContrast);
   const setHighContrast  = useIntentStore((s) => s.setHighContrast);
   const engineCvd        = useIntentStore((s) => s.engineCvd);
-  const toggleEngineCvd  = useIntentStore((s) => s.toggleEngineCvd);
+  const setEngineCvd     = useIntentStore((s) => s.setEngineCvd);
   const effectiveMode    = useEffectiveMode();
 
   const cvdFilter        = cvdFilterCss(engineCvd);
@@ -451,38 +452,23 @@ export function TokensPreview({ onAdd }: Props = {}) {
         color: 'var(--p-text-secondary)',
         flexWrap: 'wrap' as const,
       }}>
-        <span style={{ fontWeight: 600, color: 'var(--p-text)', textTransform: 'capitalize' }}>
-          {effectiveMode.replace(/-/g, ' ')}
-        </span>
-
-        {/* CVD simulation toggles */}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12, flexWrap: 'wrap' as const }}>
+        {/* CVD simulation — single select, defaults to None */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ opacity: 0.7 }}>Simulate vision</span>
-          {CVD_PROFILE_OPTIONS.map((profile) => {
-            const active = engineCvd.includes(profile);
-            return (
-              <button
-                key={profile}
-                type="button"
-                onClick={() => toggleEngineCvd(profile)}
-                aria-pressed={active}
-                title={`Simulate ${CVD_PROFILE_LABELS[profile]}`}
-                className="focus-visible-ring"
-                style={{
-                  fontSize: 10,
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  cursor: 'pointer',
-                  border: `1px solid ${active ? 'var(--p-accent)' : 'var(--p-border)'}`,
-                  background: active ? 'var(--p-accent)' : 'transparent',
-                  color: active ? '#fff' : 'var(--p-text-secondary)',
-                }}
-              >
-                {CVD_PROFILE_LABELS[profile]}
-              </button>
-            );
-          })}
-        </span>
+          <AppSelect
+            variant="compact"
+            value={engineCvd[0] ?? ''}
+            onChange={(v) => setEngineCvd(v ? [v as CvdProfile] : [])}
+            title="Simulate a color vision deficiency"
+            options={[
+              { value: '', label: 'None' },
+              ...CVD_PROFILE_OPTIONS.map((profile) => ({
+                value: profile,
+                label: CVD_PROFILE_LABELS[profile],
+              })),
+            ]}
+          />
+        </label>
 
         <label style={{
           display: 'flex', alignItems: 'center', gap: 5,

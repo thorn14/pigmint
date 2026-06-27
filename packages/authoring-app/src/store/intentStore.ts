@@ -68,6 +68,7 @@ interface IntentActions {
   setEngineCompliance: (compliance: EngineCompliance) => void;
   toggleEngineMode: (mode: EngineMode) => void;
   toggleEngineCvd: (profile: CvdProfile) => void;
+  setEngineCvd: (profiles: CvdProfile[]) => void;
   setResolverMode: (mode: ResolverMode) => void;
   setResolverFallbackSteps: (steps: number | undefined) => void;
   setMaterializeInterpolatedPrimitives: (value: boolean | undefined) => void;
@@ -223,6 +224,12 @@ export const useIntentStore = create<IntentState & IntentActions>()(
           ? state.engineCvd.filter((p) => p !== profile)
           : [...state.engineCvd, profile];
         state.engineCvd = sanitizeCvd(next);
+        persist(snapshot(state));
+      }),
+
+    setEngineCvd: (profiles) =>
+      set((state) => {
+        state.engineCvd = sanitizeCvd(profiles);
         persist(snapshot(state));
       }),
 
