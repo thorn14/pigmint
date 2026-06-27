@@ -620,8 +620,6 @@ export function TokensPanel() {
         borderBottom: '1px solid var(--p-border)', background: 'var(--p-bg)',
         alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' as const,
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--p-text)', marginRight: 4 }}>Tokens</span>
-
         {/* View toggle */}
         <div style={{
           display: 'inline-flex',
