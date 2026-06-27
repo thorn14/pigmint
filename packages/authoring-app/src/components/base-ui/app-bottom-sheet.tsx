@@ -5,12 +5,14 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from
 /** Drag distance (px) past which releasing the handle dismisses the sheet. */
 const DISMISS_THRESHOLD = 100;
 
+// No dim: the sheet covers the bottom of the page but leaves the rest fully
+// visible so live edits land in view. Click-outside-to-close still works.
 const backdropStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
   minHeight: '100dvh',
   zIndex: 50,
-  background: 'rgba(0,0,0,0.5)',
+  background: 'transparent',
   touchAction: 'none',
 };
 
@@ -33,8 +35,10 @@ const popupStyle: CSSProperties = {
   background: 'var(--p-bg)',
   borderTopLeftRadius: 12,
   borderTopRightRadius: 12,
-  borderTop: '1px solid var(--p-border)',
-  boxShadow: '0 -8px 32px rgba(0,0,0,0.25)',
+  borderTop: '1px solid var(--p-border-strong)',
+  borderLeft: '1px solid var(--p-border-strong)',
+  borderRight: '1px solid var(--p-border-strong)',
+  boxShadow: '0 -8px 32px rgba(0,0,0,0.32)',
   maxHeight: '75dvh',
   minHeight: 0,
   minWidth: 0,

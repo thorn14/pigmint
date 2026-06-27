@@ -2,12 +2,14 @@ import { Dialog } from '@base-ui/react/dialog';
 import { useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
+// No dim: the drawer overlays its own popup but the page behind stays fully
+// visible so live edits land in view. Click-outside-to-close still works.
 const backdropStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
   minHeight: '100dvh',
   zIndex: 50,
-  background: 'rgba(0,0,0,0.5)',
+  background: 'transparent',
   touchAction: 'none',
 };
 
@@ -29,9 +31,9 @@ const popupStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   background: 'var(--p-bg)',
-  border: '1px solid var(--p-border)',
+  border: '1px solid var(--p-border-strong)',
   borderRadius: 6,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.24)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.32)',
   overflow: 'hidden',
   minHeight: 0,
   minWidth: 0,

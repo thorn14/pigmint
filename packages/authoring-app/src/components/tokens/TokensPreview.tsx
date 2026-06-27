@@ -546,7 +546,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                   boxSizing: 'border-box',
                 }}
               >
-                {/* Header — name + details stacked, Add button to the right */}
+                {/* Header — name + hex + step on one line, Add button on the right */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: surfaceFg }}>
                   <button
                     type="button"
@@ -556,9 +556,10 @@ export function TokensPreview({ onAdd }: Props = {}) {
                       flex: 1,
                       minWidth: 0,
                       display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: 2,
+                      flexDirection: 'row',
+                      alignItems: 'baseline',
+                      flexWrap: 'wrap',
+                      gap: 8,
                       padding: 0,
                       background: 'transparent',
                       border: 'none',
