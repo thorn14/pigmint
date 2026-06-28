@@ -121,7 +121,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
     ? {
         display: 'flex', alignItems: 'center', gap: 5, width: '100%',
         padding: '3px 6px', fontSize: 12,
-        background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+        background: 'var(--p-surface)', border: '1px solid var(--p-border)',
         borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
         color: 'var(--p-text)', boxSizing: 'border-box',
         opacity: disabled ? 0.5 : 1,
@@ -130,7 +130,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
     : {
         display: 'flex', alignItems: 'center', gap: 8, width: '100%',
         padding: '6px 8px', fontSize: 13,
-        background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+        background: 'var(--p-surface)', border: '1px solid var(--p-border)',
         borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
         color: 'var(--p-text)', boxSizing: 'border-box',
         opacity: disabled ? 0.5 : 1,
@@ -215,7 +215,7 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
             minWidth: pos.width,
             maxWidth: 'calc(100vw - 16px)',
             background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
+            border: '1px solid var(--p-border-strong)',
             borderRadius: 6,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
             zIndex: 300,
@@ -239,14 +239,18 @@ export function AppSelect({ options, value, onChange, placeholder, triggerStyle,
                 type="button"
                 disabled={isDisabled}
                 onClick={() => { if (!isDisabled) { onChange(opt.value); setOpen(false); } }}
+                className="app-select-option"
+                data-fill={optFill ? '' : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px', width: '100%', textAlign: 'left',
-                  background: optFill ? opt.hex : (active ? 'var(--p-surface)' : 'transparent'),
+                  background: optFill ? opt.hex : (active ? 'var(--p-bg)' : 'var(--p-surface)'),
                   border: 'none',
                   borderBottom: i < options.length - 1 ? '1px solid var(--p-border)' : 'none',
                   cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  color: optContrast?.fg ?? 'var(--p-text)', fontSize: 12,
+                  color: optContrast?.fg ?? 'var(--p-text)',
+                  fontSize: 12,
+                  fontWeight: active && !optFill ? 600 : 400,
                   opacity: isDisabled ? 0.45 : 1,
                 }}
               >

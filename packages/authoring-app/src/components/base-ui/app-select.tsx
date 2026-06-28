@@ -31,7 +31,7 @@ const compactTrigger: CSSProperties = {
   fontSize: 12,
   /** Must stay ≤ maxWidth below — min 110 + max 90 was invalid and clipped borders in the top bar */
   minWidth: 0,
-  background: 'var(--p-bg)',
+  background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
   borderRadius: 5,
   color: 'var(--p-text)',
@@ -127,7 +127,7 @@ export function AppStringSelect({
               overflow: 'auto',
               background: 'var(--p-bg)',
               color: 'var(--p-text)',
-              border: '1px solid var(--p-border)',
+              border: '1px solid var(--p-border-strong)',
               borderRadius: 6,
               boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
             }}
@@ -147,6 +147,7 @@ export function AppStringSelect({
                     cursor: 'pointer',
                     outline: 'none',
                     color: 'var(--p-text)',
+                    marginBottom: 2,
                   }}
                 >
                   <Select.ItemText style={{ display: 'block' }}>{o.label}</Select.ItemText>

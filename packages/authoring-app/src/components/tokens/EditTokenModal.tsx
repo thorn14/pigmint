@@ -41,7 +41,7 @@ const label: React.CSSProperties = {
 };
 const inp: React.CSSProperties = {
   width: '100%', padding: '6px 8px', fontSize: 13,
-  background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+  background: 'var(--p-surface)', border: '1px solid var(--p-border)',
   borderRadius: 6, color: 'var(--p-text)', boxSizing: 'border-box',
 };
 const btn: React.CSSProperties = {

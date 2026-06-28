@@ -30,7 +30,7 @@ body {
   /* Grays — overlay form of pure black on white */
   --p-surface: rgba(0, 0, 0, 0.05);
   --p-border: rgba(0, 0, 0, 0.08);
-  --p-border-strong: rgba(0, 0, 0, 0.45);
+  --p-border-strong: rgba(0, 0, 0, 0.16);
   --p-text-secondary: rgba(0, 0, 0, 0.6);
   /* Semantic — solid */
   --p-accent: #4b556350;
@@ -216,9 +216,20 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   .app-bottom-sheet-popup { transition: none; }
 }
 
-/* Base UI `Select` item pointer / keyboard focus */
-.app-select-item[data-highlighted] {
+/* Base UI `Select` item — default fill matches the trigger surface */
+.app-select-item {
   background: var(--p-surface);
+}
+
+/* Custom popup option buttons (AppSelect / MultiSurfaceSelect): inverted hover */
+.app-select-option:not(:disabled):not([data-fill]):hover {
+  background: var(--p-bg) !important;
+}
+
+/* Base UI `Select` item pointer / keyboard focus */
+.app-select-item[data-highlighted],
+.app-select-item[data-selected] {
+  background: var(--p-bg);
   color: var(--p-text);
 }
 
@@ -306,7 +317,7 @@ input[type="submit"]:not(:disabled):active {
 }
 
 .app-select-item:not([aria-disabled="true"]):hover {
-  background-color: var(--p-surface);
+  background-color: var(--p-bg);
 }
 
 .app-select-item:not([aria-disabled="true"]):active {
