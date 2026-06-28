@@ -124,7 +124,7 @@ export function MultiSurfaceSelect({
     ? {
         display: 'flex', alignItems: 'center', gap: 5, width: '100%',
         padding: '3px 6px', fontSize: 12,
-        background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+        background: 'var(--p-surface)', border: '1px solid var(--p-border)',
         borderRadius: 4, cursor: 'pointer',
         color: 'var(--p-text)', boxSizing: 'border-box',
         minWidth: 0,
@@ -132,7 +132,7 @@ export function MultiSurfaceSelect({
     : {
         display: 'flex', alignItems: 'center', gap: 8, width: '100%',
         padding: '6px 8px', fontSize: 13,
-        background: 'var(--p-bg)', border: '1px solid var(--p-border)',
+        background: 'var(--p-surface)', border: '1px solid var(--p-border)',
         borderRadius: 6, cursor: 'pointer',
         color: 'var(--p-text)', boxSizing: 'border-box',
         minWidth: 0,
@@ -211,7 +211,7 @@ export function MultiSurfaceSelect({
             minWidth: pos.width,
             maxWidth: 'calc(100vw - 16px)',
             background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
+            border: '1px solid var(--p-border-strong)',
             borderRadius: 6,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
             zIndex: 300,
@@ -238,14 +238,17 @@ export function MultiSurfaceSelect({
                 onClick={() => toggle(name)}
                 disabled={isLastRequired}
                 title={isLastRequired ? 'At least one surface is required' : undefined}
+                className="app-select-option"
+                data-fill={optFill ? '' : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px', width: '100%', textAlign: 'left',
-                  background: optFill ? hex : (checked ? 'var(--p-surface)' : 'transparent'),
+                  background: optFill ? hex : (checked ? 'var(--p-bg)' : 'var(--p-surface)'),
                   border: 'none',
                   borderBottom: i < surfaceNames.length - 1 ? '1px solid var(--p-border)' : 'none',
                   cursor: isLastRequired ? 'not-allowed' : 'pointer',
                   color: optContrast?.fg ?? 'var(--p-text)', fontSize: 12,
+                  fontWeight: checked && !optFill ? 600 : 400,
                   opacity: isLastRequired ? 0.7 : 1,
                 }}
               >

@@ -353,15 +353,12 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
         style={{
           padding: '14px 16px 12px',
           borderBottom: '1px solid var(--p-border)',
-          fontSize: 14,
-          fontWeight: 600,
-          color: 'var(--p-text)',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
         }}
       >
-        <span>Scales</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--p-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scales</span>
         <div style={{ flex: 1 }} />
         <button
           type="button"
