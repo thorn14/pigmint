@@ -6,7 +6,6 @@ import {
   exportToJSON,
   exportToW3CTokens,
 } from '../src/lib/exportTokens';
-import { parseColorList } from '../src/lib/importTokens';
 
 function step(name: string, hex: string): GeneratedStep {
   return {
@@ -29,39 +28,43 @@ function ramp(scaleName: string, hexes: string[], scaleId = scaleName): Generate
 }
 
 describe('exportToHexList', () => {
-  it('returns empty string for no ramps', () => {
-    expect(exportToHexList([])).toBe('');
+  it('returns an empty object for no ramps', () => {
+    expect(exportToHexList([])).toBe('{}');
   });
 
-  it('emits one hex per line for a single scale (no name label)', () => {
-    const text = exportToHexList([ramp('Primary', ['#FFFFFF', '#1A1A1A'])]);
-    expect(text).toBe('#ffffff\n#1a1a1a\n');
+  it('emits scale → hex array JSON', () => {
+    const json = exportToHexList([ramp('Primary', ['#FFFFFF', '#1A1A1A'])]);
+    expect(JSON.parse(json)).toEqual({
+      Primary: ['#ffffff', '#1a1a1a'],
+    });
   });
 
-  it('labels multi-scale exports and separates blocks with a blank line', () => {
-    const text = exportToHexList([
+  it('includes every scale as its own hex array', () => {
+    const json = exportToHexList([
       ramp('Primary', ['#FF0000', '#00FF00']),
       ramp('Secondary', ['#0000FF']),
     ]);
-    expect(text).toBe('Primary\n#ff0000\n#00ff00\n\nSecondary\n#0000ff\n');
+    expect(JSON.parse(json)).toEqual({
+      Primary: ['#ff0000', '#00ff00'],
+      Secondary: ['#0000ff'],
+    });
   });
 
   it('disambiguates duplicate scale names', () => {
-    const text = exportToHexList([
+    const json = exportToHexList([
       ramp('Blue', ['#0000FF'], 'a'),
       ramp('Blue', ['#000099'], 'b'),
     ]);
-    expect(text).toContain('Blue\n#0000ff');
-    expect(text).toContain('Blue 2\n#000099');
+    expect(JSON.parse(json)).toEqual({
+      Blue: ['#0000ff'],
+      'Blue 2': ['#000099'],
+    });
   });
 
-  it('round-trips through parseColorList (names skipped)', () => {
-    const text = exportToHexList([
-      ramp('Primary', ['#ABCDEF']),
-      ramp('Secondary', ['#123456']),
-    ]);
-    const scale = parseColorList(text);
-    expect(scale.steps.map((s) => s.hex)).toEqual(['#abcdef', '#123456']);
+  it('pretty-prints', () => {
+    const json = exportToHexList([ramp('Primary', ['#ABCDEF'])]);
+    expect(json).toContain('\n');
+    expect(json).toContain('  ');
   });
 });
 
@@ -82,9 +85,9 @@ describe('exportToW3CTokens / exportToJSON', () => {
 });
 
 describe('exportColors', () => {
-  it('selects hex list vs DTCG JSON by format', () => {
+  it('selects simple hex JSON vs DTCG JSON by format', () => {
     const ramps = [ramp('Primary', ['#AABBCC'])];
-    expect(exportColors(ramps, 'hex')).toBe('#aabbcc\n');
+    expect(JSON.parse(exportColors(ramps, 'hex'))).toEqual({ Primary: ['#aabbcc'] });
     expect(exportColors(ramps, 'dtcg')).toBe(exportToJSON(ramps));
   });
 });

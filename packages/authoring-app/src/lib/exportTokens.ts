@@ -85,28 +85,21 @@ export function exportToJSON(ramps: GeneratedRamp[]): string {
 }
 
 /**
- * Plain hex list for quick testing / paste-into-tools workflows.
- * One hex per line; blank line between scales. Multi-ramp exports prefix each
- * block with the scale name (a non-color label). Import's parseColorList skips
- * unparseable tokens, so re-pasting still works — names are ignored, hexes become steps.
+ * Simple JSON map of scale name → hex codes for testing / paste-into-tools.
+ * Pretty-printed; duplicate scale names are disambiguated like DTCG export.
  */
 export function exportToHexList(ramps: GeneratedRamp[]): string {
-  if (ramps.length === 0) return '';
-
   const usedKeys = new Set<string>();
-  const blocks: string[] = [];
-  const multi = ramps.length > 1;
+  const out: Record<string, string[]> = {};
 
   for (const ramp of ramps) {
     const base = canonicalScaleName(ramp.scaleName);
     const key = disambiguateKey(base, usedKeys);
     usedKeys.add(key);
-
-    const hexes = ramp.steps.map((step) => step.hex.toLowerCase());
-    blocks.push(multi ? [key, ...hexes].join('\n') : hexes.join('\n'));
+    out[key] = ramp.steps.map((step) => step.hex.toLowerCase());
   }
 
-  return blocks.join('\n\n') + '\n';
+  return JSON.stringify(out, null, 2);
 }
 
 export function exportColors(ramps: GeneratedRamp[], format: ColorExportFormat): string {

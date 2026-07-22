@@ -27,8 +27,8 @@ type TabSpec = {
 };
 
 const COLOR_FORMAT_OPTIONS: readonly { value: ColorExportFormat; label: string; title: string }[] = [
-  { value: 'dtcg', label: 'JSON', title: 'Full W3C Design Tokens (DTCG) schema' },
-  { value: 'hex', label: 'Hex list', title: 'Simple hex codes, one per line — handy for testing' },
+  { value: 'dtcg', label: 'DTCG', title: 'Full W3C Design Tokens (DTCG) schema' },
+  { value: 'hex', label: 'Hex', title: 'Simple JSON — scale names mapped to hex code lists' },
 ];
 
 const COLOR_FORMAT_SPECS: Record<
@@ -36,10 +36,10 @@ const COLOR_FORMAT_SPECS: Record<
   { filename: string; mimeType: string; description: string }
 > = {
   hex: {
-    filename: 'colors.txt',
-    mimeType: 'text/plain',
+    filename: 'colors.json',
+    mimeType: 'application/json',
     description:
-      'Simple list of hex codes — one per line, blank line between scales. Handy for testing, contrast checkers, or pasting back via Import → Colors.',
+      'Simple JSON of hex codes — each scale is a key whose value is an array of hex strings. Handy for testing and tools that just need the colors.',
   },
   dtcg: {
     filename: 'primitives.json',
@@ -156,7 +156,7 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 }
 
 const EMPTY_PLACEHOLDER: Record<Tab, string> = {
-  colors: '# No color scales defined yet.\n',
+  colors: '{\n  "info": "No color scales defined yet."\n}\n',
   'tokens-yaml': '# No vocabulary defined yet. Edit tokens in the Tokens panel first.\n',
   'tokens-json': '{\n  "info": "No vocabulary defined yet. Edit tokens in the Tokens panel first."\n}\n',
   pigmint: '# No project state yet.\n',
