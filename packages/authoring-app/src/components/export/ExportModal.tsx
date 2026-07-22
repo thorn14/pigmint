@@ -5,11 +5,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { generateRamp } from '../../lib/colorMath';
-import { exportToJSON } from '../../lib/exportTokens';
+import { exportColors, type ColorExportFormat } from '../../lib/exportTokens';
 import { buildPigmintTokensJson } from '../../lib/resolveState';
 import { serializePigmintYaml } from '../../lib/pigmintYaml';
 import { useVocabStore } from '../../store/vocabStore';
 import { AppDialog } from '../base-ui/app-dialog';
+import { AppToolbarSegmented } from '../base-ui';
 
 interface Props {
   onClose: () => void;
@@ -25,14 +26,36 @@ type TabSpec = {
   description: string;
 };
 
-const TAB_SPECS: readonly TabSpec[] = [
-  {
-    id: 'colors',
-    label: 'Colors',
+const COLOR_FORMAT_OPTIONS: readonly { value: ColorExportFormat; label: string; title: string }[] = [
+  { value: 'dtcg', label: 'JSON', title: 'Full W3C Design Tokens (DTCG) schema' },
+  { value: 'hex', label: 'Hex list', title: 'Simple hex codes, one per line — handy for testing' },
+];
+
+const COLOR_FORMAT_SPECS: Record<
+  ColorExportFormat,
+  { filename: string; mimeType: string; description: string }
+> = {
+  hex: {
+    filename: 'colors.txt',
+    mimeType: 'text/plain',
+    description:
+      'Simple list of hex codes — one per line, blank line between scales. Handy for testing, contrast checkers, or pasting back via Import → Colors.',
+  },
+  dtcg: {
     filename: 'primitives.json',
     mimeType: 'application/json',
     description:
       'Primitive color ramps in W3C Design Tokens format. One group per scale, with hex and display-p3 values for every step plus the OKLCH source in `$extensions.oklch`. Use this when you want the raw color values without semantic tokens.',
+  },
+};
+
+const TAB_SPECS: readonly TabSpec[] = [
+  {
+    id: 'colors',
+    label: 'Colors',
+    filename: COLOR_FORMAT_SPECS.dtcg.filename,
+    mimeType: COLOR_FORMAT_SPECS.dtcg.mimeType,
+    description: COLOR_FORMAT_SPECS.dtcg.description,
   },
   {
     id: 'tokens-yaml',
@@ -155,10 +178,14 @@ export function ExportModal({ onClose }: Props) {
 
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
-  const colorsJson = useMemo(() => {
+  const [activeTab, setActiveTab] = useState<Tab>('colors');
+  const [colorFormat, setColorFormat] = useState<ColorExportFormat>('dtcg');
+  const [copied, setCopied] = useState(false);
+
+  const colorsExport = useMemo(() => {
     if (ramps.length === 0) return EMPTY_PLACEHOLDER.colors;
-    return exportToJSON(ramps);
-  }, [ramps]);
+    return exportColors(ramps, colorFormat);
+  }, [ramps, colorFormat]);
 
   const tokensYaml = useMemo(() => {
     if (!vocabRaw) return EMPTY_PLACEHOLDER['tokens-yaml'];
@@ -210,16 +237,23 @@ export function ExportModal({ onClose }: Props) {
   );
 
   const contentByTab: Record<Tab, string> = {
-    colors: colorsJson,
+    colors: colorsExport,
     'tokens-yaml': tokensYaml,
     'tokens-json': tokensJson,
     pigmint: pigmintYaml,
   };
 
-  const [activeTab, setActiveTab] = useState<Tab>('colors');
-  const [copied, setCopied] = useState(false);
-
-  const activeSpec = TAB_SPECS.find((t) => t.id === activeTab) ?? TAB_SPECS[0];
+  const colorFormatSpec = COLOR_FORMAT_SPECS[colorFormat];
+  const baseSpec = TAB_SPECS.find((t) => t.id === activeTab) ?? TAB_SPECS[0];
+  const activeSpec =
+    activeTab === 'colors'
+      ? {
+          ...baseSpec,
+          filename: colorFormatSpec.filename,
+          mimeType: colorFormatSpec.mimeType,
+          description: colorFormatSpec.description,
+        }
+      : baseSpec;
   const activeContent = contentByTab[activeTab];
 
   function handleCopy() {
@@ -325,14 +359,35 @@ export function ExportModal({ onClose }: Props) {
                   background: 'var(--p-bg)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 4,
+                  gap: 8,
                 }}
               >
-                <div style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>
-                  {spec.filename}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: 'var(--p-text-secondary)', fontFamily: 'monospace' }}>
+                    {spec.id === 'colors' ? colorFormatSpec.filename : spec.filename}
+                  </div>
+                  {spec.id === 'colors' ? (
+                    <AppToolbarSegmented
+                      aria-label="Colors export format"
+                      value={colorFormat}
+                      onValueChange={(v) => {
+                        setColorFormat(v);
+                        setCopied(false);
+                      }}
+                      options={COLOR_FORMAT_OPTIONS}
+                    />
+                  ) : null}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--p-text-secondary)', lineHeight: 1.5 }}>
-                  {spec.description}
+                  {spec.id === 'colors' ? colorFormatSpec.description : spec.description}
                 </div>
               </div>
               {activeTab === spec.id ? <VirtualizedPre text={activeContent} /> : null}

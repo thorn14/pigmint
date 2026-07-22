@@ -50,6 +50,8 @@ function buildOklchExtension(step: GeneratedStep): { l: number; c: number; h: nu
   return out;
 }
 
+export type ColorExportFormat = 'dtcg' | 'hex';
+
 export function exportToW3CTokens(ramps: GeneratedRamp[]): W3CTokenGroup {
   const root: W3CTokenGroup = {};
   // Track emitted group keys so scales with duplicate *canonical* names don't
@@ -80,4 +82,33 @@ export function exportToW3CTokens(ramps: GeneratedRamp[]): W3CTokenGroup {
 
 export function exportToJSON(ramps: GeneratedRamp[]): string {
   return JSON.stringify(exportToW3CTokens(ramps), null, 2);
+}
+
+/**
+ * Plain hex list for quick testing / paste-into-tools workflows.
+ * One hex per line; blank line between scales. Multi-ramp exports prefix each
+ * block with the scale name (a non-color label). Import's parseColorList skips
+ * unparseable tokens, so re-pasting still works — names are ignored, hexes become steps.
+ */
+export function exportToHexList(ramps: GeneratedRamp[]): string {
+  if (ramps.length === 0) return '';
+
+  const usedKeys = new Set<string>();
+  const blocks: string[] = [];
+  const multi = ramps.length > 1;
+
+  for (const ramp of ramps) {
+    const base = canonicalScaleName(ramp.scaleName);
+    const key = disambiguateKey(base, usedKeys);
+    usedKeys.add(key);
+
+    const hexes = ramp.steps.map((step) => step.hex.toLowerCase());
+    blocks.push(multi ? [key, ...hexes].join('\n') : hexes.join('\n'));
+  }
+
+  return blocks.join('\n\n') + '\n';
+}
+
+export function exportColors(ramps: GeneratedRamp[], format: ColorExportFormat): string {
+  return format === 'hex' ? exportToHexList(ramps) : exportToJSON(ramps);
 }
