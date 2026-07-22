@@ -1,4 +1,5 @@
 import type { GeneratedRamp, GeneratedStep, W3CTokenGroup, W3CTokenValue, W3CColorValue, RgbChannels } from '../types/palette';
+import { toHex8 } from '@pigmint/core';
 import { canonicalScaleName, disambiguateKey } from './scaleNaming';
 
 function roundChannel(v: number): number {
@@ -85,8 +86,21 @@ export function exportToJSON(ramps: GeneratedRamp[]): string {
 }
 
 /**
+ * Hex for the simple export: 8-digit `#rrggbbaa` when the step has
+ * transparency, otherwise the opaque 6-digit `step.hex`.
+ * (`formatHex` / ramp generation always drop alpha from `step.hex`.)
+ */
+function stepExportHex(step: GeneratedStep): string {
+  const hex = step.hex.toLowerCase();
+  const alpha = step.oklch.alpha ?? 1;
+  if (alpha >= 1) return hex;
+  return toHex8(hex, alpha).toLowerCase();
+}
+
+/**
  * Simple JSON map of scale name → hex codes for testing / paste-into-tools.
  * Pretty-printed; duplicate scale names are disambiguated like DTCG export.
+ * Transparent steps use 8-digit hex (`#rrggbbaa`).
  */
 export function exportToHexList(ramps: GeneratedRamp[]): string {
   const usedKeys = new Set<string>();
@@ -96,7 +110,7 @@ export function exportToHexList(ramps: GeneratedRamp[]): string {
     const base = canonicalScaleName(ramp.scaleName);
     const key = disambiguateKey(base, usedKeys);
     usedKeys.add(key);
-    out[key] = ramp.steps.map((step) => step.hex.toLowerCase());
+    out[key] = ramp.steps.map(stepExportHex);
   }
 
   return JSON.stringify(out, null, 2);

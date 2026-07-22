@@ -39,7 +39,7 @@ const COLOR_FORMAT_SPECS: Record<
     filename: 'colors.json',
     mimeType: 'application/json',
     description:
-      'Simple JSON of hex codes — each scale is a key whose value is an array of hex strings. Handy for testing and tools that just need the colors.',
+      'Simple JSON of hex codes — each scale is a key whose value is an array of hex strings. Transparent steps use 8-digit `#rrggbbaa`. Handy for testing and tools that just need the colors.',
   },
   dtcg: {
     filename: 'primitives.json',

@@ -7,11 +7,11 @@ import {
   exportToW3CTokens,
 } from '../src/lib/exportTokens';
 
-function step(name: string, hex: string): GeneratedStep {
+function step(name: string, hex: string, alpha?: number): GeneratedStep {
   return {
     name,
     hex,
-    oklch: { l: 0.5, c: 0.1, h: 240 },
+    oklch: { l: 0.5, c: 0.1, h: 240, ...(alpha !== undefined ? { alpha } : {}) },
     srgb: { r: 0.2, g: 0.4, b: 0.8 },
     relativeLuminance: 0.2,
     gamut: 'srgb',
@@ -19,11 +19,19 @@ function step(name: string, hex: string): GeneratedStep {
   };
 }
 
-function ramp(scaleName: string, hexes: string[], scaleId = scaleName): GeneratedRamp {
+function ramp(
+  scaleName: string,
+  hexes: Array<string | { hex: string; alpha?: number }>,
+  scaleId = scaleName,
+): GeneratedRamp {
   return {
     scaleId,
     scaleName,
-    steps: hexes.map((hex, i) => step(String((i + 1) * 100), hex)),
+    steps: hexes.map((entry, i) => {
+      const hex = typeof entry === 'string' ? entry : entry.hex;
+      const alpha = typeof entry === 'string' ? undefined : entry.alpha;
+      return step(String((i + 1) * 100), hex, alpha);
+    }),
   };
 }
 
@@ -36,6 +44,20 @@ describe('exportToHexList', () => {
     const json = exportToHexList([ramp('Primary', ['#FFFFFF', '#1A1A1A'])]);
     expect(JSON.parse(json)).toEqual({
       Primary: ['#ffffff', '#1a1a1a'],
+    });
+  });
+
+  it('emits 8-digit hex when a step has alpha < 1', () => {
+    // 0.4 → 0x66; matches toHex8('#0f172a', 0.4)
+    const json = exportToHexList([
+      ramp('Overlay', [
+        { hex: '#0f172a', alpha: 0.4 },
+        { hex: '#ffffff', alpha: 1 },
+        '#aabbcc',
+      ]),
+    ]);
+    expect(JSON.parse(json)).toEqual({
+      Overlay: ['#0f172a66', '#ffffff', '#aabbcc'],
     });
   });
 
