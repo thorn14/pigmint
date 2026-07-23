@@ -7,10 +7,14 @@ export {
   resolveStepNames,
   EASING_FAMILIES,
   EASING_VARIANTS,
+  CUSTOM_CURVE_BIAS_MIN,
+  CUSTOM_CURVE_BIAS_MAX,
   resolveEasingFunction,
   easingFamilyHasVariants,
+  powerEasing,
+  blendEasing,
 } from '@pigmint/core';
-export type { LightnessPreset, EasingFamily, EasingVariant } from '@pigmint/core';
+export type { LightnessPreset, EasingFamily, EasingVariant, ResolveEasingOptions } from '@pigmint/core';
 
 import type { EasingFamily, EasingVariant } from '@pigmint/core';
 
@@ -31,6 +35,7 @@ export const EASING_FAMILY_OPTIONS: { value: EasingFamily; label: string }[] = [
   { value: 'sine', label: 'Sine' },
   { value: 'circular', label: 'Circular' },
   { value: 'exponential', label: 'Exponential' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 export const EASING_VARIANT_OPTIONS: { value: EasingVariant; label: string }[] = [

@@ -9,6 +9,7 @@ export const EASING_FAMILIES = [
   'sine',
   'circular',
   'exponential',
+  'custom',
 ] as const;
 
 export type EasingFamily = (typeof EASING_FAMILIES)[number];
@@ -19,8 +20,26 @@ export type EasingVariant = (typeof EASING_VARIANTS)[number];
 
 export type EasingFn = (t: number) => number;
 
+/** Continuous custom-curve bias in [-1, 1]: 0 = linear; negative packs toward start; positive toward end. */
+export const CUSTOM_CURVE_BIAS_MIN = -1;
+export const CUSTOM_CURVE_BIAS_MAX = 1;
+
+export type ResolveEasingOptions = {
+  /** Used when `family === 'custom'`. Clamped to [-1, 1]. */
+  curveBias?: number;
+  /**
+   * Blend strength for named (non-custom) easings in [0, 1].
+   * 0 = linear, 1 = full selected curve. Ignored for `custom` / `linear`.
+   */
+  amount?: number;
+};
+
 function clamp01(t: number): number {
   return Math.max(0, Math.min(1, t));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 const linear: EasingFn = (t) => clamp01(t);
@@ -70,9 +89,33 @@ const exponentialIn: EasingFn = (t) => {
 
 type FamilyFns = EasingFn | Record<EasingVariant, EasingFn>;
 
+/**
+ * Continuous power curve: bias 0 → identity; negative packs toward start;
+ * positive packs toward end. Matches the prior “Curve” slider model.
+ */
+export function powerEasing(curveBias = 0): EasingFn {
+  const bias = clamp(curveBias, CUSTOM_CURVE_BIAS_MIN, CUSTOM_CURVE_BIAS_MAX);
+  const exp = Math.pow(2, bias);
+  if (exp === 1) return linear;
+  return (t) => Math.pow(clamp01(t), exp);
+}
+
+/** Mix linear with `ease` by `amount` ∈ [0, 1]. */
+export function blendEasing(ease: EasingFn, amount: number): EasingFn {
+  const a = clamp(amount, 0, 1);
+  if (a <= 0) return linear;
+  if (a >= 1) return ease;
+  return (t) => {
+    const x = clamp01(t);
+    return x + a * (ease(x) - x);
+  };
+}
+
 function familyFns(family: EasingFamily): FamilyFns {
   switch (family) {
     case 'linear':
+      return linear;
+    case 'custom':
       return linear;
     case 'quadratic':
       return {
@@ -123,12 +166,19 @@ function familyFns(family: EasingFamily): FamilyFns {
 export function resolveEasingFunction(
   family: EasingFamily,
   variant: EasingVariant = 'inOut',
+  options: ResolveEasingOptions = {},
 ): EasingFn {
+  if (family === 'custom') {
+    return powerEasing(options.curveBias ?? 0);
+  }
   const fns = familyFns(family);
-  if (typeof fns === 'function') return fns;
-  return fns[variant] ?? fns.inOut;
+  const base = typeof fns === 'function' ? fns : (fns[variant] ?? fns.inOut);
+  if (family === 'linear') return base;
+  const amount = options.amount;
+  if (amount === undefined || amount >= 1) return base;
+  return blendEasing(base, amount ?? 1);
 }
 
 export function easingFamilyHasVariants(family: EasingFamily): boolean {
-  return family !== 'linear';
+  return family !== 'linear' && family !== 'custom';
 }
