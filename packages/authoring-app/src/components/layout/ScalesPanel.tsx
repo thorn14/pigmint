@@ -4,6 +4,7 @@ import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, StepNamingPreset } from '../../types/palette';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import { AppStringSelect, ConfirmDialog, type AppStringSelectOption } from '../base-ui';
+import { ApplyLightnessEasing } from '../curves/ApplyLightnessEasing';
 
 const STEP_PRESET_OPTIONS: readonly AppStringSelectOption[] = [
   { value: 'tailwind', label: 'Tailwind' },
@@ -323,6 +324,7 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [showApplyEasing, setShowApplyEasing] = useState(false);
 
   const effectiveActiveId = activeScaleId ?? scales[0]?.id;
   const hasSelection = selectedScaleIds.length > 0;
@@ -435,10 +437,28 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
                 }}
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setShowApplyEasing((open) => !open)}
+              style={linkBtnStyle}
+              className="focus-visible-ring"
+              aria-expanded={showApplyEasing}
+              aria-controls="scales-apply-easing"
+            >
+              {showApplyEasing ? 'close' : 'ease'}
+            </button>
             {activeScale.lightnessPreset === 'custom' && (
               <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
             )}
           </div>
+          {showApplyEasing && (
+            <div id="scales-apply-easing">
+              <ApplyLightnessEasing
+                activeScaleId={activeScale.id}
+                onApplied={() => setShowApplyEasing(false)}
+              />
+            </div>
+          )}
         </div>
       )}
 

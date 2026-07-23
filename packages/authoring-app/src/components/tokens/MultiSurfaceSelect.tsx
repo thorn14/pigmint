@@ -243,7 +243,7 @@ export function MultiSurfaceSelect({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px', width: '100%', textAlign: 'left',
-                  background: optFill ? hex : (checked ? 'var(--p-bg)' : 'var(--p-surface)'),
+                  background: optFill ? hex : 'transparent',
                   border: 'none',
                   borderBottom: i < surfaceNames.length - 1 ? '1px solid var(--p-border)' : 'none',
                   cursor: isLastRequired ? 'not-allowed' : 'pointer',

@@ -1,3 +1,5 @@
+import type { EasingFn } from './easings.js';
+
 export type LightnessPreset = 'tailwind' | 'linear' | 'eased' | 'material' | 'custom';
 
 const MATERIAL_LIGHTNESS: readonly number[] = [
@@ -48,5 +50,24 @@ export function buildLightnessValues(preset: LightnessPreset, stepCount: number)
       case 'custom':
         return 0.5;
     }
+  });
+}
+
+/**
+ * Redistribute lightness between fixed endpoints using an easing on t.
+ * Defaults to linear (even steps). Always preserves start and end.
+ */
+export function buildLightnessFromEnds(
+  start: number,
+  end: number,
+  count: number,
+  ease: EasingFn = (t) => t,
+): number[] {
+  if (count <= 1) return [start];
+  return Array.from({ length: count }, (_, i) => {
+    if (i === 0) return start;
+    if (i === count - 1) return end;
+    const t = i / (count - 1);
+    return lerp(start, end, ease(t));
   });
 }
