@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, StepNamingPreset } from '../../types/palette';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
-import { AppStringSelect, ConfirmDialog, type AppStringSelectOption } from '../base-ui';
+import { AppSlider, AppStringSelect, ConfirmDialog, type AppStringSelectOption } from '../base-ui';
 
 const STEP_PRESET_OPTIONS: readonly AppStringSelectOption[] = [
   { value: 'tailwind', label: 'Tailwind' },
@@ -318,14 +318,22 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
   const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
+  const evenOutLightness = usePaletteStore((s) => s.evenOutLightness);
+  const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
+  const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const activeScale = usePaletteStore(selectActiveScale);
   const [newHex, setNewHex] = useState('#6366f1');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [curveBias, setCurveBias] = useState(0);
 
   const effectiveActiveId = activeScaleId ?? scales[0]?.id;
   const hasSelection = selectedScaleIds.length > 0;
+
+  useEffect(() => {
+    setCurveBias(0);
+  }, [effectiveActiveId]);
 
   function handlePickScale(id: string) {
     setActiveScale(id);
@@ -426,6 +434,7 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
                 style={presetSelectStyle}
                 onValueChange={(v) => {
                   const preset = v as LightnessPreset;
+                  setCurveBias(0);
                   if (preset === 'custom') {
                     applyLightnessPreset(activeScale.id, 'custom');
                     onEditLightness();
@@ -438,6 +447,29 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
             {activeScale.lightnessPreset === 'custom' && (
               <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
             )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <label htmlFor="scales-lightness-curve" style={presetLabelStyle}>Curve</label>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AppSlider
+                id="scales-lightness-curve"
+                value={curveBias}
+                min={-1}
+                max={1}
+                step={0.01}
+                onValueChange={(v) => {
+                  setCurveBias(v);
+                  evenOutLightness(activeScale.id, v);
+                }}
+                onPointerDown={() => beginCurveEdit(activeScale.id)}
+                onValueCommitted={() => commitCurveEdit()}
+                style={{ width: '100%' }}
+                aria-label="Lightness curve bias"
+              />
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-secondary)', width: 36, textAlign: 'right', flexShrink: 0 }}>
+                {curveBias.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       )}

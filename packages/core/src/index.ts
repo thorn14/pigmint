@@ -36,6 +36,7 @@ export {
 export {
   TAILWIND_LIGHTNESS,
   buildLightnessValues,
+  buildLightnessFromEnds,
   type LightnessPreset,
 } from './presets/lightness.js';
 export {

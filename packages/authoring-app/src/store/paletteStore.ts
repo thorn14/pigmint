@@ -4,7 +4,7 @@ import { current } from 'immer';
 import type { ColorScale, PaletteState, PortableVocabulary, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
 import { remapPortableVocabularyRamps } from '@pigmint/core';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
-import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
+import { buildLightnessValues, buildLightnessFromEnds, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
 import { canonicalScaleName, disambiguateKey } from '../lib/scaleNaming';
 import { useVocabStore } from './vocabStore';
@@ -70,6 +70,7 @@ interface PaletteActions {
   setLightnessAll: (values: number[]) => void;
   updateHueShift: (id: string, end: 'lightEndAdjust' | 'darkEndAdjust', value: number) => void;
   applyLightnessPreset: (id: string, preset: LightnessPreset) => void;
+  evenOutLightness: (id: string, curveBias: number) => void;
   updateChromaPeak: (id: string, peak: number) => void;
   updateChromaLow: (id: string, low: number) => void;
   updateChromaHigh: (id: string, high: number) => void;
@@ -845,6 +846,19 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       }
       scale.curves.lightness.values = buildLightnessValues(preset, scale.stepCount);
       scale.lightnessPreset = preset;
+    }),
+
+    evenOutLightness: (id, curveBias) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      const values = scale.curves.lightness.values;
+      if (values.length === 0) return;
+      const start = values[0] ?? 0.98;
+      const end = values[values.length - 1] ?? 0.13;
+      const bias = Math.max(-1, Math.min(1, curveBias));
+      pushHistory(state);
+      scale.curves.lightness.values = buildLightnessFromEnds(start, end, values.length, bias);
+      scale.lightnessPreset = 'custom';
     }),
 
     updateChromaPeak: (id, peak) => set((state) => {

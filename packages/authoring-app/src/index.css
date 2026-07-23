@@ -216,20 +216,25 @@ input[type="range"].p-range:focus-visible::-moz-range-thumb {
   .app-bottom-sheet-popup { transition: none; }
 }
 
-/* Base UI `Select` item — default fill matches the trigger surface */
+/* Base UI `Select` item — clear base; selected stays clear (bold text marks it) */
 .app-select-item {
-  background: var(--p-surface);
+  background: transparent;
 }
 
-/* Custom popup option buttons (AppSelect / MultiSurfaceSelect): inverted hover */
+.app-select-item[data-selected] {
+  background: transparent;
+  color: var(--p-text);
+  font-weight: 600;
+}
+
+/* Custom popup option buttons (AppSelect / MultiSurfaceSelect): surface hover */
 .app-select-option:not(:disabled):not([data-fill]):hover {
-  background: var(--p-bg) !important;
+  background: var(--p-surface) !important;
 }
 
 /* Base UI `Select` item pointer / keyboard focus */
-.app-select-item[data-highlighted],
-.app-select-item[data-selected] {
-  background: var(--p-bg);
+.app-select-item[data-highlighted] {
+  background: var(--p-surface);
   color: var(--p-text);
 }
 
@@ -317,7 +322,7 @@ input[type="submit"]:not(:disabled):active {
 }
 
 .app-select-item:not([aria-disabled="true"]):hover {
-  background-color: var(--p-bg);
+  background-color: var(--p-surface);
 }
 
 .app-select-item:not([aria-disabled="true"]):active {

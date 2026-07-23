@@ -3,6 +3,7 @@ export {
   TAILWIND_STEPS,
   NUMERIC_STEPS_11,
   buildLightnessValues,
+  buildLightnessFromEnds,
   resolveStepNames,
 } from '@pigmint/core';
 export type { LightnessPreset } from '@pigmint/core';
