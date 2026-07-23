@@ -42,11 +42,16 @@ export {
 export {
   EASING_FAMILIES,
   EASING_VARIANTS,
+  CUSTOM_CURVE_BIAS_MIN,
+  CUSTOM_CURVE_BIAS_MAX,
   resolveEasingFunction,
   easingFamilyHasVariants,
+  sBendEasing,
+  blendEasing,
   type EasingFamily,
   type EasingVariant,
   type EasingFn,
+  type ResolveEasingOptions,
 } from './presets/easings.js';
 export {
   TAILWIND_STEPS,

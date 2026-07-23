@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  CUSTOM_CURVE_BIAS_MAX,
+  CUSTOM_CURVE_BIAS_MIN,
   EASING_FAMILY_OPTIONS,
   EASING_VARIANT_OPTIONS,
   easingFamilyHasVariants,
@@ -7,7 +9,7 @@ import {
   type EasingVariant,
 } from '../../constants/stepPresets';
 import { usePaletteStore } from '../../store/paletteStore';
-import { AppStringSelect, type AppStringSelectOption } from '../base-ui';
+import { AppSlider, AppStringSelect, type AppStringSelectOption } from '../base-ui';
 
 const familyOptions: readonly AppStringSelectOption[] = EASING_FAMILY_OPTIONS.map((o) => ({
   value: o.value,
@@ -46,22 +48,31 @@ type Props = {
 /**
  * Primer Prism–style apply-easing controls: base curve + variant + explicit Apply,
  * with a scope so the same easing can hit one or many ramps.
+ * Custom base exposes a continuous Curve slider for S-bend strength.
  */
 export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
   const scales = usePaletteStore((s) => s.scales);
   const selectedScaleIds = usePaletteStore((s) => s.selectedScaleIds);
   const applyLightnessEasing = usePaletteStore((s) => s.applyLightnessEasing);
+  const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
+  const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
 
   const [family, setFamily] = useState<EasingFamily>('cubic');
   const [variant, setVariant] = useState<EasingVariant>('inOut');
   const [scope, setScope] = useState<ApplyScope>('active');
+  const [curveBias, setCurveBias] = useState(0);
 
+  const isCustom = family === 'custom';
   const hasVariants = easingFamilyHasVariants(family);
   const hasSelection = selectedScaleIds.length > 0;
 
   useEffect(() => {
     if (!hasSelection && scope === 'selected') setScope('active');
   }, [hasSelection, scope]);
+
+  useEffect(() => {
+    setCurveBias(0);
+  }, [activeScaleId]);
 
   const scopeOptions = useMemo((): readonly AppStringSelectOption[] => {
     const opts: AppStringSelectOption[] = [
@@ -83,8 +94,20 @@ export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
   function handleApply() {
     const ids = resolveTargetIds();
     if (ids.length === 0) return;
-    applyLightnessEasing(ids, family, hasVariants ? variant : 'inOut');
+    applyLightnessEasing(
+      ids,
+      family,
+      hasVariants ? variant : 'inOut',
+      isCustom ? { curveBias } : undefined,
+    );
     onApplied?.();
+  }
+
+  function handleCurveBiasChange(v: number) {
+    setCurveBias(v);
+    const ids = resolveTargetIds();
+    if (ids.length === 0) return;
+    applyLightnessEasing(ids, 'custom', 'inOut', { curveBias: v });
   }
 
   return (
@@ -108,27 +131,66 @@ export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
             value={family}
             options={familyOptions}
             style={selectStyle}
-            onValueChange={(v) => setFamily(v as EasingFamily)}
+            onValueChange={(v) => {
+              const next = v as EasingFamily;
+              setFamily(next);
+              if (next === 'custom') setCurveBias(0);
+            }}
           />
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <label htmlFor="scales-easing-variant" style={{ ...fieldLabelStyle, width: 56, flexShrink: 0 }}>
-          Easing
-        </label>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <AppStringSelect
-            id="scales-easing-variant"
-            name="scales-easing-variant"
-            value={hasVariants ? variant : 'inOut'}
-            options={hasVariants ? variantOptions : [{ value: 'inOut', label: '—' }]}
-            style={selectStyle}
-            disabled={!hasVariants}
-            onValueChange={(v) => setVariant(v as EasingVariant)}
-          />
+      {isCustom ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <label htmlFor="scales-easing-curve" style={{ ...fieldLabelStyle, width: 56, flexShrink: 0 }}>
+            Curve
+          </label>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AppSlider
+              id="scales-easing-curve"
+              value={curveBias}
+              min={CUSTOM_CURVE_BIAS_MIN}
+              max={CUSTOM_CURVE_BIAS_MAX}
+              step={0.01}
+              onValueChange={handleCurveBiasChange}
+              onPointerDown={() => beginCurveEdit(activeScaleId)}
+              onValueCommitted={() => commitCurveEdit()}
+              style={{ width: '100%' }}
+              aria-label="Custom lightness S-curve strength"
+              getAriaValueText={(formatted) => `${formatted} S-curve strength`}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: 'monospace',
+                color: 'var(--p-text-secondary)',
+                width: 36,
+                textAlign: 'right',
+                flexShrink: 0,
+              }}
+            >
+              {curveBias.toFixed(2)}
+            </span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <label htmlFor="scales-easing-variant" style={{ ...fieldLabelStyle, width: 56, flexShrink: 0 }}>
+            Easing
+          </label>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <AppStringSelect
+              id="scales-easing-variant"
+              name="scales-easing-variant"
+              value={hasVariants ? variant : 'inOut'}
+              options={hasVariants ? variantOptions : [{ value: 'inOut', label: '—' }]}
+              style={selectStyle}
+              disabled={!hasVariants}
+              onValueChange={(v) => setVariant(v as EasingVariant)}
+            />
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <label htmlFor="scales-easing-scope" style={{ ...fieldLabelStyle, width: 56, flexShrink: 0 }}>
@@ -149,6 +211,12 @@ export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
       {scope === 'selected' && hasSelection && (
         <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-secondary)', paddingLeft: 62 }}>
           {selectedScaleIds.length} scale{selectedScaleIds.length === 1 ? '' : 's'} will update from their own endpoints
+        </p>
+      )}
+
+      {isCustom && (
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-secondary)', paddingLeft: 62 }}>
+          0 is even; positive is an S-bend (pack ends); negative inverts the S (pack middle)
         </p>
       )}
 
