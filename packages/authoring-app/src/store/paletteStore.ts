@@ -4,7 +4,7 @@ import { current } from 'immer';
 import type { ColorScale, PaletteState, PortableVocabulary, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
 import { remapPortableVocabularyRamps } from '@pigmint/core';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
-import { buildLightnessValues, buildLightnessFromEnds, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
+import { buildLightnessValues, buildLightnessFromEnds, resolveEasingFunction, resolveStepNames, type LightnessPreset, type EasingFamily, type EasingVariant } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
 import { canonicalScaleName, disambiguateKey } from '../lib/scaleNaming';
 import { useVocabStore } from './vocabStore';
@@ -70,7 +70,7 @@ interface PaletteActions {
   setLightnessAll: (values: number[]) => void;
   updateHueShift: (id: string, end: 'lightEndAdjust' | 'darkEndAdjust', value: number) => void;
   applyLightnessPreset: (id: string, preset: LightnessPreset) => void;
-  evenOutLightness: (id: string, curveBias: number) => void;
+  applyLightnessEasing: (ids: string[], family: EasingFamily, variant: EasingVariant) => void;
   updateChromaPeak: (id: string, peak: number) => void;
   updateChromaLow: (id: string, low: number) => void;
   updateChromaHigh: (id: string, high: number) => void;
@@ -848,17 +848,21 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       scale.lightnessPreset = preset;
     }),
 
-    evenOutLightness: (id, curveBias) => set((state) => {
-      const scale = state.scales.find((s) => s.id === id);
-      if (!scale) return;
-      const values = scale.curves.lightness.values;
-      if (values.length === 0) return;
-      const start = values[0] ?? 0.98;
-      const end = values[values.length - 1] ?? 0.13;
-      const bias = Math.max(-1, Math.min(1, curveBias));
+    applyLightnessEasing: (ids, family, variant) => set((state) => {
+      const uniqueIds = [...new Set(ids)];
+      if (uniqueIds.length === 0) return;
+      const ease = resolveEasingFunction(family, variant);
       pushHistory(state);
-      scale.curves.lightness.values = buildLightnessFromEnds(start, end, values.length, bias);
-      scale.lightnessPreset = 'custom';
+      for (const id of uniqueIds) {
+        const scale = state.scales.find((s) => s.id === id);
+        if (!scale) continue;
+        const values = scale.curves.lightness.values;
+        if (values.length === 0) continue;
+        const start = values[0] ?? 0.98;
+        const end = values[values.length - 1] ?? 0.13;
+        scale.curves.lightness.values = buildLightnessFromEnds(start, end, values.length, ease);
+        scale.lightnessPreset = 'custom';
+      }
     }),
 
     updateChromaPeak: (id, peak) => set((state) => {

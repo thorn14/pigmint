@@ -40,6 +40,15 @@ export {
   type LightnessPreset,
 } from './presets/lightness.js';
 export {
+  EASING_FAMILIES,
+  EASING_VARIANTS,
+  resolveEasingFunction,
+  easingFamilyHasVariants,
+  type EasingFamily,
+  type EasingVariant,
+  type EasingFn,
+} from './presets/easings.js';
+export {
   TAILWIND_STEPS,
   NUMERIC_STEPS_11,
   resolveStepNames,

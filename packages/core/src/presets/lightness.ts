@@ -1,3 +1,5 @@
+import type { EasingFn } from './easings.js';
+
 export type LightnessPreset = 'tailwind' | 'linear' | 'eased' | 'material' | 'custom';
 
 const MATERIAL_LIGHTNESS: readonly number[] = [
@@ -52,22 +54,20 @@ export function buildLightnessValues(preset: LightnessPreset, stepCount: number)
 }
 
 /**
- * Redistribute lightness between fixed endpoints.
- * `curveBias` in [-1, 1]: 0 = even (linear); negative packs toward `start`; positive toward `end`.
+ * Redistribute lightness between fixed endpoints using an easing on t.
+ * Defaults to linear (even steps). Always preserves start and end.
  */
 export function buildLightnessFromEnds(
   start: number,
   end: number,
   count: number,
-  curveBias = 0,
+  ease: EasingFn = (t) => t,
 ): number[] {
   if (count <= 1) return [start];
-  const exp = Math.pow(2, curveBias);
   return Array.from({ length: count }, (_, i) => {
     if (i === 0) return start;
     if (i === count - 1) return end;
     const t = i / (count - 1);
-    const eased = exp === 1 ? t : Math.pow(t, exp);
-    return lerp(start, end, eased);
+    return lerp(start, end, ease(t));
   });
 }
