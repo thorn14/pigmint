@@ -3,29 +3,43 @@ import {
   blendEasing,
   buildLightnessFromEnds,
   easingFamilyHasVariants,
-  powerEasing,
+  sBendEasing,
   resolveEasingFunction,
 } from '../src/index.js';
 
-describe('powerEasing', () => {
+describe('sBendEasing', () => {
   it('is identity at bias 0', () => {
-    const ease = powerEasing(0);
+    const ease = sBendEasing(0);
     expect(ease(0)).toBe(0);
+    expect(ease(0.25)).toBeCloseTo(0.25, 8);
     expect(ease(0.5)).toBeCloseTo(0.5, 8);
+    expect(ease(0.75)).toBeCloseTo(0.75, 8);
     expect(ease(1)).toBe(1);
   });
 
-  it('packs toward start when bias is negative', () => {
-    const ease = powerEasing(-1);
-    // exp = 0.5 → sqrt, so mid t maps above the diagonal
-    expect(ease(0.25)).toBeGreaterThan(0.25);
+  it('forms a symmetric S-bend when bias is positive', () => {
+    const ease = sBendEasing(1);
+    // Packs toward ends: below diagonal in the first half, above in the second.
+    expect(ease(0.25)).toBeLessThan(0.25);
+    expect(ease(0.5)).toBeCloseTo(0.5, 8);
+    expect(ease(0.75)).toBeGreaterThan(0.75);
+    // Symmetry around midpoint.
+    expect(ease(0.25)).toBeCloseTo(1 - ease(0.75), 8);
   });
 
-  it('packs toward end when bias is positive', () => {
-    const ease = powerEasing(1);
-    // exp = 2 → t², so mid t maps below the diagonal
-    expect(ease(0.5)).toBeCloseTo(0.25, 8);
-    expect(ease(0.5)).toBeLessThan(0.5);
+  it('forms an inverted S when bias is negative', () => {
+    const ease = sBendEasing(-1);
+    // Packs toward middle: above diagonal in the first half, below in the second.
+    expect(ease(0.25)).toBeGreaterThan(0.25);
+    expect(ease(0.5)).toBeCloseTo(0.5, 8);
+    expect(ease(0.75)).toBeLessThan(0.75);
+    expect(ease(0.25)).toBeCloseTo(1 - ease(0.75), 8);
+  });
+
+  it('grows stronger as |bias| increases', () => {
+    const mild = sBendEasing(0.35);
+    const strong = sBendEasing(1);
+    expect(strong(0.25)).toBeLessThan(mild(0.25));
   });
 });
 
@@ -47,9 +61,11 @@ describe('blendEasing', () => {
 });
 
 describe('resolveEasingFunction', () => {
-  it('resolves custom via curveBias', () => {
+  it('resolves custom via S-bend curveBias', () => {
     const ease = resolveEasingFunction('custom', 'inOut', { curveBias: 1 });
-    expect(ease(0.5)).toBeCloseTo(0.25, 8);
+    expect(ease(0.25)).toBeLessThan(0.25);
+    expect(ease(0.5)).toBeCloseTo(0.5, 8);
+    expect(ease(0.75)).toBeGreaterThan(0.75);
   });
 
   it('blends named easings by amount', () => {
@@ -66,8 +82,8 @@ describe('resolveEasingFunction', () => {
 });
 
 describe('buildLightnessFromEnds', () => {
-  it('preserves endpoints for custom power easing', () => {
-    const values = buildLightnessFromEnds(0.98, 0.13, 5, powerEasing(0.5));
+  it('preserves endpoints for custom S-bend easing', () => {
+    const values = buildLightnessFromEnds(0.98, 0.13, 5, sBendEasing(0.75));
     expect(values).toHaveLength(5);
     expect(values[0]).toBeCloseTo(0.98, 8);
     expect(values[4]).toBeCloseTo(0.13, 8);

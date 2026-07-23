@@ -46,7 +46,7 @@ export {
   CUSTOM_CURVE_BIAS_MAX,
   resolveEasingFunction,
   easingFamilyHasVariants,
-  powerEasing,
+  sBendEasing,
   blendEasing,
   type EasingFamily,
   type EasingVariant,

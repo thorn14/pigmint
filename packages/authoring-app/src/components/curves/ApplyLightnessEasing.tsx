@@ -48,7 +48,7 @@ type Props = {
 /**
  * Primer Prism–style apply-easing controls: base curve + variant + explicit Apply,
  * with a scope so the same easing can hit one or many ramps.
- * Custom base exposes a continuous Curve bias slider between packing extremes.
+ * Custom base exposes a continuous Curve slider for S-bend strength.
  */
 export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
   const scales = usePaletteStore((s) => s.scales);
@@ -156,8 +156,8 @@ export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
               onPointerDown={() => beginCurveEdit(activeScaleId)}
               onValueCommitted={() => commitCurveEdit()}
               style={{ width: '100%' }}
-              aria-label="Custom lightness curve bias"
-              getAriaValueText={(formatted) => `${formatted} curve bias`}
+              aria-label="Custom lightness S-curve strength"
+              getAriaValueText={(formatted) => `${formatted} S-curve strength`}
             />
             <span
               style={{
@@ -216,7 +216,7 @@ export function ApplyLightnessEasing({ activeScaleId, onApplied }: Props) {
 
       {isCustom && (
         <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-secondary)', paddingLeft: 62 }}>
-          0 is even; negative packs toward the light end, positive toward the dark end
+          0 is even; positive is an S-bend (pack ends); negative inverts the S (pack middle)
         </p>
       )}
 

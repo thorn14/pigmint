@@ -20,7 +20,10 @@ export type EasingVariant = (typeof EASING_VARIANTS)[number];
 
 export type EasingFn = (t: number) => number;
 
-/** Continuous custom-curve bias in [-1, 1]: 0 = linear; negative packs toward start; positive toward end. */
+/**
+ * Continuous custom-curve bias in [-1, 1]:
+ * 0 = linear; positive = S-bend (pack toward ends); negative = inverted S (pack toward middle).
+ */
 export const CUSTOM_CURVE_BIAS_MIN = -1;
 export const CUSTOM_CURVE_BIAS_MAX = 1;
 
@@ -48,6 +51,16 @@ function makeInOut(easeIn: EasingFn): EasingFn {
   return (t) => {
     const x = clamp01(t);
     return x < 0.5 ? easeIn(x * 2) / 2 : 1 - easeIn((1 - x) * 2) / 2;
+  };
+}
+
+/** Ease-out then ease-in — inverted S that packs values toward the middle. */
+function makeOutIn(easeIn: EasingFn): EasingFn {
+  return (t) => {
+    const x = clamp01(t);
+    return x < 0.5
+      ? (1 - easeIn(1 - x * 2)) / 2
+      : 0.5 + easeIn((x - 0.5) * 2) / 2;
   };
 }
 
@@ -90,14 +103,17 @@ const exponentialIn: EasingFn = (t) => {
 type FamilyFns = EasingFn | Record<EasingVariant, EasingFn>;
 
 /**
- * Continuous power curve: bias 0 → identity; negative packs toward start;
- * positive packs toward end. Matches the prior “Curve” slider model.
+ * Continuous S-bend curve for custom easing.
+ * bias 0 → identity; positive → ease-in-out S (pack ends);
+ * negative → inverted S (pack middle). Strength grows with |bias|.
  */
-export function powerEasing(curveBias = 0): EasingFn {
+export function sBendEasing(curveBias = 0): EasingFn {
   const bias = clamp(curveBias, CUSTOM_CURVE_BIAS_MIN, CUSTOM_CURVE_BIAS_MAX);
-  const exp = Math.pow(2, bias);
-  if (exp === 1) return linear;
-  return (t) => Math.pow(clamp01(t), exp);
+  if (bias === 0) return linear;
+  // |bias| 0→1 maps exp 1→4 so max strength is a clear quartic S.
+  const exp = Math.pow(2, Math.abs(bias) * 2);
+  const easeIn: EasingFn = (t) => Math.pow(clamp01(t), exp);
+  return bias > 0 ? makeInOut(easeIn) : makeOutIn(easeIn);
 }
 
 /** Mix linear with `ease` by `amount` ∈ [0, 1]. */
@@ -169,7 +185,7 @@ export function resolveEasingFunction(
   options: ResolveEasingOptions = {},
 ): EasingFn {
   if (family === 'custom') {
-    return powerEasing(options.curveBias ?? 0);
+    return sBendEasing(options.curveBias ?? 0);
   }
   const fns = familyFns(family);
   const base = typeof fns === 'function' ? fns : (fns[variant] ?? fns.inOut);

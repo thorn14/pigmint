@@ -11,7 +11,7 @@ export {
   CUSTOM_CURVE_BIAS_MAX,
   resolveEasingFunction,
   easingFamilyHasVariants,
-  powerEasing,
+  sBendEasing,
   blendEasing,
 } from '@pigmint/core';
 export type { LightnessPreset, EasingFamily, EasingVariant, ResolveEasingOptions } from '@pigmint/core';
