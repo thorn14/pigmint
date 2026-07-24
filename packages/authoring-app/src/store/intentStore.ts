@@ -55,6 +55,12 @@ export interface PersistedIntentState {
   engineResolver: ResolverConfig;
   overrides: IntentOverrides;
   highContrast: boolean;
+  /**
+   * Optional surface token name whose light/dark steps drive app chrome (`--p-bg`)
+   * so Light/Dark theme previews tokens against the authored background. `null` =
+   * default pure white/black chrome.
+   */
+  previewBgSurface: string | null;
 }
 
 export type AppTheme = 'light' | 'dark';
@@ -81,6 +87,8 @@ interface IntentActions {
   loadState: (state: Partial<PersistedIntentState>) => void;
   setAppTheme: (theme: AppTheme) => void;
   setHighContrast: (hc: boolean) => void;
+  setPreviewBgSurface: (name: string | null) => void;
+  renamePreviewBgSurface: (oldName: string, newName: string) => void;
 }
 
 const DEFAULT_STATE: PersistedIntentState = {
@@ -91,6 +99,7 @@ const DEFAULT_STATE: PersistedIntentState = {
   engineResolver: { mode: 'continuous' },
   overrides: {},
   highContrast: false,
+  previewBgSurface: null,
 };
 
 function sanitizeModes(raw: unknown): EngineMode[] {
@@ -142,6 +151,12 @@ export function sanitizeResolver(raw: unknown): ResolverConfig {
   return withFallback;
 }
 
+function sanitizePreviewBgSurface(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function loadFromStorage(): PersistedIntentState {
   if (typeof localStorage === 'undefined') return DEFAULT_STATE;
   try {
@@ -160,6 +175,7 @@ function loadFromStorage(): PersistedIntentState {
             ? (parsed.overrides as IntentOverrides)
             : {},
         highContrast: parsed.highContrast === true,
+        previewBgSurface: sanitizePreviewBgSurface(parsed.previewBgSurface),
       };
     }
   } catch {
@@ -186,6 +202,7 @@ function snapshot(state: PersistedIntentState): PersistedIntentState {
     engineResolver: { ...state.engineResolver },
     overrides: { ...state.overrides },
     highContrast: state.highContrast,
+    previewBgSurface: state.previewBgSurface,
   };
 }
 
@@ -313,6 +330,10 @@ export const useIntentStore = create<IntentState & IntentActions>()(
         if (next.engineCvd) state.engineCvd = sanitizeCvd(next.engineCvd);
         if (next.engineResolver) state.engineResolver = sanitizeResolver(next.engineResolver);
         if (next.overrides) state.overrides = { ...next.overrides };
+        if (next.highContrast !== undefined) state.highContrast = next.highContrast === true;
+        if (next.previewBgSurface !== undefined) {
+          state.previewBgSurface = sanitizePreviewBgSurface(next.previewBgSurface);
+        }
         persist(snapshot(state));
       }),
 
@@ -334,6 +355,19 @@ export const useIntentStore = create<IntentState & IntentActions>()(
             state.engineModes = sanitizeModes([...state.engineModes, hcMode]);
           }
         }
+        persist(snapshot(state));
+      }),
+
+    setPreviewBgSurface: (name) =>
+      set((state) => {
+        state.previewBgSurface = sanitizePreviewBgSurface(name);
+        persist(snapshot(state));
+      }),
+
+    renamePreviewBgSurface: (oldName, newName) =>
+      set((state) => {
+        if (state.previewBgSurface !== oldName) return;
+        state.previewBgSurface = sanitizePreviewBgSurface(newName);
         persist(snapshot(state));
       }),
   })),

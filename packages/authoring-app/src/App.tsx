@@ -18,7 +18,11 @@ import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useIntentStore } from './store/intentStore';
 import { initVocabStore, useVocabStore } from './store/vocabStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
+import { generateRamp } from './lib/colorMath';
+import { applyPreviewBgChrome, clearPreviewBgChrome } from './lib/previewBgChrome';
+import { surfaceSchemeHex } from './components/tokens/pinValidation';
 import type { ColorScale } from './types/palette';
+import type { GeneratedRamp } from '@pigmint/core';
 
 type AppMode = 'primitives' | 'tokens';
 type AppTheme = 'dark' | 'light';
@@ -164,6 +168,8 @@ export default function App() {
   const scales = usePaletteStore((s) => s.scales);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const toggleSrgbPreview = usePaletteStore((s) => s.toggleSrgbPreview);
+  const previewBgSurface = useIntentStore((s) => s.previewBgSurface);
+  const vocabRaw = useVocabStore((s) => s.raw);
 
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null): boolean {
@@ -230,6 +236,34 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
     useIntentStore.getState().setAppTheme(theme);
   }, [theme]);
+
+  // Optionally pin app chrome to a single surface token (lightStep/darkStep) so
+  // Theme light/dark previews tokens against the authored background.
+  useEffect(() => {
+    const surfaceName = previewBgSurface;
+    const surface = surfaceName ? vocabRaw?.surfaces[surfaceName] : undefined;
+    if (!surfaceName || !surface) {
+      clearPreviewBgChrome();
+      return;
+    }
+
+    const rampMap = new Map<string, GeneratedRamp>();
+    for (const scale of scales) {
+      try {
+        rampMap.set(scale.name, generateRamp(scale));
+      } catch {
+        /* skip broken scale */
+      }
+    }
+    const scheme = theme === 'dark' ? 'dark' : 'light';
+    const hex = surfaceSchemeHex(surface, rampMap, scheme);
+    if (!hex) {
+      clearPreviewBgChrome();
+      return;
+    }
+    applyPreviewBgChrome(hex);
+    return () => clearPreviewBgChrome();
+  }, [previewBgSurface, vocabRaw, scales, theme]);
 
   useEffect(() => {
     const url = new URL(window.location.href);

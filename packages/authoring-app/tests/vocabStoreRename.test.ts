@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useVocabStore } from '../src/store/vocabStore';
+import { useIntentStore } from '../src/store/intentStore';
 import type { EngineConfig, PortableVocabulary } from '@pigmint/core';
 
 const ENGINE: EngineConfig = { compliance: 'wcag21', target: 'AA', modes: ['light'] };
@@ -40,6 +41,14 @@ describe('vocabStore renames', () => {
     useVocabStore.getState().renameSurface('page', 'zMain', ENGINE);
     const v = useVocabStore.getState().raw!;
     expect(Object.keys(v.surfaces)).toEqual(['zMain', 'card']);
+  });
+
+  it('renameSurface and removeSurface keep the preview background pin in sync', () => {
+    useIntentStore.getState().setPreviewBgSurface('page');
+    useVocabStore.getState().renameSurface('page', 'pageMain', ENGINE);
+    expect(useIntentStore.getState().previewBgSurface).toBe('pageMain');
+    useVocabStore.getState().removeSurface('pageMain', ENGINE);
+    expect(useIntentStore.getState().previewBgSurface).toBeNull();
   });
 
   it('renameSurface rejects collisions and sets an error', () => {
