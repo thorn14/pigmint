@@ -1,6 +1,6 @@
 import type { GeneratedRamp, PortableSurfaceToken } from '@pigmint/core';
 import type { AppSelectOption } from './AppSelect';
-import { PREFS, ALPHA_PREFS, derivedConsistency, type Pref } from './tokenShared';
+import { PREFS, ALPHA_PREFS, derivedConsistency, stepRefToIndex, type Pref } from './tokenShared';
 
 /** Hex of a surface's light step — used for surface previews. */
 export function surfaceHex(
@@ -10,7 +10,7 @@ export function surfaceHex(
   if (!surfaceToken) return undefined;
   const ramp = rampMap.get(surfaceToken.ramp);
   if (!ramp) return undefined;
-  const idx = surfaceToken.lightStep ?? surfaceToken.step ?? 0;
+  const idx = stepRefToIndex(ramp, surfaceToken.lightStep ?? surfaceToken.step, 0);
   return ramp.steps[Math.max(0, Math.min(idx, ramp.steps.length - 1))]?.hex;
 }
 

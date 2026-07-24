@@ -22,8 +22,16 @@ export interface NonSurfaceContext {
   ramp: GeneratedRamp;
   pickRamp: GeneratedRamp;
   denseRamp: GeneratedRamp | undefined;
+  /** Primary surface — recorded in the receipt (`resolvedAgainst`). */
   surfaceHex: string;
   surfaceRef: string;
+  /** All declared surfaces (primary + additional) as hexes; steps are picked to pass against all. */
+  allSurfaceHexes?: readonly string[];
+}
+
+/** Surfaces to pick a step against: all declared surfaces (worst-case), falling back to primary. */
+function pickSurfacesFor(m: NonSurfaceContext): string | readonly string[] {
+  return m.allSurfaceHexes && m.allSurfaceHexes.length > 0 ? m.allSurfaceHexes : m.surfaceHex;
 }
 
 function mean(numbers: number[]): number {
@@ -72,6 +80,7 @@ export function resolveMatchedAcrossRamps(
         ramp: m0.ramp,
         surfaceHex: m0.surfaceHex,
         surfaceRef: m0.surfaceRef,
+        ...(m0.allSurfaceHexes ? { contrastSurfaceHexes: m0.allSurfaceHexes } : {}),
         thresholdElevation: binding.thresholdElevation,
         ...(m0.denseRamp ? { denseRamp: m0.denseRamp } : {}),
       }).token,
@@ -100,7 +109,7 @@ export function resolveMatchedAcrossRamps(
     const ratios: number[] = [];
     let ok = true;
     for (const m of members) {
-      const got = pickStepAtNormalizedT(m.pickRamp, m.surfaceHex, t, req, kind);
+      const got = pickStepAtNormalizedT(m.pickRamp, pickSurfacesFor(m), t, req, kind);
       if (!got) {
         ok = false;
         break;
@@ -141,7 +150,7 @@ export function resolveMatchedAcrossRamps(
 
   const out: ResolvedToken[] = [];
   for (const m of members) {
-    const g = pickStepAtNormalizedT(m.pickRamp, m.surfaceHex, bestT, req, kind);
+    const g = pickStepAtNormalizedT(m.pickRamp, pickSurfacesFor(m), bestT, req, kind);
     if (!g) {
       throw new DriverError('matched-across-ramps: internal pick at bestT failed');
     }
@@ -189,10 +198,10 @@ export function resolveMatchedToSet(
   type Pick = { index: number; ratio: number; selectionNote?: string };
 
   const seeds: (Pick | null)[] = members.map((m) => {
-    const passing = pickStepLowestPassing(m.pickRamp, m.surfaceHex, th, elevate);
+    const passing = pickStepLowestPassing(m.pickRamp, pickSurfacesFor(m), th, elevate);
     if (passing !== null) return passing;
     // No step meets the (potentially HC-elevated) threshold — walk toward the appropriate extreme.
-    return pickStepTowardExtreme(m.pickRamp, m.surfaceHex, th.kind, required);
+    return pickStepTowardExtreme(m.pickRamp, pickSurfacesFor(m), th.kind, required);
   });
 
   const emptyRamps = members
@@ -211,8 +220,8 @@ export function resolveMatchedToSet(
     const next: Pick[] = [];
     for (const m of members) {
       const got: Pick | null =
-        pickStepAnchored(m.pickRamp, m.surfaceHex, th, target, elevate) ??
-        pickStepTowardExtreme(m.pickRamp, m.surfaceHex, th.kind, required);
+        pickStepAnchored(m.pickRamp, pickSurfacesFor(m), th, target, elevate) ??
+        pickStepTowardExtreme(m.pickRamp, pickSurfacesFor(m), th.kind, required);
       if (!got) {
         throw new DriverError('matched-to-set: anchored pick unexpectedly failed');
       }
@@ -301,6 +310,7 @@ export function resolveAnchoredToReference(
     ramp: refMem.ramp,
     surfaceHex: refMem.surfaceHex,
     surfaceRef: refMem.surfaceRef,
+    ...(refMem.allSurfaceHexes ? { contrastSurfaceHexes: refMem.allSurfaceHexes } : {}),
     thresholdElevation: binding.thresholdElevation,
     ...(refMem.denseRamp ? { denseRamp: refMem.denseRamp } : {}),
   });
@@ -321,7 +331,7 @@ export function resolveAnchoredToReference(
     }
     const picked = pickStepAnchored(
       m.pickRamp,
-      m.surfaceHex,
+      pickSurfacesFor(m),
       intent.threshold,
       target,
       binding.thresholdElevation,

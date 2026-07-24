@@ -53,6 +53,16 @@ function assertNumber(v: unknown, label: string, filePath: string): number {
   return v;
 }
 
+/** A step reference: a finite numeric index, or a non-empty step name. */
+function assertStepRef(v: unknown, label: string, filePath: string): number | string {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') return v;
+  throw new PortableVocabularyError(
+    `${label} must be a step index (number) or a step name (string)`,
+    filePath,
+  );
+}
+
 function validateSurfaceToken(
   name: string,
   raw: unknown,
@@ -79,9 +89,9 @@ function validateSurfaceToken(
       filePath,
     );
   }
-  if (hasLightStep) assertNumber(raw.lightStep, `surfaces.${name}.lightStep`, filePath);
-  if (hasDarkStep) assertNumber(raw.darkStep, `surfaces.${name}.darkStep`, filePath);
-  if (hasStep) assertNumber(raw.step, `surfaces.${name}.step`, filePath);
+  if (hasLightStep) assertStepRef(raw.lightStep, `surfaces.${name}.lightStep`, filePath);
+  if (hasDarkStep) assertStepRef(raw.darkStep, `surfaces.${name}.darkStep`, filePath);
+  if (hasStep) assertStepRef(raw.step, `surfaces.${name}.step`, filePath);
 
   return raw as unknown as PortableSurfaceToken;
 }
@@ -164,8 +174,8 @@ function validateSemanticToken(
   }
 
   if (pref === 'pin-to-step') {
-    assertNumber(raw.lightStep, `${section}.${name}.lightStep`, filePath);
-    assertNumber(raw.darkStep, `${section}.${name}.darkStep`, filePath);
+    assertStepRef(raw.lightStep, `${section}.${name}.lightStep`, filePath);
+    assertStepRef(raw.darkStep, `${section}.${name}.darkStep`, filePath);
   }
 
   if (pref === 'preferred-contrast') {

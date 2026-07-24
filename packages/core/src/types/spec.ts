@@ -84,6 +84,18 @@ export interface ComplianceReceipt {
   apcaLc?: { achieved: number; required: number };
 }
 
+/**
+ * Contrast + compliance of a resolved token's color against ONE of the surfaces it is declared on.
+ * A token's step is picked against its primary surface, but the same color can be displayed on
+ * additional surfaces; this records the (recomputed) contrast/compliance for each.
+ */
+export interface SurfaceContrast {
+  /** Surface ref this is measured against, e.g. "{color.surface.bgDangerEmphasis}". */
+  surface: string;
+  contrast: ContrastReceipt;
+  compliance: ComplianceReceipt;
+}
+
 export interface GamutReceipt {
   inSrgb: boolean;
   inP3: boolean;
@@ -280,11 +292,17 @@ export interface ProjectConfig {
 
 // ─── Portable vocabulary (client-defined, loaded from tokens.yaml) ────
 
+/**
+ * A ramp step reference: a numeric index, or a step name (e.g. "950", "white",
+ * "c627"). Name-based refs are stable across ramp re-ordering — prefer them.
+ */
+export type StepRef = number | string;
+
 export interface PortableSurfaceToken {
   ramp: string;
-  step?: number;
-  lightStep?: number;
-  darkStep?: number;
+  step?: StepRef;
+  lightStep?: StepRef;
+  darkStep?: StepRef;
 }
 
 export interface PortableSemanticToken {
@@ -306,10 +324,10 @@ export interface PortableSemanticToken {
   decorative?: boolean;
   /** Target contrast metric when `preference === 'preferred-contrast'`. */
   targetContrast?: number;
-  /** Light-mode ramp step index when `preference === 'pin-to-step'`. */
-  lightStep?: number;
-  /** Dark-mode ramp step index when `preference === 'pin-to-step'`. */
-  darkStep?: number;
+  /** Light-mode ramp step when `preference === 'pin-to-step'`: index or step name. */
+  lightStep?: StepRef;
+  /** Dark-mode ramp step when `preference === 'pin-to-step'`: index or step name. */
+  darkStep?: StepRef;
 }
 
 export interface PortableDecorativeToken {
@@ -375,4 +393,6 @@ export interface ResolvedToken {
   intent: FormalIntent;
   /** Present when this token carries an alpha modifier (ADR-016, spec/07). */
   alpha?: AlphaReceipt;
+  /** Contrast + compliance of this token's color against each surface it is declared on. */
+  contrastBySurface?: SurfaceContrast[];
 }

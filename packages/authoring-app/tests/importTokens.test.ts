@@ -48,4 +48,31 @@ describe('parseW3CTokens still works alongside the new helpers', () => {
     expect(scales).toHaveLength(1);
     expect(scales[0].steps).toHaveLength(2);
   });
+
+  it('parses a plain nested hex map with no W3C token envelope', () => {
+    const json = JSON.stringify({
+      grayish: {
+        '50': '#F4F9F3',
+        '100': '#DEE4DE',
+        '500': '#869089',
+        '800': '#344339',
+      },
+    });
+    const scales = parseW3CTokens(json);
+    expect(scales).toHaveLength(1);
+    expect(scales[0].name).toBe('grayish');
+    expect(scales[0].steps).toHaveLength(4);
+    expect(scales[0].steps.map((s) => s.name)).toEqual(['50', '100', '500', '800']);
+    expect(scales[0].steps[0].hex.toLowerCase()).toBe('#f4f9f3');
+  });
+
+  it('parses multiple plain nested hex-map scales', () => {
+    const json = JSON.stringify({
+      grayish: { '50': '#F4F9F3', '500': '#869089' },
+      blue: { '50': '#eff6ff', '500': '#3b82f6' },
+    });
+    const scales = parseW3CTokens(json);
+    expect(scales).toHaveLength(2);
+    expect(scales.map((s) => s.name).sort()).toEqual(['blue', 'grayish']);
+  });
 });
