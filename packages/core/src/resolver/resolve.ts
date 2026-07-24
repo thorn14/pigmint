@@ -10,6 +10,7 @@ import type {
   ReceiptSource,
   ResolvedToken,
   ResolvedValue,
+  SurfaceContrast,
   Threshold,
 } from '../types/spec.js';
 
@@ -20,8 +21,15 @@ export interface ResolveInput {
   mode: string;
   intent: FormalIntent;
   ramp: GeneratedRamp;
+  /** Surface the receipt records (`resolvedAgainst`) and the primary contrast is computed against. */
   surfaceHex: string;
   surfaceRef: string;
+  /**
+   * All surfaces this token is declared on (primary + additional), as hexes. The step is picked to
+   * pass against the worst-case (lowest contrast) of these, so it satisfies every surface. Defaults
+   * to `[surfaceHex]` when omitted.
+   */
+  contrastSurfaceHexes?: readonly string[];
   thresholdElevation?: ThresholdElevation;
   denseRamp?: GeneratedRamp;
   /** Decorative tokens skip the a11y floor, so preferred-contrast pins to the target. */
@@ -95,16 +103,26 @@ function absApcaLc(fg: string, bg: string): number {
   return Math.abs(getApcaContrast(fg, bg));
 }
 
-/** The scalar used to compare “passing” and drive preference for this threshold kind. */
+/**
+ * The scalar used to compare “passing” and drive preference for this threshold kind.
+ *
+ * When `surface` is a list, returns the **minimum** metric across all surfaces — i.e. the
+ * worst-case contrast for that step. Picking against this guarantees a step that "passes" also
+ * passes on every declared surface (spec: a token must satisfy contrast on every surface it is
+ * added to). A single surface (string) behaves exactly as before.
+ */
 export function resolutionMetric(
   kind: ContrastKind,
   stepHex: string,
-  surfaceHex: string,
+  surface: string | readonly string[],
 ): number {
-  if (kind === 'wcag') {
-    return getWcagContrast(stepHex, surfaceHex).ratio;
+  const surfaces = typeof surface === 'string' ? [surface] : surface;
+  let min = Infinity;
+  for (const s of surfaces) {
+    const m = kind === 'wcag' ? getWcagContrast(stepHex, s).ratio : absApcaLc(stepHex, s);
+    if (m < min) min = m;
   }
-  return absApcaLc(stepHex, surfaceHex);
+  return min;
 }
 
 function complianceLevelWcag(t: Threshold, ratio: number): ComplianceLevel {
@@ -139,7 +157,7 @@ function toOklchCss(hex: string): string {
 
 export function pickStepLowestPassing(
   ramp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
@@ -160,7 +178,7 @@ export function pickStepLowestPassing(
 
 function pickStepHighestContrast(
   ramp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
@@ -192,7 +210,7 @@ function pickStepHighestContrast(
  */
 export function pickStepMidpoint(
   ramp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
@@ -231,7 +249,7 @@ export function pickStepMidpoint(
  */
 export function pickStepPreferredContrast(
   ramp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   target: number,
   elevate?: ThresholdElevation,
@@ -268,7 +286,7 @@ export function pickStepPreferredContrast(
  */
 export function pickStepMedianContrast(
   ramp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
@@ -301,7 +319,7 @@ export function pickStepMedianContrast(
  */
 export function pickStepLevelUp(
   ramp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   elevate?: ThresholdElevation,
 ): { index: number; ratio: number } | null {
@@ -323,7 +341,7 @@ export function pickStepLevelUp(
 /** Among passing steps, pick the one whose **resolution metric** is closest to `anchor` (same units: ratio or Lc). */
 export function pickStepAnchored(
   pickRamp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   threshold: Threshold,
   anchor: number,
   elevate?: ThresholdElevation,
@@ -357,7 +375,7 @@ export function pickStepAnchored(
  */
 export function pickStepTowardExtreme(
   pickRamp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   kind: ContrastKind,
   requiredForNote: number,
 ): { index: number; ratio: number; selectionNote: string } | null {
@@ -407,7 +425,7 @@ export function indexAtNormalizedT(len: number, t: number): number {
 /** @param required — pass result from `passThreshold` for the same `threshold.kind` */
 export function pickStepAtNormalizedT(
   pickRamp: GeneratedRamp,
-  surfaceHex: string,
+  surfaceHex: string | readonly string[],
   t: number,
   required: number,
   kind: ContrastKind,
@@ -420,30 +438,21 @@ export function pickStepAtNormalizedT(
   return { index: i, ratio: m, step };
 }
 
-export function makeResolveResultFromPicked(
-  tokenPath: string,
-  mode: string,
+/**
+ * Build the WCAG + APCA contrast receipt and the compliance receipt for a color
+ * (`stepHex`) against a surface (`surfaceHex`), given the token's formal intent.
+ * Shared by the primary-surface resolution path and the per-surface recompute.
+ */
+export function buildContrastCompliance(
   intent: FormalIntent,
-  ramp: GeneratedRamp,
-  denseRamp: GeneratedRamp | undefined,
-  surfaceRef: string,
+  stepHex: string,
   surfaceHex: string,
-  pickRamp: GeneratedRamp,
-  picked: { index: number; ratio: number },
-  step: GeneratedStep,
   thresholdElevation?: ThresholdElevation,
-  selectionNote?: string,
-): ResolveResult {
+): { contrast: ContrastReceipt; compliance: ComplianceReceipt } {
   const kind = intent.threshold.kind;
-  const pickStepCount = pickRamp.steps.length;
-  const position = pickStepCount === 1 ? 0 : picked.index / (pickStepCount - 1);
-  const nearestPrimitive = denseRamp
-    ? `${ramp.scaleName}.${nearestPrimitiveName(ramp, position)}`
-    : `${ramp.scaleName}.${step.name}`;
-
-  const wcR = getWcagContrast(step.hex, surfaceHex).ratio;
-  const apL = getApcaContrast(step.hex, surfaceHex);
-  const resMetric = resolutionMetric(kind, step.hex, surfaceHex);
+  const wcR = getWcagContrast(stepHex, surfaceHex).ratio;
+  const apL = getApcaContrast(stepHex, surfaceHex);
+  const resMetric = resolutionMetric(kind, stepHex, surfaceHex);
   const contrast: ContrastReceipt = {
     wcag21: round2(wcR),
     apca: round2(apL),
@@ -467,6 +476,65 @@ export function makeResolveResultFromPicked(
           ? { text: wcagThreshold(t, thresholdElevation) }
           : { nonText: wcagThreshold(t, thresholdElevation) },
   };
+
+  return { contrast, compliance };
+}
+
+/**
+ * Recompute contrast + compliance of an already-resolved color (`hex`) against every
+ * surface the token is declared on. The step was picked against the primary surface, but
+ * the same color can be displayed on additional surfaces — this records the actual
+ * contrast/compliance per surface so the UI doesn't reuse the primary value everywhere.
+ * Decorative tokens skip the a11y floor, so their per-surface level is forced to `'exempt'`.
+ */
+export function computeContrastBySurface(
+  intent: FormalIntent,
+  hex: string,
+  surfaces: { ref: string; hex: string }[],
+  thresholdElevation?: ThresholdElevation,
+  exempt = false,
+): SurfaceContrast[] {
+  return surfaces.map(({ ref, hex: surfaceHex }) => {
+    const { contrast, compliance } = buildContrastCompliance(
+      intent,
+      hex,
+      surfaceHex,
+      thresholdElevation,
+    );
+    return {
+      surface: ref,
+      contrast,
+      compliance: exempt ? { ...compliance, level: 'exempt' } : compliance,
+    };
+  });
+}
+
+export function makeResolveResultFromPicked(
+  tokenPath: string,
+  mode: string,
+  intent: FormalIntent,
+  ramp: GeneratedRamp,
+  denseRamp: GeneratedRamp | undefined,
+  surfaceRef: string,
+  surfaceHex: string,
+  pickRamp: GeneratedRamp,
+  picked: { index: number; ratio: number },
+  step: GeneratedStep,
+  thresholdElevation?: ThresholdElevation,
+  selectionNote?: string,
+): ResolveResult {
+  const pickStepCount = pickRamp.steps.length;
+  const position = pickStepCount === 1 ? 0 : picked.index / (pickStepCount - 1);
+  const nearestPrimitive = denseRamp
+    ? `${ramp.scaleName}.${nearestPrimitiveName(ramp, position)}`
+    : `${ramp.scaleName}.${step.name}`;
+
+  const { contrast, compliance } = buildContrastCompliance(
+    intent,
+    step.hex,
+    surfaceHex,
+    thresholdElevation,
+  );
 
   const source: ReceiptSource = {
     ramp: ramp.scaleName,
@@ -538,7 +606,7 @@ export function resolvePinnedStep(input: ResolvePinnedStepInput): ResolveResult 
 }
 
 export function resolveToken(input: ResolveInput): ResolveResult {
-  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, thresholdElevation, denseRamp, exempt } = input;
+  const { tokenPath, mode, intent, ramp, surfaceHex, surfaceRef, contrastSurfaceHexes, thresholdElevation, denseRamp, exempt } = input;
 
   if (intent.consistency !== 'independent') {
     throw new ResolveError(
@@ -548,19 +616,23 @@ export function resolveToken(input: ResolveInput): ResolveResult {
   }
 
   const pickRamp = denseRamp ?? ramp;
+  // Pick the step against every declared surface (worst-case), so it passes on all of them.
+  // The receipt still records `surfaceHex` (the primary surface) via makeResolveResultFromPicked.
+  const pickSurfaces: string | readonly string[] =
+    contrastSurfaceHexes && contrastSurfaceHexes.length > 0 ? contrastSurfaceHexes : surfaceHex;
 
   let picked: { index: number; ratio: number } | null;
   let selectionNote: string | undefined;
   if (intent.preference === 'lowest-passing') {
-    picked = pickStepLowestPassing(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+    picked = pickStepLowestPassing(pickRamp, pickSurfaces, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'highest-contrast') {
-    picked = pickStepHighestContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+    picked = pickStepHighestContrast(pickRamp, pickSurfaces, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'midpoint') {
-    picked = pickStepMidpoint(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+    picked = pickStepMidpoint(pickRamp, pickSurfaces, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'median') {
-    picked = pickStepMedianContrast(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+    picked = pickStepMedianContrast(pickRamp, pickSurfaces, intent.threshold, thresholdElevation);
   } else if (intent.preference === 'level-up') {
-    picked = pickStepLevelUp(pickRamp, surfaceHex, intent.threshold, thresholdElevation);
+    picked = pickStepLevelUp(pickRamp, pickSurfaces, intent.threshold, thresholdElevation);
     if (picked && thresholdElevation === 'hc') {
       // HC mode already raised the bar to level-up's target — record so the
       // receipt makes the no-op transparent (otherwise the pick is identical
@@ -575,7 +647,7 @@ export function resolveToken(input: ResolveInput): ResolveResult {
         tokenPath,
       );
     }
-    picked = pickStepPreferredContrast(pickRamp, surfaceHex, intent.threshold, target, thresholdElevation, exempt);
+    picked = pickStepPreferredContrast(pickRamp, pickSurfaces, intent.threshold, target, thresholdElevation, exempt);
   } else if (intent.preference === 'anchored') {
     const anchor = intent.constraints?.anchor;
     if (typeof anchor !== 'number' || !Number.isFinite(anchor)) {
@@ -583,7 +655,7 @@ export function resolveToken(input: ResolveInput): ResolveResult {
     }
     picked = pickStepAnchored(
       pickRamp,
-      surfaceHex,
+      pickSurfaces,
       intent.threshold,
       anchor,
       thresholdElevation,
@@ -596,7 +668,7 @@ export function resolveToken(input: ResolveInput): ResolveResult {
   }
   if (picked === null) {
     const required = passThreshold(intent.threshold, thresholdElevation);
-    const fallback = pickStepTowardExtreme(pickRamp, surfaceHex, intent.threshold.kind, required);
+    const fallback = pickStepTowardExtreme(pickRamp, pickSurfaces, intent.threshold.kind, required);
     if (!fallback) {
       throw new ResolveError(
         `no ramp step in "${ramp.scaleName}" meets threshold against surface ${surfaceHex}`,

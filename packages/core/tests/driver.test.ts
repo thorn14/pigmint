@@ -93,6 +93,129 @@ describe('resolveAll — light + dark, surfaces-then-tokens', () => {
     expect(btnLight.source.ramp).toBe('blue');
   });
 
+  it('computes per-surface contrast for a token declared on multiple surfaces', () => {
+    const surfaces = VOCABULARY_V1_SLICE.filter((e) =>
+      ['color.surface.main', 'color.surface.inverse'].includes(e.path),
+    );
+    // Foreground token declared on a light surface (main) AND a dark one (inverse).
+    const multiFg = {
+      path: 'color.foreground.multi',
+      usage: 'text' as const,
+      primarySurface: 'color.surface.main',
+      additionalSurfaces: ['color.surface.inverse'],
+      defaultIntent: {
+        threshold: { kind: 'wcag' as const, level: 'AA' as const, usage: 'text' as const },
+        preference: 'highest-contrast' as const,
+        consistency: 'independent' as const,
+        surfaceContext: 'primary' as const,
+      },
+      states: ['base' as const],
+    };
+    const vocabulary = [...surfaces, multiFg];
+    const tokenRamp: Record<string, string> = {
+      'color.surface.main': 'neutral',
+      'color.surface.inverse': 'neutral',
+      'color.foreground.multi': 'neutral',
+    };
+
+    const out = resolveAll({
+      config,
+      vocabulary,
+      ramps: defaultRamps(),
+      modes: defaultModes,
+      tokenRamp,
+    });
+
+    const fg = out.tokens.find((t) => t.path === 'color.foreground.multi' && t.mode === 'light')!;
+    expect(fg.contrastBySurface).toBeDefined();
+    expect(fg.contrastBySurface).toHaveLength(2);
+
+    const refs = fg.contrastBySurface!.map((s) => s.surface).sort();
+    expect(refs).toEqual(['{color.surface.inverse}', '{color.surface.main}']);
+
+    const onMain = fg.contrastBySurface!.find((s) => s.surface === '{color.surface.main}')!;
+    const onInverse = fg.contrastBySurface!.find((s) => s.surface === '{color.surface.inverse}')!;
+    // Same color, very different backgrounds → contrast must differ across surfaces.
+    expect(onMain.contrast.wcag21).not.toBe(onInverse.contrast.wcag21);
+
+    // The entry for the surface the step was picked against matches the primary receipt.
+    expect(fg.resolvedAgainst).toBe('{color.surface.main}');
+    expect(onMain.contrast.wcag21).toBe(fg.contrast?.wcag21);
+    expect(onMain.compliance.level).toBe(fg.compliance?.level);
+  });
+
+  it('picks a step that passes the contrast floor on EVERY declared surface (worst-case)', () => {
+    // Two surfaces that are close in luminance but not identical, so one shared
+    // color can clear AA on both — worst-case picking must satisfy each.
+    const surfaceEntries = [
+      {
+        path: 'color.surface.a',
+        usage: 'nonText' as const,
+        primarySurface: 'color.surface.a',
+        defaultIntent: {
+          threshold: { kind: 'wcag' as const, level: 'AA' as const, usage: 'nonText' as const },
+          preference: 'highest-contrast' as const,
+          consistency: 'independent' as const,
+          surfaceContext: 'primary' as const,
+        },
+        states: ['base' as const],
+      },
+      {
+        path: 'color.surface.b',
+        usage: 'nonText' as const,
+        primarySurface: 'color.surface.b',
+        defaultIntent: {
+          threshold: { kind: 'wcag' as const, level: 'AA' as const, usage: 'nonText' as const },
+          preference: 'highest-contrast' as const,
+          consistency: 'independent' as const,
+          surfaceContext: 'primary' as const,
+        },
+        states: ['base' as const],
+      },
+    ];
+    const fgEntry = {
+      path: 'color.foreground.shared',
+      usage: 'text' as const,
+      primarySurface: 'color.surface.a',
+      additionalSurfaces: ['color.surface.b'],
+      defaultIntent: {
+        threshold: { kind: 'wcag' as const, level: 'AA' as const, usage: 'text' as const },
+        preference: 'lowest-passing' as const,
+        consistency: 'independent' as const,
+        surfaceContext: 'primary' as const,
+      },
+      states: ['base' as const],
+    };
+    // Pin the two surfaces to distinct light steps so they differ but stay light.
+    const surfaceSteps = new Map([
+      ['color.surface.a', { light: 0, dark: 0 }],
+      ['color.surface.b', { light: 2, dark: 2 }],
+    ]);
+
+    const out = resolveAll({
+      config,
+      vocabulary: [...surfaceEntries, fgEntry],
+      ramps: defaultRamps(),
+      modes: [{ mode: 'light', scheme: 'light', baselineHex: '#ffffff' }],
+      tokenRamp: {
+        'color.surface.a': 'neutral',
+        'color.surface.b': 'neutral',
+        'color.foreground.shared': 'neutral',
+      },
+      surfacePaths: new Set(['color.surface.a', 'color.surface.b']),
+      surfaceSteps,
+    });
+
+    const fg = out.tokens.find((t) => t.path === 'color.foreground.shared')!;
+    // lowest-passing against a SINGLE surface could leave the color failing the other;
+    // worst-case picking guarantees AA on both.
+    expect(fg.contrastBySurface).toHaveLength(2);
+    for (const sc of fg.contrastBySurface!) {
+      expect(sc.contrast.wcag21!).toBeGreaterThanOrEqual(4.5);
+      expect(sc.compliance.level).not.toBe('fail');
+    }
+  });
+
   it('engine.compliance apca drives formal threshold kind and Lc in receipts', () => {
     const apcaConfig: ProjectConfig = { ...config, engine: { ...config.engine, compliance: 'apca' } };
     const ramps = defaultRamps();

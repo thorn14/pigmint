@@ -110,8 +110,9 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
 
   // Emit primitives file if configured
   let primitivesPath: string | undefined;
+  let primitivesContainer: ReturnType<typeof emitPrimitives> | undefined;
   if (hasPrimitives) {
-    const primitivesContainer = emitPrimitives({
+    primitivesContainer = emitPrimitives({
       defaultMode,
       ramps,
       ...(config.engine.cvd && config.engine.cvd.length > 0 ? { cvd: config.engine.cvd } : {}),
@@ -141,7 +142,11 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     tokenRamp,
     scales,
     ...(portableArtifacts
-      ? { surfacePaths: portableArtifacts.surfacePaths, surfaceSteps: portableArtifacts.surfaceSteps }
+      ? {
+          surfacePaths: portableArtifacts.surfacePaths,
+          surfaceSteps: portableArtifacts.surfaceSteps,
+          semanticSteps: portableArtifacts.semanticSteps,
+        }
       : {}),
   });
 
@@ -151,7 +156,10 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     ramps: dtcgRamps,
     resolvedTokens: tokens,
     vocabulary,
-    includePrimitives: !hasPrimitives,
+    // tokens.json is the single source of truth: always inline primitives so
+    // every {primitive.*} alias resolves within the file and adapters can read
+    // the full ramp set (incl. synthesized cNNN steps) from one container.
+    includePrimitives: true,
     ...(config.engine.cvd && config.engine.cvd.length > 0 ? { cvd: config.engine.cvd } : {}),
   });
 

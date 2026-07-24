@@ -42,6 +42,7 @@ type TokenUsage = 'text' | 'nonText' | 'decorative';
 
 function TokenCard({
   token,
+  surface,
   surfaceFg,
   usage,
   useWcag,
@@ -49,18 +50,27 @@ function TokenCard({
   onEdit,
 }: {
   token: ResolvedToken;
+  surface: string;
   surfaceFg: string;
   usage: TokenUsage;
   useWcag: boolean;
   vocabRaw: PortableVocabulary | null;
   onEdit: () => void;
 }) {
-  const level = token.compliance?.level ?? null;
+  // A token is shown under each surface it declares; use the contrast/compliance
+  // recomputed for THIS surface, falling back to the primary-surface receipt for
+  // standalone (no-surface) cards.
+  const sc = token.contrastBySurface?.find((s) => s.surface === surface);
+  const contrastReceipt = sc?.contrast ?? token.contrast;
+  const level = (sc?.compliance ?? token.compliance)?.level ?? null;
   const badgeLabel = level ? LEVEL_LABEL[level] : null;
+  // A failing token reads as a red badge with an ✕ glyph so it stands out from
+  // the neutral pass badges regardless of which surface the card sits on.
+  const isFail = level === 'fail';
 
   const contrast = useWcag
-    ? (token.contrast?.wcag21 ?? null)
-    : (token.contrast?.apca ?? null);
+    ? (contrastReceipt?.wcag21 ?? null)
+    : (contrastReceipt?.apca ?? null);
 
   const contrastStr = contrast !== null
     ? (useWcag ? `${contrast.toFixed(2)}:1` : `Lc ${Math.abs(contrast).toFixed(0)}`)
@@ -162,14 +172,22 @@ function TokenCard({
       }}>
         {badgeLabel ? (
           <span style={{
-            background: badgeBg,
-            color: surfaceFg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 3,
+            // Solid red for failures (white ring keeps it legible on red surfaces);
+            // translucent overlay matching the surface for pass levels.
+            background: isFail ? '#dc2626' : badgeBg,
+            color: isFail ? '#ffffff' : surfaceFg,
+            // Ring via box-shadow (not border) so the fail state doesn't change box size.
+            boxShadow: isFail ? 'inset 0 0 0 1px rgba(255,255,255,0.6)' : 'none',
             fontSize: 9,
             fontWeight: 700,
             padding: '2px 6px',
             borderRadius: 3,
             flexShrink: 0,
           }}>
+            {isFail && <span aria-hidden="true">✕</span>}
             {badgeLabel}
           </span>
         ) : <span />}
@@ -615,6 +633,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                       <TokenCard
                         key={t.path}
                         token={t}
+                        surface={surface}
                         surfaceFg={surfaceFg}
                         usage={usageMap.get(t.path) ?? 'text'}
                         useWcag={useWcag}
@@ -655,6 +674,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
                 <TokenCard
                   key={t.path}
                   token={t}
+                  surface={t.resolvedAgainst ?? ''}
                   surfaceFg="var(--p-text-secondary)"
                   usage={usageMap.get(t.path) ?? 'decorative'}
                   useWcag={useWcag}

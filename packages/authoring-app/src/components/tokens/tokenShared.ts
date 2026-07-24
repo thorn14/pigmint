@@ -1,4 +1,10 @@
-import type { PortableSemanticToken, PortableAlphaToken, PortableVocabulary } from '@pigmint/core';
+import type {
+  PortableSemanticToken,
+  PortableAlphaToken,
+  PortableVocabulary,
+  GeneratedRamp,
+  StepRef,
+} from '@pigmint/core';
 
 export type Pref = PortableSemanticToken['preference'];
 export type Cons = NonNullable<PortableSemanticToken['consistency']>;
@@ -42,6 +48,24 @@ export function contrastBounds(compliance: 'wcag21' | 'apca'): { min: number; ma
   return compliance === 'apca'
     ? { min: 0, max: 108, step: 1 }
     : { min: 1, max: 21, step: 0.1 };
+}
+
+/**
+ * Resolve a step reference to a numeric ramp index. A `StepRef` is either a numeric index or a
+ * step name (e.g. "950", "white"); names are looked up against the ramp's steps, mirroring
+ * core's `resolveStepRef`. Unlike core, this is UI-tolerant: an undefined ref, a missing ramp,
+ * or an unknown name resolves to `fallback` rather than throwing. Callers still clamp the result
+ * to their ramp bounds.
+ */
+export function stepRefToIndex(
+  ramp: GeneratedRamp | undefined,
+  ref: StepRef | undefined,
+  fallback: number,
+): number {
+  if (ref === undefined) return fallback;
+  if (typeof ref === 'number') return ref;
+  const idx = ramp?.steps.findIndex((s) => s.name === ref) ?? -1;
+  return idx === -1 ? fallback : idx;
 }
 
 export type TokenKind = 'surface' | 'foreground' | 'nonText' | 'decorative' | 'alpha';

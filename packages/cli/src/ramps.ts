@@ -94,14 +94,15 @@ export async function loadRampFromPrimitives(
     throw new Error(`fromFile: "${filePath}" is not valid JSON`);
   }
 
-  const primitives = container.primitive;
-  if (!primitives || typeof primitives !== 'object') {
-    throw new Error(
-      `fromFile: "${filePath}" has no "primitive" section — run "pigmint build" with output.primitives first`,
-    );
-  }
+  // Accept either a pigmint container with a "primitive" section, or a flat
+  // file whose top-level keys are the ramp names themselves.
+  const hasPrimitiveSection =
+    container.primitive != null && typeof container.primitive === 'object';
+  const primitives = hasPrimitiveSection
+    ? (container.primitive as Record<string, unknown>)
+    : (container as unknown as Record<string, unknown>);
 
-  const rampData = (primitives as Record<string, unknown>)[rampName];
+  const rampData = primitives[rampName];
   if (!rampData || typeof rampData !== 'object') {
     throw new Error(
       `fromFile: ramp "${rampName}" not found in "${filePath}"`,

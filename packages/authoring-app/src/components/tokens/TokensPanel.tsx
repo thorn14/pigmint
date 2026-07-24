@@ -16,6 +16,7 @@ import type {
 import {
   derivedConsistency,
   contrastBounds,
+  stepRefToIndex,
   type TokenKind,
 } from './tokenShared';
 import { AppSelect } from './AppSelect';
@@ -179,7 +180,7 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
   const alphaBaseHex = alphaRamp?.steps[Math.max(0, Math.min(alphaStep, (alphaRamp.steps.length ?? 1) - 1))]?.hex;
   const alphaRefToken = alphaRefSurface ? surfaces[alphaRefSurface] : undefined;
   const alphaRefRamp = alphaRefToken ? rampMap.get(alphaRefToken.ramp) : undefined;
-  const alphaRefLightIdx = alphaRefToken ? (alphaRefToken.lightStep ?? alphaRefToken.step ?? 0) : 0;
+  const alphaRefLightIdx = stepRefToIndex(alphaRefRamp, alphaRefToken?.lightStep ?? alphaRefToken?.step, 0);
   const alphaRefHex = alphaRefRamp?.steps[Math.max(0, Math.min(alphaRefLightIdx, (alphaRefRamp.steps.length ?? 1) - 1))]?.hex;
   const alphaCompositePreview = alphaSubKind === 'scrim' && alphaBaseHex && alphaRefHex
     ? alphaCompositeHex(alphaBaseHex, alphaValue, alphaRefHex)

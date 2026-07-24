@@ -29,3 +29,9 @@ examples/*/
 !examples/basic/
 !examples/portable-demo/
 !examples/portfolio-dark/
+
+# Private, local-only adapters + saved palettes. Local adapters are auto-discovered at
+# runtime from packages/cli/local-adapters/* and never committed; contributors who add none
+# get a clean tree. Anything under local/ is personal scratch (palettes, configs, notes).
+/packages/cli/local-adapters/
+/local/

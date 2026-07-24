@@ -13,6 +13,7 @@ import {
   derivedConsistency,
   contrastBounds,
   findTokenKind,
+  stepRefToIndex,
   type Pref,
   type AlphaPref,
 } from './tokenShared';
@@ -32,6 +33,15 @@ import {
 function ec() {
   const s = useIntentStore.getState();
   return { compliance: s.engineCompliance, target: s.engineTarget, modes: s.engineModes };
+}
+
+/** First free `<base>-copy[-N]` name not already present in `existing`. */
+function uniqueCopyName(existing: Iterable<string>, base: string): string {
+  const taken = new Set(existing);
+  let candidate = `${base}-copy`;
+  let n = 2;
+  while (taken.has(candidate)) candidate = `${base}-copy-${n++}`;
+  return candidate;
 }
 
 const field: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 5 };
@@ -248,6 +258,7 @@ function NameField({ value, onCommit }: { value: string; onCommit: (next: string
 
 function Footer({
   onDelete,
+  onDuplicate,
   onClose,
   confirmTitle,
   confirmMessage,
@@ -255,6 +266,7 @@ function Footer({
   doneDisabledHint,
 }: {
   onDelete: () => void;
+  onDuplicate?: () => void;
   onClose: () => void;
   confirmTitle: string;
   confirmMessage: React.ReactNode;
@@ -268,7 +280,12 @@ function Footer({
       padding: '12px 16px', borderTop: '1px solid var(--p-border)',
       background: 'var(--p-surface)', flexShrink: 0,
     }}>
-      <button style={dangerBtn} onClick={() => setConfirming(true)}>Delete</button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button style={dangerBtn} onClick={() => setConfirming(true)}>Delete</button>
+        {onDuplicate && (
+          <button style={btn} onClick={onDuplicate} title="Create a copy of this token">Duplicate</button>
+        )}
+      </div>
       <button
         style={{ ...primaryBtn, ...(doneDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
         onClick={onClose}
@@ -314,8 +331,8 @@ function SurfaceFields({
 
   const ramp = rampMap.get(token.ramp);
   const lastIdx = (ramp?.steps.length ?? 1) - 1;
-  const lightIdx = Math.min(token.lightStep ?? token.step ?? 0, lastIdx);
-  const darkIdx = Math.min(token.darkStep ?? token.step ?? lastIdx, lastIdx);
+  const lightIdx = Math.min(stepRefToIndex(ramp, token.lightStep ?? token.step, 0), lastIdx);
+  const darkIdx = Math.min(stepRefToIndex(ramp, token.darkStep ?? token.step, lastIdx), lastIdx);
 
   function handleDelete() { removeSurface(name, ec()); onClose(); }
 
@@ -389,10 +406,18 @@ function SemanticFields({
   const updateToken = useVocabStore((s) => s.updateToken);
   const removeToken = useVocabStore((s) => s.removeToken);
   const renameToken = useVocabStore((s) => s.renameToken);
+  const duplicateToken = useVocabStore((s) => s.duplicateToken);
   const moveToken = useVocabStore((s) => s.moveToken);
   const target = useIntentStore((s) => s.engineTarget);
 
   function handleRename(next: string) { renameToken(section, name, next, ec()); onRenamed(next); }
+
+  function handleDuplicate() {
+    const existing = Object.keys(useVocabStore.getState().raw?.[section] ?? {});
+    const next = uniqueCopyName(existing, name);
+    duplicateToken(section, name, next, ec());
+    onRenamed(next);
+  }
 
   const bounds = contrastBounds(compliance);
   const consistency = derivedConsistency(token.preference);
@@ -458,8 +483,8 @@ function SemanticFields({
   //    (shown top-of-form + inline) and blocks "Done".
   const pinRamp = rampMap.get(token.ramp);
   const pinLastIdx = (pinRamp?.steps.length ?? 1) - 1;
-  const pinLightIdx = Math.min(token.lightStep ?? pinLastIdx, pinLastIdx);
-  const pinDarkIdx = Math.min(token.darkStep ?? 0, pinLastIdx);
+  const pinLightIdx = Math.min(stepRefToIndex(pinRamp, token.lightStep, pinLastIdx), pinLastIdx);
+  const pinDarkIdx = Math.min(stepRefToIndex(pinRamp, token.darkStep, 0), pinLastIdx);
   const isPinned = token.preference === 'pin-to-step';
   const pinErrors = isPinned
     ? pinStepErrors({
@@ -479,6 +504,7 @@ function SemanticFields({
       footer={
         <Footer
           onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
           onClose={onClose}
           doneDisabled={pinBlocked}
           doneDisabledHint="Fix the failing pinned step or mark the token Decorative."
@@ -594,8 +620,16 @@ function DecorativeFields({
   const addDecorative = useVocabStore((s) => s.addDecorative);
   const removeToken = useVocabStore((s) => s.removeToken);
   const renameToken = useVocabStore((s) => s.renameToken);
+  const duplicateToken = useVocabStore((s) => s.duplicateToken);
 
   function handleRename(next: string) { renameToken('decorative', name, next, ec()); onRenamed(next); }
+
+  function handleDuplicate() {
+    const existing = Object.keys(useVocabStore.getState().raw?.decorative ?? {});
+    const next = uniqueCopyName(existing, name);
+    duplicateToken('decorative', name, next, ec());
+    onRenamed(next);
+  }
 
   const ramp = rampMap.get(token.ramp);
   const stepIdx = Math.min(token.step ?? 0, (ramp?.steps.length ?? 1) - 1);
@@ -607,6 +641,7 @@ function DecorativeFields({
       footer={
         <Footer
           onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
           onClose={onClose}
           confirmTitle="Delete decorative token"
           confirmMessage={<>Delete decorative token <strong>{name}</strong>? This cannot be undone.</>}
@@ -652,8 +687,16 @@ function AlphaFields({
   const updateAlpha = useVocabStore((s) => s.updateAlpha);
   const removeAlpha = useVocabStore((s) => s.removeAlpha);
   const renameAlpha = useVocabStore((s) => s.renameAlpha);
+  const duplicateAlpha = useVocabStore((s) => s.duplicateAlpha);
 
   function handleRename(next: string) { renameAlpha(name, next, ec()); onRenamed(next); }
+
+  function handleDuplicate() {
+    const existing = Object.keys(useVocabStore.getState().raw?.alpha ?? {});
+    const next = uniqueCopyName(existing, name);
+    duplicateAlpha(name, next, ec());
+    onRenamed(next);
+  }
 
   const isScrim = Boolean(token.base);
   const parsed = token.base ? parseStepRef(token.base) : null;
@@ -713,6 +756,7 @@ function AlphaFields({
       footer={
         <Footer
           onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
           onClose={onClose}
           confirmTitle="Delete alpha token"
           confirmMessage={<>Delete alpha token <strong>{name}</strong>? This cannot be undone.</>}

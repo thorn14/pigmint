@@ -76,6 +76,28 @@ describe('vocabStore renames', () => {
     expect(v.alpha?.overlay?.value).toBe(0.4);
   });
 
+  it('duplicateToken deep-copies a foreground token and places it right after the source', () => {
+    useVocabStore.getState().duplicateToken('foreground', 'color.foreground.text', 'color.foreground.text-copy', ENGINE);
+    const v = useVocabStore.getState().raw!;
+    expect(v.foreground['color.foreground.text']).toBeDefined();
+    expect(v.foreground['color.foreground.text-copy']).toEqual(v.foreground['color.foreground.text']);
+    // Deep copy: mutating the source's surfaces must not affect the duplicate.
+    expect(v.foreground['color.foreground.text-copy']?.surfaces).not.toBe(v.foreground['color.foreground.text']?.surfaces);
+    expect(Object.keys(v.foreground)).toEqual(['color.foreground.text', 'color.foreground.text-copy']);
+  });
+
+  it('duplicateToken rejects collisions and sets an error', () => {
+    useVocabStore.getState().duplicateToken('nonText', 'color.border.subtle', 'color.border.subtle', ENGINE);
+    expect(useVocabStore.getState().error).toMatch(/already taken|missing/);
+  });
+
+  it('duplicateAlpha copies into the alpha map', () => {
+    useVocabStore.getState().duplicateAlpha('scrim', 'scrim-copy', ENGINE);
+    const v = useVocabStore.getState().raw!;
+    expect(v.alpha?.scrim).toBeDefined();
+    expect(v.alpha?.['scrim-copy']).toEqual(v.alpha?.scrim);
+  });
+
   it('renameRamp rewrites every ramp reference and leaves others untouched', () => {
     const vocab: PortableVocabulary = {
       surfaces: { page: { ramp: 'gray', step: 0 }, brand: { ramp: 'blue', step: 0 } },

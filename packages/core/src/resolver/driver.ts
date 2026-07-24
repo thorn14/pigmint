@@ -1,4 +1,9 @@
-import { resolveToken, resolvePinnedStep, type ThresholdElevation } from './resolve.js';
+import {
+  resolveToken,
+  resolvePinnedStep,
+  computeContrastBySurface,
+  type ThresholdElevation,
+} from './resolve.js';
 import { assertValidFormalIntent } from './intent-validate.js';
 import { materializeContinuousRamps } from './materialize-continuous.js';
 import {
@@ -20,10 +25,33 @@ import type {
   IntentOverride,
   ProjectConfig,
   ResolvedToken,
+  StepRef,
   VocabularyEntry,
 } from '../types/spec.js';
 
 const DEFAULT_DENSE_STEPS = 256;
+
+/**
+ * Resolve a step reference to a concrete index within the ramp. A numeric ref is
+ * an index (unstable if the ramp's step set changes); a string ref is a step name
+ * (e.g. "950", "white", "c627") looked up by name — stable across re-ordering.
+ */
+function resolveStepRef(
+  ramp: GeneratedRamp,
+  ref: StepRef,
+  tokenPath: string,
+  label: string,
+): number {
+  if (typeof ref === 'number') return ref;
+  const idx = ramp.steps.findIndex((s) => s.name === ref);
+  if (idx === -1) {
+    throw new DriverError(
+      `${label} "${ref}" not found in ramp "${ramp.scaleName}" for token ${tokenPath} ` +
+        `(available steps: ${ramp.steps.map((s) => s.name).join(', ')})`,
+    );
+  }
+  return idx;
+}
 
 export interface ModeBinding {
   mode: string;
@@ -32,7 +60,7 @@ export interface ModeBinding {
   thresholdElevation?: ThresholdElevation;
 }
 
-export type SurfaceStepDecl = { light?: number; dark?: number; default?: number };
+export type SurfaceStepDecl = { light?: StepRef; dark?: StepRef; default?: StepRef };
 
 export interface ResolveAllInput {
   config: ProjectConfig;
@@ -176,10 +204,11 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
       let token: ResolvedToken;
 
       if (stepDecl) {
-        const stepIndex =
+        const stepRef =
           binding.scheme === 'light'
             ? (stepDecl.light ?? stepDecl.default ?? 0)
             : (stepDecl.dark ?? stepDecl.default ?? ramp.steps.length - 1);
+        const stepIndex = resolveStepRef(ramp, stepRef, entry.path, `${binding.scheme}Step`);
         ({ token } = resolveSurfaceByIndex({
           tokenPath: entry.path,
           mode: binding.mode,
@@ -283,10 +312,11 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         const modeSurfaces = surfaceByModeAndPath[binding.mode];
         if (!modeSurfaces) throw new DriverError(`mode ${binding.mode} has no surface map`);
         const surfaceRef = resolveSurfaceReference(entry, modeSurfaces);
-        const stepIndex =
+        const stepRef =
           binding.scheme === 'light'
             ? (decl.light ?? decl.default ?? 0)
             : (decl.dark ?? decl.default ?? ramp.steps.length - 1);
+        const stepIndex = resolveStepRef(ramp, stepRef, entry.path, `${binding.scheme}Step`);
         const { token } = resolvePinnedStep({
           tokenPath: entry.path,
           mode: binding.mode,
@@ -321,6 +351,11 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         throw new DriverError(`mode ${binding.mode} has no surface map`);
       }
       const surfaceRef = resolveSurfaceReference(entry, modeSurfaces);
+      // Pick a step that passes against every declared surface (worst-case). Always include the
+      // resolution surface so single-surface and inverse/elevated tokens are unchanged.
+      const allSurfaceHexes = Array.from(
+        new Set([surfaceRef.hex, ...collectDeclaredSurfaces(entry, modeSurfaces).map((s) => s.hex)]),
+      );
       const ctx: NonSurfaceContext = {
         entry,
         ramp,
@@ -328,6 +363,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         denseRamp: denseRamps ? denseRamps.get(rampName) : undefined,
         surfaceHex: surfaceRef.hex,
         surfaceRef: `{${surfaceRef.path}}`,
+        allSurfaceHexes,
       };
       items.push({ path: entry.path, context: ctx, intent });
     }
@@ -347,6 +383,7 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
         ramp: it.context.ramp,
         surfaceHex: it.context.surfaceHex,
         surfaceRef: it.context.surfaceRef,
+        ...(it.context.allSurfaceHexes ? { contrastSurfaceHexes: it.context.allSurfaceHexes } : {}),
         thresholdElevation: binding.thresholdElevation,
         ...(it.context.denseRamp ? { denseRamp: it.context.denseRamp } : {}),
         exempt: Boolean(it.context.entry.decorative),
@@ -398,6 +435,8 @@ export function resolveAll(input: ResolveAllInput): ResolveAllOutput {
       tokens.push(resolvedByPath.get(it.path)!);
     }
   }
+
+  attachContrastBySurface(tokens, vocabulary, isSurface, surfaceByModeAndPath, modes);
 
   const materialized = materializeContinuousRamps(config, ramps, tokens);
   return {
@@ -484,6 +523,67 @@ function parseAlphaBaseRefRamp(ref: string): string {
     return parts[2];
   }
   throw new DriverError(`alpha modifier baseRef "${ref}" must be "{color.primitive.<ramp>.<step>}"`);
+}
+
+/**
+ * The surfaces a token is declared on (`primarySurface` + `additionalSurfaces`), as `{ref, hex}`,
+ * deduped and limited to surfaces resolved for this mode. Used both for the per-surface contrast
+ * receipts and to pick a step that passes against every declared surface.
+ */
+function collectDeclaredSurfaces(
+  entry: VocabularyEntry,
+  modeSurfaces: Record<string, string>,
+): { ref: string; hex: string }[] {
+  if (!entry.primarySurface) return [];
+  const seen = new Set<string>();
+  const out: { ref: string; hex: string }[] = [];
+  for (const path of [entry.primarySurface, ...(entry.additionalSurfaces ?? [])]) {
+    if (!path || seen.has(path)) continue;
+    const hex = modeSurfaces[path];
+    if (!hex) continue;
+    seen.add(path);
+    out.push({ ref: `{${path}}`, hex });
+  }
+  return out;
+}
+
+/**
+ * After resolution, attach a per-surface contrast/compliance receipt to every non-surface token.
+ * A token's step is picked against its primary surface only, but a foreground/nonText/alpha token
+ * can be declared on (and displayed against) several surfaces. Recompute contrast for each declared
+ * surface — `[primarySurface, ...additionalSurfaces]` — so consumers don't reuse the single
+ * primary-surface value on every surface. Operates on the final `token.hex`, so it covers every
+ * resolution path (independent, matched-across-ramps, anchored-to-reference, pinned, alpha) uniformly.
+ */
+function attachContrastBySurface(
+  tokens: ResolvedToken[],
+  vocabulary: VocabularyEntry[],
+  isSurface: (path: string) => boolean,
+  surfaceByModeAndPath: Record<string, Record<string, string>>,
+  modes: ModeBinding[],
+): void {
+  const entryByPath = new Map(
+    vocabulary.filter((v) => !isSurface(v.path)).map((v) => [v.path, v] as const),
+  );
+  const elevationByMode = new Map(modes.map((m) => [m.mode, m.thresholdElevation] as const));
+
+  for (const token of tokens) {
+    const entry = entryByPath.get(token.path);
+    if (!entry || !entry.defaultIntent || !entry.primarySurface) continue;
+    const modeSurfaces = surfaceByModeAndPath[token.mode];
+    if (!modeSurfaces) continue;
+
+    const surfaces = collectDeclaredSurfaces(entry, modeSurfaces);
+    if (surfaces.length === 0) continue;
+
+    token.contrastBySurface = computeContrastBySurface(
+      entry.defaultIntent,
+      token.hex,
+      surfaces,
+      elevationByMode.get(token.mode),
+      Boolean(entry.decorative),
+    );
+  }
 }
 
 function resolveSurfaceReference(

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadLocalAdapters } from './adapters.js';
 import { build } from './commands/build.js';
 import { ConfigError } from './config.js';
 
@@ -68,6 +69,7 @@ async function main(): Promise<number> {
   }
 
   try {
+    await loadLocalAdapters();
     const result = await build({ configPath });
     if (result.primitivesPath) {
       process.stdout.write(`emitted primitives → ${result.primitivesPath} (${result.rampCount} ramps)\n`);

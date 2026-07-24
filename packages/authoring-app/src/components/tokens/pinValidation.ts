@@ -1,5 +1,6 @@
 import type { GeneratedRamp, PortableSurfaceToken } from '@pigmint/core';
 import { getWcagContrast, getApcaContrast } from '../../lib/colorMath';
+import { stepRefToIndex } from './tokenShared';
 
 /** Per-scheme validation messages for a `pin-to-step` token. */
 export type PinStepErrors = { light?: string; dark?: string };
@@ -14,9 +15,10 @@ export function surfaceSchemeHex(
   const ramp = rampMap.get(surfaceToken.ramp);
   if (!ramp) return undefined;
   const last = ramp.steps.length - 1;
-  const idx = scheme === 'light'
-    ? (surfaceToken.lightStep ?? surfaceToken.step ?? 0)
-    : (surfaceToken.darkStep ?? surfaceToken.step ?? last);
+  const ref = scheme === 'light'
+    ? (surfaceToken.lightStep ?? surfaceToken.step)
+    : (surfaceToken.darkStep ?? surfaceToken.step);
+  const idx = stepRefToIndex(ramp, ref, scheme === 'light' ? 0 : last);
   return ramp.steps[Math.max(0, Math.min(idx, last))]?.hex;
 }
 

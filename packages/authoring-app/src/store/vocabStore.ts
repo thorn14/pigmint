@@ -44,12 +44,14 @@ interface VocabActions {
   addDecorative(name: string, token: PortableDecorativeToken, engineConfig: EngineConfig): void;
   removeToken(section: 'foreground' | 'nonText' | 'decorative', name: string, engineConfig: EngineConfig): void;
   renameToken(section: 'foreground' | 'nonText' | 'decorative', oldName: string, newName: string, engineConfig: EngineConfig): void;
+  duplicateToken(section: 'foreground' | 'nonText' | 'decorative', name: string, newName: string, engineConfig: EngineConfig): void;
   moveToken(from: 'foreground' | 'nonText', to: 'foreground' | 'nonText', name: string, engineConfig: EngineConfig): void;
 
   addAlpha(name: string, token: PortableAlphaToken, engineConfig: EngineConfig): void;
   updateAlpha(name: string, updates: Partial<PortableAlphaToken>, engineConfig: EngineConfig): void;
   removeAlpha(name: string, engineConfig: EngineConfig): void;
   renameAlpha(oldName: string, newName: string, engineConfig: EngineConfig): void;
+  duplicateAlpha(name: string, newName: string, engineConfig: EngineConfig): void;
 
   exportYaml(): string;
   clear(): void;
@@ -81,6 +83,23 @@ function renameKey<T>(map: Record<string, T>, oldKey: string, newKey: string): R
   const out: Record<string, T> = {};
   for (const k of Object.keys(map)) {
     out[k === oldKey ? newKey : k] = map[k]!;
+  }
+  return out;
+}
+
+/**
+ * Return a copy of `map` with a deep clone of `name` inserted under `newName`,
+ * placed immediately after the source key so the duplicate shows up next to its
+ * original. Returns null if the source is missing or `newName` already exists.
+ */
+function duplicateKey<T>(map: Record<string, T>, name: string, newName: string): Record<string, T> | null {
+  if (!(name in map)) return null;
+  if (newName in map) return null;
+  const copy = JSON.parse(JSON.stringify(map[name])) as T;
+  const out: Record<string, T> = {};
+  for (const k of Object.keys(map)) {
+    out[k] = map[k]!;
+    if (k === name) out[newName] = copy;
   }
   return out;
 }
@@ -284,6 +303,22 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
       }, engineConfig));
     },
 
+    duplicateToken(section, name, newName, engineConfig) {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        set({ error: 'Token name cannot be empty' });
+        return;
+      }
+      set(applyMutation(get().raw, (v) => {
+        const sectionMap = (v[section] ?? {}) as Record<string, unknown>;
+        const duped = duplicateKey(sectionMap, name, trimmed);
+        if (duped === null) {
+          throw new Error(`Cannot duplicate ${section} token "${name}" to "${trimmed}" — name already taken or missing`);
+        }
+        return { ...v, [section]: duped };
+      }, engineConfig));
+    },
+
     addAlpha(name, token, engineConfig) {
       set(applyMutation(get().raw, (v) => ({
         ...v,
@@ -320,6 +355,22 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
         }
         if (renamed === alphaMap) return v;
         return { ...v, alpha: renamed };
+      }, engineConfig));
+    },
+
+    duplicateAlpha(name, newName, engineConfig) {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        set({ error: 'Alpha token name cannot be empty' });
+        return;
+      }
+      set(applyMutation(get().raw, (v) => {
+        const alphaMap = v.alpha ?? {};
+        const duped = duplicateKey(alphaMap, name, trimmed);
+        if (duped === null) {
+          throw new Error(`Cannot duplicate alpha token "${name}" to "${trimmed}" — name already taken or missing`);
+        }
+        return { ...v, alpha: duped };
       }, engineConfig));
     },
 

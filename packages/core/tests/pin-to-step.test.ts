@@ -112,4 +112,30 @@ describe('pin-to-step resolution', () => {
     expect(light.hex).toBe(ramp.steps[0]!.hex);
     expect(light.compliance?.level).toBe('exempt');
   });
+
+  it('accepts step names (not just indices) — stable against ramp re-ordering', () => {
+    const vocab: PortableVocabulary = {
+      surfaces: { bg: { ramp: 'neutral', lightStep: '50', darkStep: '950' } },
+      foreground: {
+        fg: { ramp: 'neutral', surfaces: ['bg'], preference: 'pin-to-step', lightStep: '950', darkStep: '50' },
+      },
+      nonText: {},
+    };
+    const { ramp, byKey } = resolvePinned(vocab);
+    // Identical to the index-based pin: "950" === index 10, "50" === index 0.
+    expect(byKey.get('fg:light')!.hex).toBe(ramp.steps[10]!.hex);
+    expect(byKey.get('fg:dark')!.hex).toBe(ramp.steps[0]!.hex);
+    expect(byKey.get('fg:light')!.source.nearestPrimitive).toBe('neutral.950');
+  });
+
+  it('throws a clear error for an unknown step name', () => {
+    const vocab: PortableVocabulary = {
+      surfaces: { bg: { ramp: 'neutral', lightStep: '50', darkStep: '950' } },
+      foreground: {
+        fg: { ramp: 'neutral', surfaces: ['bg'], preference: 'pin-to-step', lightStep: '850', darkStep: '50' },
+      },
+      nonText: {},
+    };
+    expect(() => resolvePinned(vocab)).toThrow(/"850" not found in ramp "neutral"/);
+  });
 });

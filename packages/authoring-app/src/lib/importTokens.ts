@@ -150,6 +150,21 @@ function collectColorGroups(
 
   for (const [key, value] of Object.entries(node)) {
     if (key.startsWith('$')) continue;
+
+    // Plain color-string leaf, e.g. { "grayish": { "50": "#F4F9F3" } }
+    // (Tailwind-style nested map with no W3C token envelope).
+    if (typeof value === 'string') {
+      if (isAliasValue(value)) {
+        aliasCollections.add(aliasCollection(value));
+        continue;
+      }
+      const hex = resolveHexFromValue(value);
+      if (hex) {
+        localTokens.push({ name: key, hex, oklch: hexToOklchSafe(hex) });
+      }
+      continue;
+    }
+
     if (!isObj(value)) continue;
 
     if (isToken(value)) {
