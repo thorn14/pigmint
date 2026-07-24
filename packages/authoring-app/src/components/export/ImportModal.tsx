@@ -699,15 +699,14 @@ export function ImportModal({ onClose }: Props) {
             onClick={() => handler?.()}
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              background: canImport ? 'var(--p-accent)' : 'var(--p-surface)',
-              border: '1px solid',
-              borderColor: canImport ? 'var(--p-accent)' : 'var(--p-border)',
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
+              border: '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: canImport ? 'pointer' : 'default',
-              color: canImport ? '#fff' : 'var(--p-text-secondary)',
-              fontWeight: 500,
+              color: canImport ? 'var(--p-text)' : 'var(--p-text-secondary)',
               opacity: canImport ? 1 : 0.6,
             }}
           >

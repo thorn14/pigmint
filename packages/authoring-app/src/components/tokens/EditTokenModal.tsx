@@ -56,10 +56,6 @@ const dangerBtn: React.CSSProperties = {
 };
 const primaryBtn: React.CSSProperties = {
   ...btn,
-  background: 'var(--p-accent, #6366f1)',
-  borderColor: 'var(--p-accent, #6366f1)',
-  color: '#fff',
-  fontWeight: 600,
 };
 
 const TYPE_OPTIONS: AppSelectOption[] = [

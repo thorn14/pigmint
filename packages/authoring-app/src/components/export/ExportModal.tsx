@@ -409,8 +409,9 @@ export function ExportModal({ onClose }: Props) {
             onClick={handleCopy}
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
               background: 'var(--p-surface)',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
@@ -428,14 +429,14 @@ export function ExportModal({ onClose }: Props) {
             onClick={() => downloadFile(activeContent, activeSpec.filename, activeSpec.mimeType)}
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              background: 'var(--p-accent)',
-              border: '1px solid var(--p-accent)',
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
+              border: '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: 'pointer',
-              color: '#fff',
-              fontWeight: 500,
+              color: 'var(--p-text)',
             }}
           >
             Download {activeSpec.filename}
