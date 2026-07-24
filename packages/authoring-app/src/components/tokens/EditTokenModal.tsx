@@ -310,6 +310,9 @@ function SurfaceFields({
   const updateSurface = useVocabStore((s) => s.updateSurface);
   const removeSurface = useVocabStore((s) => s.removeSurface);
   const renameSurface = useVocabStore((s) => s.renameSurface);
+  const previewBgSurface = useIntentStore((s) => s.previewBgSurface);
+  const setPreviewBgSurface = useIntentStore((s) => s.setPreviewBgSurface);
+  const isAppBackground = previewBgSurface === name;
 
   function handleRename(next: string) { renameSurface(name, next, ec()); onRenamed(next); }
 
@@ -358,6 +361,15 @@ function SurfaceFields({
           />
         </div>
       </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--p-text-secondary)', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={isAppBackground}
+          onChange={(e) => setPreviewBgSurface(e.target.checked ? name : null)}
+          style={{ accentColor: 'var(--p-text)' }}
+        />
+        Use as app background
+      </label>
     </FieldSet>
   );
 }
