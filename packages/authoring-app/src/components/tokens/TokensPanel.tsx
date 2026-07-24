@@ -34,11 +34,12 @@ import {
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const btn: React.CSSProperties = {
-  padding: '3px 8px',
-  fontSize: 11,
+  padding: '6px 12px',
+  fontSize: 12,
+  fontWeight: 500,
   background: 'var(--p-surface)',
   border: '1px solid var(--p-border)',
-  borderRadius: 4,
+  borderRadius: 6,
   cursor: 'pointer',
   color: 'var(--p-text)',
   whiteSpace: 'nowrap' as const,
@@ -559,10 +560,6 @@ function AddTokenModal({ rampNames, surfaceNames, rampMap, surfaces, compliance,
         <button
           style={{
             ...btn,
-            background: 'var(--p-accent, #6366f1)',
-            borderColor: 'var(--p-accent, #6366f1)',
-            color: '#fff',
-            fontWeight: 600,
             ...(((kind === 'foreground' || kind === 'nonText') && surfaceNames.length === 0) || pinBlocked
               ? { opacity: 0.5, cursor: 'not-allowed' }
               : {}),
@@ -656,11 +653,9 @@ export function TokensPanel() {
           title={rampNames.length === 0 ? 'Create a palette scale first' : 'Add a token'}
           style={{
             ...btn,
-            background: rampNames.length === 0 ? 'var(--p-surface)' : 'var(--p-accent, #6366f1)',
-            borderColor: rampNames.length === 0 ? 'var(--p-border)' : 'var(--p-accent, #6366f1)',
-            color: rampNames.length === 0 ? 'var(--p-text-secondary)' : '#fff',
-            fontWeight: 600,
-            cursor: rampNames.length === 0 ? 'default' : 'pointer',
+            ...(rampNames.length === 0
+              ? { color: 'var(--p-text-secondary)', cursor: 'default' }
+              : {}),
           }}
         >
           + Add token

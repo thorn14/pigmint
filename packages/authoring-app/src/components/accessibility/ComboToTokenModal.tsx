@@ -45,9 +45,9 @@ const inp: React.CSSProperties = {
 };
 const readOnly: React.CSSProperties = { ...inp, color: 'var(--p-text-secondary)' };
 const btn: React.CSSProperties = {
-  padding: '3px 8px', fontSize: 11,
+  padding: '6px 12px', fontSize: 12, fontWeight: 500,
   background: 'var(--p-surface)', border: '1px solid var(--p-border)',
-  borderRadius: 4, cursor: 'pointer', color: 'var(--p-text)', whiteSpace: 'nowrap',
+  borderRadius: 6, cursor: 'pointer', color: 'var(--p-text)', whiteSpace: 'nowrap',
 };
 const modeToggle = (active: boolean): React.CSSProperties => ({
   padding: '3px 10px', fontSize: 11, fontWeight: active ? 600 : 400,
@@ -359,10 +359,6 @@ export function ComboToTokenModal({
             <button
               style={{
                 ...btn,
-                background: 'var(--p-accent, #6366f1)',
-                borderColor: 'var(--p-accent, #6366f1)',
-                color: '#fff',
-                fontWeight: 600,
                 opacity: saveDisabled ? 0.5 : 1,
                 cursor: saveDisabled ? 'not-allowed' : 'pointer',
               }}

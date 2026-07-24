@@ -201,9 +201,10 @@ export function ManagePalettesModal({ onClose }: Props) {
             onClick={handleCreate}
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              background: 'transparent',
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: 'pointer',
@@ -216,14 +217,14 @@ export function ManagePalettesModal({ onClose }: Props) {
             onClick={onClose}
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              fontWeight: 600,
-              background: 'var(--p-accent)',
-              border: '1px solid var(--p-accent)',
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
+              border: '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: 'pointer',
-              color: '#fff',
+              color: 'var(--p-text)',
             }}
           >
             Done

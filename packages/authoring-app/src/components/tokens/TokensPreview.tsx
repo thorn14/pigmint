@@ -421,13 +421,13 @@ export function TokensPreview({ onAdd }: Props = {}) {
             type="button"
             onClick={() => onAdd!()}
             style={{
-              padding: '8px 12px',
-              fontSize: 13,
-              fontWeight: 600,
-              background: 'var(--p-accent, #6366f1)',
-              border: '1px solid var(--p-accent, #6366f1)',
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
+              border: '1px solid var(--p-border)',
               borderRadius: 6,
-              color: '#fff',
+              color: 'var(--p-text)',
               cursor: 'pointer',
             }}
           >

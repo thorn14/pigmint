@@ -190,4 +190,23 @@ describe('intentStore', () => {
     useIntentStore.getState().setHighContrast(false);
     expect(useIntentStore.getState().highContrast).toBe(false);
   });
+
+  it('setPreviewBgSurface pins and clears the optional chrome background surface', () => {
+    useIntentStore.getState().setPreviewBgSurface('surface.main');
+    expect(useIntentStore.getState().previewBgSurface).toBe('surface.main');
+    useIntentStore.getState().setPreviewBgSurface(null);
+    expect(useIntentStore.getState().previewBgSurface).toBeNull();
+    useIntentStore.getState().setPreviewBgSurface('  ');
+    expect(useIntentStore.getState().previewBgSurface).toBeNull();
+  });
+
+  it('renamePreviewBgSurface only updates when the pin matches', () => {
+    useIntentStore.getState().setPreviewBgSurface('page');
+    useIntentStore.getState().renamePreviewBgSurface('other', 'nope');
+    expect(useIntentStore.getState().previewBgSurface).toBe('page');
+    useIntentStore.getState().renamePreviewBgSurface('page', 'pageMain');
+    expect(useIntentStore.getState().previewBgSurface).toBe('pageMain');
+    useIntentStore.getState().renamePreviewBgSurface('pageMain', '');
+    expect(useIntentStore.getState().previewBgSurface).toBeNull();
+  });
 });

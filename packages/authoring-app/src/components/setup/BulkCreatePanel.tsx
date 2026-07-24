@@ -310,14 +310,15 @@ export function BulkCreatePanel() {
             className="focus-visible-ring"
             style={{
               width: '100%',
-              padding: '10px',
-              fontSize: 14,
-              fontWeight: 600,
-              background: scaleColors.length ? 'var(--p-accent)' : 'var(--p-surface)',
-              border: 'none',
-              borderRadius: 8,
-              color: scaleColors.length ? '#fff' : 'var(--p-text-secondary)',
+              padding: '10px 12px',
+              fontSize: 13,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              color: scaleColors.length ? 'var(--p-text)' : 'var(--p-text-secondary)',
               cursor: scaleColors.length ? 'pointer' : 'default',
+              opacity: scaleColors.length ? 1 : 0.6,
             }}
           >
             Create {count} scale{count !== 1 ? 's' : ''}

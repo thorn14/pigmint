@@ -15,6 +15,7 @@ import {
 } from '@pigmint/core';
 import type { VocabularyEntry, EngineConfig, SurfaceStepDecl } from '@pigmint/core';
 import { usePaletteStore } from './paletteStore';
+import { useIntentStore } from './intentStore';
 
 const LEGACY_STORAGE_KEY = 'pigmint:vocab:v1';
 
@@ -179,6 +180,8 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
         const { [name]: _, ...rest } = v.surfaces;
         return { ...v, surfaces: rest };
       }, engineConfig));
+      // Drop a preview-chrome pin that pointed at the deleted surface.
+      useIntentStore.getState().renamePreviewBgSurface(name, '');
     },
 
     renameSurface(oldName, newName, engineConfig) {
@@ -195,6 +198,10 @@ export const useVocabStore = create<VocabState & VocabActions>()((set, get) => {
         if (renamed === v.surfaces) return v;
         return rewriteSurfaceRefs({ ...v, surfaces: renamed }, oldName, trimmed);
       }, engineConfig));
+      // Keep View → Background pin in sync with the surface rename.
+      if (get().error == null) {
+        useIntentStore.getState().renamePreviewBgSurface(oldName, trimmed);
+      }
     },
 
     renameRamp(oldName, newName, engineConfig) {

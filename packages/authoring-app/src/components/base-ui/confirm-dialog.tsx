@@ -21,7 +21,6 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  const confirmBg = destructive ? 'var(--p-danger)' : 'var(--p-accent)';
   return (
     <AppDialog onOpenChange={(open) => { if (!open) onCancel(); }}>
       <div
@@ -59,9 +58,10 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              background: 'transparent',
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: 'pointer',
@@ -76,14 +76,14 @@ export function ConfirmDialog({
             autoFocus
             className="focus-visible-ring"
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              background: confirmBg,
-              border: `1px solid ${confirmBg}`,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              background: 'var(--p-surface)',
+              border: destructive ? '1px solid rgba(229,85,85,0.4)' : '1px solid var(--p-border)',
               borderRadius: 6,
               cursor: 'pointer',
-              color: '#fff',
-              fontWeight: 500,
+              color: destructive ? 'var(--p-danger)' : 'var(--p-text)',
             }}
           >
             {confirmLabel}
