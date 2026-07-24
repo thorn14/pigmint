@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { Menu } from '@base-ui/react/menu';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
-import { useVocabStore } from '../../store/vocabStore';
 import { AppStringSelect, AppToolbarSegmented } from '../base-ui';
 import { ManagePalettesModal } from '../palette/ManagePalettesModal';
 import { ColorWheelIcon } from '../icons/ColorWheelIcon';
@@ -195,14 +194,6 @@ function OverflowMenu({
   const setResolverMode = useIntentStore((s) => s.setResolverMode);
   const resolverMode = engineResolver.mode === 'continuous' ? 'continuous' : 'stepped';
   const gamutValue = srgbPreview ? 'srgb' : 'p3';
-  const previewBgSurface = useIntentStore((s) => s.previewBgSurface);
-  const setPreviewBgSurface = useIntentStore((s) => s.setPreviewBgSurface);
-  const vocabRaw = useVocabStore((s) => s.raw);
-  const surfaceNames = Object.keys(vocabRaw?.surfaces ?? {});
-  const bgValue =
-    previewBgSurface && surfaceNames.includes(previewBgSurface)
-      ? previewBgSurface
-      : '__default__';
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
@@ -266,16 +257,6 @@ function OverflowMenu({
               options={[
                 { value: 'light', label: 'Light' },
                 { value: 'dark', label: 'Dark' },
-              ]}
-            />
-            <Menu.Separator style={menuSeparatorStyle} />
-            <MenuRadioGroup
-              label="Background"
-              value={bgValue}
-              onValueChange={(v) => setPreviewBgSurface(v === '__default__' ? null : v)}
-              options={[
-                { value: '__default__', label: 'Default' },
-                ...surfaceNames.map((name) => ({ value: name, label: name })),
               ]}
             />
             <Menu.Separator style={menuSeparatorStyle} />

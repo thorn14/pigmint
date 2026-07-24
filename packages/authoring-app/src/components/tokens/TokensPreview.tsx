@@ -242,6 +242,8 @@ export function TokensPreview({ onAdd }: Props = {}) {
   const setHighContrast  = useIntentStore((s) => s.setHighContrast);
   const engineCvd        = useIntentStore((s) => s.engineCvd);
   const setEngineCvd     = useIntentStore((s) => s.setEngineCvd);
+  const previewBgSurface = useIntentStore((s) => s.previewBgSurface);
+  const setPreviewBgSurface = useIntentStore((s) => s.setPreviewBgSurface);
   const effectiveMode    = useEffectiveMode();
 
   const cvdFilter        = cvdFilterCss(engineCvd);
@@ -459,7 +461,7 @@ export function TokensPreview({ onAdd }: Props = {}) {
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
       <CvdFilterDefs />
-      {/* HC + color-vision-deficiency toolbar */}
+      {/* HC + color-vision-deficiency + optional chrome-background pin */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -484,6 +486,28 @@ export function TokensPreview({ onAdd }: Props = {}) {
               ...CVD_PROFILE_OPTIONS.map((profile) => ({
                 value: profile,
                 label: CVD_PROFILE_LABELS[profile],
+              })),
+            ]}
+          />
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ opacity: 0.7 }}>Background</span>
+          <AppSelect
+            variant="compact"
+            value={
+              previewBgSurface && vocabRaw.surfaces[previewBgSurface]
+                ? previewBgSurface
+                : ''
+            }
+            onChange={(v) => setPreviewBgSurface(v || null)}
+            title="Pin app chrome to a surface token’s light/dark steps"
+            options={[
+              { value: '', label: 'Default' },
+              ...Object.keys(vocabRaw.surfaces).map((name) => ({
+                value: name,
+                label: name,
+                hex: surfaceHexMap.get(name),
               })),
             ]}
           />
