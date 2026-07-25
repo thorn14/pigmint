@@ -40,6 +40,50 @@ function readThemeFromSearch(search: string): AppTheme | null {
   return raw === 'dark' || raw === 'light' ? raw : null;
 }
 
+const OPEN_PANELS_KEY = 'pigmint:open-panels:v1';
+const NARROW_QUERY = '(max-width: 767px)';
+
+function isNarrowViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia(NARROW_QUERY).matches;
+}
+
+function readOpenPanelsPref(): Set<Panel> {
+  if (typeof window === 'undefined') return new Set();
+  const narrow = isNarrowViewport();
+  try {
+    const raw = localStorage.getItem(OPEN_PANELS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { scales?: unknown; edit?: unknown };
+      if (parsed && typeof parsed === 'object') {
+        const next = new Set<Panel>();
+        if (parsed.scales === true) next.add('scales');
+        if (parsed.edit === true) next.add('edit');
+        if (narrow && next.size > 1) {
+          return next.has('edit') ? new Set<Panel>(['edit']) : new Set<Panel>(['scales']);
+        }
+        return next;
+      }
+    }
+  } catch {
+    /* corrupt storage — fall through to default */
+  }
+  // No stored pref: desktop defaults scales open; mobile stays closed.
+  return narrow ? new Set() : new Set<Panel>(['scales']);
+}
+
+function persistOpenPanels(panels: Set<Panel>) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(
+      OPEN_PANELS_KEY,
+      JSON.stringify({ scales: panels.has('scales'), edit: panels.has('edit') }),
+    );
+  } catch {
+    /* quota/privacy mode — silently drop */
+  }
+}
+
 function authoringFingerprint(): string {
   const ps = usePaletteStore.getState();
   const palettePart = {
@@ -159,9 +203,13 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>(() =>
     typeof window !== 'undefined' ? readThemeFromSearch(window.location.search) ?? 'dark' : 'dark',
   );
-  const [openPanels, setOpenPanels] = useState<Set<Panel>>(() => new Set());
+  const [openPanels, setOpenPanels] = useState<Set<Panel>>(() => readOpenPanelsPref());
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    persistOpenPanels(openPanels);
+  }, [openPanels]);
   const lastSavedFingerprint = useRef<string | null>(null);
   const activePaletteId = usePaletteStore((s) => s.activePaletteId);
   const scale = usePaletteStore(selectActiveScale);
