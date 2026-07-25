@@ -337,7 +337,7 @@ export function ScalesPanel({ onEditSteps, onEditLightness, onClose, dismissOnSe
   function handleAddScale() {
     addScale(newHex);
     setNewHex('#6366f1');
-    onClose();
+    if (dismissOnSelect) onClose();
   }
 
   return (
