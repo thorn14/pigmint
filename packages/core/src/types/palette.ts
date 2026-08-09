@@ -63,7 +63,10 @@ export interface GeneratedStep {
   displayP3?: string;
   relativeLuminance: number;
   gamut: GamutLevel;
+  /** Chroma ceiling at this step's L/H inside sRGB. */
   maxSrgbC: number;
+  /** Chroma ceiling at this step's L/H inside Display P3. */
+  maxP3C: number;
 }
 
 export interface GeneratedRamp {

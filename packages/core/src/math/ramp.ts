@@ -1,6 +1,5 @@
-import { formatHex, clampChroma } from 'culori';
-import { checkGamut, maxP3Chroma, maxSrgbChroma, toP3, toRgb } from './gamut.js';
-import { getRelativeLuminance } from './contrast.js';
+import { type GamutTarget } from './gamut.js';
+import { buildGeneratedStep } from './step.js';
 import { clampAlpha } from './oklch.js';
 import { TAILWIND_LIGHTNESS } from '../presets/lightness.js';
 import { resolveStepNames } from '../presets/naming.js';
@@ -9,7 +8,6 @@ import type {
   GeneratedRamp,
   GeneratedStep,
   OklchColor,
-  RgbChannels,
 } from '../types/palette.js';
 
 function lerp(a: number, b: number, t: number): number {
@@ -112,21 +110,28 @@ export function smoothCurveValues(values: number[], smoothing: number): number[]
   return result;
 }
 
-export function generateRamp(scale: ColorScale): GeneratedRamp {
-  const { id, name, sourceOklch, stepCount, naming, curves, hueShift } = scale;
+/** Authored OKLCH per step, after curve smoothing and hue shift, before any gamut clamp. */
+export interface RampStepGeometry {
+  name: string;
+  l: number;
+  c: number;
+  h: number;
+}
+
+/**
+ * The scale's requested L/C/H per step. Lightness and hue are independent of
+ * chroma, so gamut pinning can read the final L/H from here without having to
+ * generate (and then regenerate) a whole ramp.
+ */
+export function rampStepGeometry(scale: ColorScale): RampStepGeometry[] {
+  const { sourceOklch, stepCount, naming, curves, hueShift } = scale;
   const stepNames = resolveStepNames(naming.preset, stepCount, naming.customNames);
 
   const lv = smoothCurveValues(curves.lightness.values, curves.lightness.smoothing ?? 0);
   const cv = smoothCurveValues(curves.chroma.values, curves.chroma.smoothing ?? 0);
   const hv = smoothCurveValues(curves.hue.values, curves.hue.smoothing ?? 0);
 
-  const steps: GeneratedStep[] = [];
-
-  for (let i = 0; i < stepCount; i++) {
-    const l = lv[i] ?? sourceOklch.l;
-    const c = cv[i] ?? sourceOklch.c;
-    const baseDeltaH = hv[i] ?? 0;
-
+  return Array.from({ length: stepCount }, (_, i) => {
     const t = stepCount === 1 ? 0 : i / (stepCount - 1);
     const hueShiftDelta = computeHueShift(
       sourceOklch.h,
@@ -134,53 +139,33 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
       hueShift.lightEndAdjust,
       hueShift.darkEndAdjust,
     );
-
-    const h = (((sourceOklch.h + baseDeltaH + hueShiftDelta) % 360) + 360) % 360;
-
-    const cP3 = Math.min(c, maxP3Chroma(l, h));
-    const gamut = checkGamut(l, cP3, h);
-
-    let p3Channels: RgbChannels | undefined;
-    let displayP3: string | undefined;
-    if (gamut === 'p3') {
-      const p3 = toP3({ mode: 'oklch' as const, l, c: cP3, h });
-      if (p3) {
-        const pr = p3.r ?? 0;
-        const pg = p3.g ?? 0;
-        const pb = p3.b ?? 0;
-        p3Channels = { r: pr, g: pg, b: pb };
-        displayP3 = `color(display-p3 ${pr.toFixed(4)} ${pg.toFixed(4)} ${pb.toFixed(4)})`;
-      }
-    }
-
-    const sourceAlpha = clampAlpha(scale.sourceAlpha ?? sourceOklch.alpha);
-    const srgbClamped = clampChroma(
-      { mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha },
-      'oklch',
-    );
-    const hex = formatHex(srgbClamped) ?? '#000000';
-    const srgbRgb = toRgb(srgbClamped);
-    const srgbChannels: RgbChannels = {
-      r: srgbRgb?.r ?? 0,
-      g: srgbRgb?.g ?? 0,
-      b: srgbRgb?.b ?? 0,
+    const baseDeltaH = hv[i] ?? 0;
+    return {
+      name: stepNames[i] ?? String(i),
+      l: lv[i] ?? sourceOklch.l,
+      c: cv[i] ?? sourceOklch.c,
+      h: (((sourceOklch.h + baseDeltaH + hueShiftDelta) % 360) + 360) % 360,
     };
-    const oklchOut: OklchColor = { l, c: cP3, h, alpha: clampAlpha(sourceAlpha) };
-    const relativeLuminance = getRelativeLuminance(hex);
+  });
+}
 
-    const stepName = stepNames[i] ?? String(i);
-    steps.push({
-      name: stepName,
-      oklch: oklchOut,
-      hex,
-      srgb: srgbChannels,
-      p3: p3Channels,
-      displayP3,
-      relativeLuminance,
-      gamut,
-      maxSrgbC: maxSrgbChroma(l, h),
-    });
-  }
+export interface GenerateRampOptions {
+  /**
+   * Widest gamut the ramp may use. Defaults to `'p3'`. With `'srgb'` no step
+   * carries a Display-P3 representation, so P3 cannot leak into previews or
+   * emitted tokens.
+   */
+  gamut?: GamutTarget;
+}
+
+export function generateRamp(scale: ColorScale, opts: GenerateRampOptions = {}): GeneratedRamp {
+  const { id, name, sourceOklch } = scale;
+  const gamut = opts.gamut ?? 'p3';
+  const alpha = clampAlpha(scale.sourceAlpha ?? sourceOklch.alpha);
+
+  const steps: GeneratedStep[] = rampStepGeometry(scale).map((geometry) =>
+    buildGeneratedStep({ ...geometry, alpha, gamut }),
+  );
 
   return { scaleId: id, scaleName: name, steps };
 }

@@ -23,6 +23,10 @@
           "items": { "enum": ["deuteranopia", "protanopia", "tritanopia", "achromatopsia"] },
           "uniqueItems": true
         },
+        "gamut": {
+          "enum": ["srgb", "p3"],
+          "description": "Widest gamut ramps may occupy. Default p3. With srgb, no primitive carries a Display-P3 representation."
+        },
         "resolver": {
           "type": "object",
           "required": ["mode"],

@@ -1,8 +1,6 @@
-import { formatHex, clampChroma } from 'culori';
-import { getRelativeLuminance } from '../math/contrast.js';
-import { toRgb, toP3, checkGamut, maxP3Chroma, maxSrgbChroma } from '../math/gamut.js';
-import { clampAlpha } from '../math/oklch.js';
-import type { GeneratedRamp, GeneratedStep, RgbChannels } from '../types/palette.js';
+import { type GamutTarget } from '../math/gamut.js';
+import { buildGeneratedStep } from '../math/step.js';
+import type { GeneratedRamp, GeneratedStep } from '../types/palette.js';
 import type { ProjectConfig, ResolvedToken } from '../types/spec.js';
 
 const NAME_PREFIX = 'c';
@@ -46,48 +44,13 @@ function parseRefScaleStep(nearestPrimitive: string | undefined): { scale: strin
   return { scale, step };
 }
 
-export function buildGeneratedStepForMaterializedName(token: ResolvedToken, name: string): GeneratedStep {
-  const { l, c, h, alpha: aIn } = token.oklch;
-  const cP3 = Math.min(c, maxP3Chroma(l, h));
-  const gamut = checkGamut(l, cP3, h);
-  const sourceAlpha = clampAlpha(aIn);
-
-  let p3Channels: RgbChannels | undefined;
-  let displayP3: string | undefined;
-  if (gamut === 'p3') {
-    const p3 = toP3({ mode: 'oklch' as const, l, c: cP3, h });
-    if (p3) {
-      const pr = p3.r ?? 0;
-      const pg = p3.g ?? 0;
-      const pb = p3.b ?? 0;
-      p3Channels = { r: pr, g: pg, b: pb };
-      displayP3 = `color(display-p3 ${pr.toFixed(4)} ${pg.toFixed(4)} ${pb.toFixed(4)})`;
-    }
-  }
-
-  const srgbClamped = clampChroma(
-    { mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha },
-    'oklch',
-  );
-  const hex = (formatHex(srgbClamped) ?? token.hex) as string;
-  const srgbRgb = toRgb(srgbClamped);
-  const srgbChannels: RgbChannels = {
-    r: srgbRgb?.r ?? 0,
-    g: srgbRgb?.g ?? 0,
-    b: srgbRgb?.b ?? 0,
-  };
-
-  return {
-    name,
-    oklch: { l, c: cP3, h, alpha: sourceAlpha },
-    hex,
-    srgb: srgbChannels,
-    p3: p3Channels,
-    displayP3,
-    relativeLuminance: getRelativeLuminance(hex),
-    gamut,
-    maxSrgbC: maxSrgbChroma(l, h),
-  };
+export function buildGeneratedStepForMaterializedName(
+  token: ResolvedToken,
+  name: string,
+  gamut: GamutTarget = 'p3',
+): GeneratedStep {
+  const { l, c, h, alpha } = token.oklch;
+  return buildGeneratedStep({ name, l, c, h, alpha, gamut, fallbackHex: token.hex });
 }
 
 /**
@@ -103,6 +66,7 @@ export function materializeContinuousRamps(
     return { ramps, tokens };
   }
 
+  const gamut: GamutTarget = config.engine.gamut ?? 'p3';
   const rampByName = new Map(ramps.map((r) => [r.scaleName, r]));
   const toAdd: Map<string, Map<string, GeneratedStep>> = new Map();
   const byScaleQuanta: Map<string, { name: string; step: GeneratedStep }> = new Map();
@@ -113,7 +77,7 @@ export function materializeContinuousRamps(
     const existing = byScaleQuanta.get(mapKey);
     if (existing) return existing.name;
     if (!toAdd.has(scale)) toAdd.set(scale, new Map());
-    const step = buildGeneratedStepForMaterializedName(token, stepName);
+    const step = buildGeneratedStepForMaterializedName(token, stepName, gamut);
     toAdd.get(scale)!.set(stepName, step);
     byScaleQuanta.set(mapKey, { name: stepName, step });
     return stepName;

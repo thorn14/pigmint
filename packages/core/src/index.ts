@@ -8,7 +8,23 @@ export {
   oklchToHex,
   sourceWithChromaToHex,
 } from './math/oklch.js';
-export { checkGamut, maxP3Chroma, maxSrgbChroma } from './math/gamut.js';
+export {
+  checkGamut,
+  isWithinGamut,
+  maxChromaForGamut,
+  maxP3Chroma,
+  maxSrgbChroma,
+  MAX_CHROMA,
+  type GamutTarget,
+} from './math/gamut.js';
+export { buildGeneratedStep, type BuildGeneratedStepInput } from './math/step.js';
+export {
+  pinChromaCurveToGamut,
+  validateRampGamut,
+  type GamutOffender,
+  type GamutValidation,
+  type PinnedChromaCurve,
+} from './math/pin-gamut.js';
 export { deltaEOklch } from './math/deltaE.js';
 export {
   getRelativeLuminance,
@@ -32,6 +48,9 @@ export {
   autoHueShiftBase,
   nearestPrimary,
   generateRamp,
+  rampStepGeometry,
+  type GenerateRampOptions,
+  type RampStepGeometry,
 } from './math/ramp.js';
 export {
   TAILWIND_LIGHTNESS,
