@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { parseStepRef, type GeneratedRamp } from '@pigmint/core';
 import type {
@@ -95,6 +95,7 @@ type Props = {
 export function EditTokenModal({ path: initialPath, onClose }: Props) {
   const raw = useVocabStore((s) => s.raw);
   const scales = usePaletteStore((s) => s.scales);
+  const gamut = useTargetGamut();
   const compliance = useIntentStore((s) => s.engineCompliance);
 
   // Track path internally so renames don't yank the modal closed.
@@ -106,10 +107,10 @@ export function EditTokenModal({ path: initialPath, onClose }: Props) {
   const rampMap = useMemo(() => {
     const map = new Map<string, GeneratedRamp>();
     for (const scale of scales) {
-      try { map.set(scale.name, generateRamp(scale)); } catch { /* ignore */ }
+      try { map.set(scale.name, generateRamp(scale, { gamut })); } catch { /* ignore */ }
     }
     return map;
-  }, [scales]);
+  }, [scales, gamut]);
 
   const rampNames = scales.map((s) => s.name);
   const surfaceNames = raw ? Object.keys(raw.surfaces) : [];

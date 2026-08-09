@@ -4,6 +4,7 @@ import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, StepNamingPreset } from '../../types/palette';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import { AppStringSelect, ConfirmDialog, type AppStringSelectOption } from '../base-ui';
+import { stepDisplayColor } from '../../lib/gamutDisplay';
 import { ApplyLightnessEasing } from '../curves/ApplyLightnessEasing';
 
 const STEP_PRESET_OPTIONS: readonly AppStringSelectOption[] = [
@@ -47,8 +48,6 @@ const presetLabelStyle: React.CSSProperties = {
   width: 56,
   flexShrink: 0,
 };
-
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
 function GripIcon() {
   return (
@@ -105,7 +104,6 @@ function ScaleItem({
 }) {
   const ramp = useGeneratedRamp(scale);
   const [hovered, setHovered] = useState(false);
-  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
 
   return (
     <div
@@ -288,7 +286,7 @@ function ScaleItem({
           {ramp.steps.map((step) => (
             <div
               key={step.name}
-              style={{ flex: 1, backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex }}
+              style={{ flex: 1, backgroundColor: stepDisplayColor(step) }}
             />
           ))}
         </div>

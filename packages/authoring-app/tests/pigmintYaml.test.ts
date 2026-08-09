@@ -221,6 +221,18 @@ describe('pigmintYaml', () => {
     });
   });
 
+  it('round-trips engine.gamut and defaults it to p3', () => {
+    const scales = [scale('1', 'blue', '#3366cc')];
+
+    const srgb = parsePigmintYaml(
+      serializePigmintYaml({ scales, intents: {}, engine: { gamut: 'srgb' } }),
+    );
+    expect(srgb.engine.gamut).toBe('srgb');
+
+    const fallback = parsePigmintYaml(serializePigmintYaml({ scales, intents: {} }));
+    expect(fallback.engine.gamut).toBe('p3');
+  });
+
   it('emits engine.modes in canonical order and filters duplicates', () => {
     const yaml = serializePigmintYaml({
       scales: [scale('1', 'blue', '#3366cc')],

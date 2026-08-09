@@ -4,9 +4,7 @@ import { getContrast, getApcaContrast } from '../../lib/colorMath';
 import { ContrastBadge } from '../accessibility/ContrastBadge';
 import { ApcaBadge } from '../accessibility/ApcaBadge';
 import { useIntentStore } from '../../store/intentStore';
-import { usePaletteStore } from '../../store/paletteStore';
-
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+import { stepDisplayColor } from '../../lib/gamutDisplay';
 
 
 interface Props {
@@ -16,7 +14,6 @@ interface Props {
 }
 
 export function Swatch({ step, isActive, onClick }: Props) {
-  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const apca = useIntentStore((s) => s.engineCompliance === 'apca');
 
   const stepAlpha = step.oklch.alpha;
@@ -24,7 +21,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
   const { l, c, h } = step.oklch;
   const bgColor = isTransparent
     ? (formatCss({ mode: 'oklch', l, c, h, alpha: stepAlpha }) ?? step.hex)
-    : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex);
+    : stepDisplayColor(step);
 
   const bgStyle: React.CSSProperties = { backgroundColor: bgColor };
 

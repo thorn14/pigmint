@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Tabs } from '@base-ui/react/tabs';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportColors, type ColorExportFormat } from '../../lib/exportTokens';
@@ -164,6 +164,7 @@ const EMPTY_PLACEHOLDER: Record<Tab, string> = {
 
 export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
+  const gamut = useTargetGamut();
   const intents = useIntentStore((s) => s.overrides);
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
@@ -176,7 +177,7 @@ export function ExportModal({ onClose }: Props) {
   const surfaceSteps = useVocabStore((s) => s.surfaceSteps);
   const semanticSteps = useVocabStore((s) => s.semanticSteps);
 
-  const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
+  const ramps = useMemo(() => scales.map((scale) => generateRamp(scale, { gamut })), [scales, gamut]);
 
   const [activeTab, setActiveTab] = useState<Tab>('colors');
   const [colorFormat, setColorFormat] = useState<ColorExportFormat>('dtcg');
@@ -216,9 +217,10 @@ export function ExportModal({ onClose }: Props) {
       engineCompliance,
       vocabCtx,
       engineResolver,
+      gamut,
     );
     return result.ok ? result.json : `{\n  "error": ${JSON.stringify(result.error)}\n}\n`;
-  }, [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries, vocabRaw, surfacePaths, surfaceSteps, semanticSteps]);
+  }, [scales, engineModes, engineTarget, engineCompliance, engineResolver, gamut, vocabEntries, vocabRaw, surfacePaths, surfaceSteps, semanticSteps]);
 
   const pigmintYaml = useMemo(
     () =>
@@ -231,9 +233,10 @@ export function ExportModal({ onClose }: Props) {
           modes: engineModes,
           cvd: engineCvd,
           resolver: engineResolver,
+          gamut,
         },
       }),
-    [scales, intents, engineTarget, engineCompliance, engineModes, engineCvd, engineResolver],
+    [scales, intents, engineTarget, engineCompliance, engineModes, engineCvd, engineResolver, gamut],
   );
 
   const contentByTab: Record<Tab, string> = {

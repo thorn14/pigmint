@@ -2,7 +2,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AppStringSelect } from '../base-ui';
 import { useIntentStore } from '../../store/intentStore';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
 import type { WcagMapEntry, ApcaMapEntry, ContrastMapColorRef } from '../../types/palette';
@@ -196,6 +196,7 @@ function FilterBar({
 
 export function AccessibleCombos() {
   const scales = usePaletteStore((s) => s.scales);
+  const gamut = useTargetGamut();
   const useWcag = useIntentStore((s) => s.engineCompliance === 'wcag21');
 
   const appTheme = useIntentStore((s) => s.appTheme);
@@ -226,22 +227,22 @@ export function AccessibleCombos() {
   const rampMap = useMemo(() => {
     const map = new Map<string, GeneratedRamp>();
     for (const scale of scales) {
-      try { map.set(scale.name, generateRamp(scale)); } catch { /* ignore */ }
+      try { map.set(scale.name, generateRamp(scale, { gamut })); } catch { /* ignore */ }
     }
     return map;
-  }, [scales]);
+  }, [scales, gamut]);
 
   // Group steps by ramp so we only compare within the same ramp
   const stepsByRamp = useMemo(
     () =>
       scales.map((s) => {
-        const ramp = generateRamp(s);
+        const ramp = generateRamp(s, { gamut });
         return {
           name: ramp.scaleName,
           steps: ramp.steps.map((step) => ({ ramp: ramp.scaleName, step: step.name, hex: step.hex })),
         };
       }),
-    [scales],
+    [scales, gamut],
   );
 
   const totalSteps = useMemo(() => stepsByRamp.reduce((n, r) => n + r.steps.length, 0), [stepsByRamp]);

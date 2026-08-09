@@ -7,6 +7,7 @@ export type {
   StepNamingConfig,
   ColorScale,
   GamutLevel,
+  GamutTarget,
   RgbChannels,
   GeneratedStep,
   GeneratedRamp,
@@ -14,7 +15,7 @@ export type {
   ContrastResult,
 } from '@pigmint/core';
 
-import type { ColorScale, PortableVocabulary } from '@pigmint/core';
+import type { ColorScale, GamutTarget, PortableVocabulary } from '@pigmint/core';
 
 export type { PortableVocabulary };
 
@@ -46,7 +47,12 @@ export interface PaletteState {
   scales: ColorScale[];
   activeScaleId: string | null;
   focusedStepRef: { scaleId: string; stepName: string } | null;
-  srgbPreview: boolean;
+  /**
+   * Widest gamut this palette may author into. `'srgb'` removes Display P3 from
+   * the app entirely: ramps are clamped to sRGB, so no step can reach into P3
+   * and nothing P3-specific is rendered or exported.
+   */
+  targetGamut: GamutTarget;
   savedPalettes: SavedPalette[];
   activePaletteId: string | null;
   currentPaletteName: string;

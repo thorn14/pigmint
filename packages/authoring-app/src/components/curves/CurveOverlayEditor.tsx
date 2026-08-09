@@ -1,13 +1,12 @@
 import { useRef, useState, useCallback, useEffect, useMemo, type ComponentType } from 'react';
 import { formatCss } from 'culori';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { useIntentStore, type EngineCompliance } from '../../store/intentStore';
 import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath, buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { useIsNarrow } from '../../hooks/useViewportWidth';
-
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+import { stepDisplayColor } from '../../lib/gamutDisplay';
 
 type CurveKey = 'lightness' | 'chroma' | 'hue';
 
@@ -74,7 +73,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
-  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
+  const targetGamut = useTargetGamut();
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const engineCompliance = useIntentStore((s) => s.engineCompliance) as EngineCompliance;
@@ -104,8 +103,8 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
 
   const gradientCss = useMemo(() => {
     if (effectiveBackground !== 'gradient') return '';
-    return buildScaleLinearGradientCss(scale);
-  }, [effectiveBackground, scale]);
+    return buildScaleLinearGradientCss(scale, { gamut: targetGamut });
+  }, [effectiveBackground, scale, targetGamut]);
 
 
   useEffect(() => {
@@ -346,7 +345,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
               style={{
                 backgroundColor: step.oklch.alpha != null && step.oklch.alpha < 1
                   ? (formatCss({ mode: 'oklch', ...step.oklch }) ?? step.hex)
-                  : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex),
+                  : stepDisplayColor(step),
                 border: 'none',
                 boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
               }}
@@ -359,37 +358,49 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* P3 threshold lines — drawn in raw-chroma space so handle ↔ line
-              comparison matches the gamut decision (which uses smoothed chroma). */}
+          {/* Gamut boundary lines. In sRGB mode only the sRGB ceiling is drawn,
+              since chroma cannot go past it; in P3 mode the sRGB line marks
+              where steps start needing P3 and the P3 line is the hard ceiling.
+              Drawn in raw-chroma space so a handle sitting on a line means the
+              same thing as the gamut decision, which uses smoothed chroma. */}
           {ramp.steps.map((step, i) => {
             const chromaMeta = CURVES.find((c) => c.key === 'chroma')!;
             const chromaSmoothing = scale.curves.chroma.smoothing ?? 0;
             const rawC = scale.curves.chroma.values;
             const isInterior = i > 0 && i < n - 1;
             const t = Math.min(1, Math.max(0, chromaSmoothing));
-            let lineValue = step.maxSrgbC;
-            if (t > 0 && isInterior) {
-              const prev = rawC[i - 1] ?? step.maxSrgbC;
-              const next = rawC[i + 1] ?? step.maxSrgbC;
-              const k = 1 - 0.5 * t;
-              if (k > 1e-4) {
-                lineValue = (step.maxSrgbC - (prev + next) * 0.25 * t) / k;
-              }
-            }
-            const pt = getPoint(lineValue, i, chromaMeta.min, chromaMeta.max);
             const colW = size.width / n;
             const x1 = i * colW;
             const x2 = x1 + colW;
-            return (
-              <line
-                key={`p3-${i}`}
-                x1={x1} y1={pt.y}
-                x2={x2} y2={pt.y}
-                stroke="rgba(255,255,255,0.75)"
-                strokeWidth={1.5}
-                strokeDasharray="3 2"
-              />
-            );
+
+            const toRawSpace = (ceiling: number): number => {
+              if (t <= 0 || !isInterior) return ceiling;
+              const prev = rawC[i - 1] ?? ceiling;
+              const next = rawC[i + 1] ?? ceiling;
+              const k = 1 - 0.5 * t;
+              return k > 1e-4 ? (ceiling - (prev + next) * 0.25 * t) / k : ceiling;
+            };
+
+            const boundaries = targetGamut === 'srgb'
+              ? [{ key: 'srgb', ceiling: step.maxSrgbC, opacity: 0.75 }]
+              : [
+                  { key: 'srgb', ceiling: step.maxSrgbC, opacity: 0.4 },
+                  { key: 'p3', ceiling: step.maxP3C, opacity: 0.75 },
+                ];
+
+            return boundaries.map(({ key, ceiling, opacity }) => {
+              const pt = getPoint(toRawSpace(ceiling), i, chromaMeta.min, chromaMeta.max);
+              return (
+                <line
+                  key={`${key}-${i}`}
+                  x1={x1} y1={pt.y}
+                  x2={x2} y2={pt.y}
+                  stroke={`rgba(255,255,255,${opacity})`}
+                  strokeWidth={1.5}
+                  strokeDasharray="3 2"
+                />
+              );
+            });
           })}
 
           {CURVES.map((curve) => {

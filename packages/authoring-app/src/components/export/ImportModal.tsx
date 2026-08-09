@@ -363,6 +363,7 @@ function TokensPanel({ onClose, registerImport }: PanelProps) {
 function PigmintPanel({ onClose, registerImport }: PanelProps) {
   const textareaId = useId();
   const importScales = usePaletteStore((s) => s.importScales);
+  const setTargetGamut = usePaletteStore((s) => s.setTargetGamut);
   const hasExisting = usePaletteStore((s) => s.scales.length > 0);
   const loadState = useIntentStore((s) => s.loadState);
 
@@ -377,6 +378,9 @@ function PigmintPanel({ onClose, registerImport }: PanelProps) {
 
   function applyParsed(p: ParsedPigmintYaml, replace: boolean) {
     importScales(p.scales, replace);
+    // The file's ramps were generated for its gamut; adopting it stops an
+    // sRGB-only palette from being re-widened into P3 on the next render.
+    setTargetGamut(p.engine.gamut ?? 'p3');
     loadState({
       overrides: p.intents,
       engineTarget: p.engine.target,

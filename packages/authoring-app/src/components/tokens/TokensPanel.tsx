@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVocabStore } from '../../store/vocabStore';
 import { useIntentStore } from '../../store/intentStore';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { TokensPreview } from './TokensPreview';
 import { TokensSampleView } from './TokensSampleView';
@@ -588,6 +588,7 @@ export function TokensPanel() {
   const compliance: 'wcag21' | 'apca' = engineCompliance === 'apca' ? 'apca' : 'wcag21';
 
   const scales = usePaletteStore((s) => s.scales);
+  const gamut = useTargetGamut();
   const rampNames = scales.map((s) => s.name);
   const surfaces = raw?.surfaces ?? {};
   const surfaceNames = Object.keys(surfaces);
@@ -596,13 +597,13 @@ export function TokensPanel() {
     const map = new Map<string, GeneratedRamp>();
     for (const scale of scales) {
       try {
-        map.set(scale.name, generateRamp(scale));
+        map.set(scale.name, generateRamp(scale, { gamut }));
       } catch (e) {
         console.warn(`[TokensPanel] generateRamp failed for "${scale.name}":`, e);
       }
     }
     return map;
-  }, [scales]);
+  }, [scales, gamut]);
 
   const [addModal, setAddModal] = useState<{ open: boolean; initialSurface?: string }>({ open: false });
   const [view, setView] = useState<'preview' | 'combos' | 'sample'>('preview');

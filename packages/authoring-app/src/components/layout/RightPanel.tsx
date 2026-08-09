@@ -1,14 +1,49 @@
-import { useState, useEffect, useRef, useId } from 'react';
-import type { ColorScale, GeneratedStep } from '../../types/palette';
+import { useState, useEffect, useRef, useId, useMemo } from 'react';
+import type { ColorScale, GamutTarget, GeneratedRamp, GeneratedStep } from '../../types/palette';
 import { formatCss } from 'culori';
 import { useIntentStore } from '../../store/intentStore';
-import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, getApcaContrast, sourceWithChromaToHex, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
+import {
+  getContrast,
+  getApcaContrast,
+  sourceWithChromaToHex,
+  pinChromaCurveToGamut,
+  validateRampGamut,
+} from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { canonicalScaleName } from '../../lib/scaleNaming';
+import { supportsP3 } from '../../lib/gamutDisplay';
+import { GamutPalettes } from '../ramp/GamutPalettes';
 import { AppField, AppSlider, ConfirmDialog } from '../base-ui';
 
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+const PIN_TARGETS: readonly { gamut: GamutTarget; label: string }[] = [
+  { gamut: 'srgb', label: 'sRGB' },
+  { gamut: 'p3', label: 'P3' },
+];
+
+/**
+ * Live read-out of how the ramp sits relative to its gamut boundary, so a pin
+ * can be confirmed instead of assumed: right after pinning every step reports
+ * as on the boundary, and any later chroma edit moves the count back down.
+ */
+function describePinState(ramp: GeneratedRamp, gamut: GamutTarget): string {
+  const validation = validateRampGamut(ramp, gamut);
+  const label = gamut === 'srgb' ? 'sRGB' : 'P3';
+
+  if (!validation.ok) {
+    const names = validation.offenders.map((o) => o.name).join(', ');
+    return `${validation.offenders.length} step(s) fall outside ${label}: ${names}.`;
+  }
+  if (validation.stepCount === 0) return 'No steps to check.';
+  if (validation.pinnedCount === validation.stepCount) {
+    return `All ${validation.stepCount} steps sit on the ${label} boundary.`;
+  }
+  const shortfall = validation.maxShortfall.toFixed(3);
+  if (validation.pinnedCount === 0) {
+    return `Chroma is up to ${shortfall} inside the ${label} boundary.`;
+  }
+  return `${validation.pinnedCount} of ${validation.stepCount} steps sit on the ${label} boundary; the rest are up to ${shortfall} inside it.`;
+}
 
 interface Props {
   scale: ColorScale;
@@ -70,9 +105,16 @@ export function RightPanel({ scale, activeStep }: Props) {
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const removeScale = usePaletteStore((s) => s.removeScale);
   const apca = useIntentStore((s) => s.engineCompliance === 'apca');
+  const targetGamut = useTargetGamut();
   const ramp = useGeneratedRamp(scale);
+  const p3StepCount = ramp.steps.filter((step) => step.gamut === 'p3').length;
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Report against the boundary that was last pinned, so pinning to sRGB inside
+  // a P3 palette is checked against sRGB rather than against the wider target.
+  const [pinnedGamut, setPinnedGamut] = useState<GamutTarget | null>(null);
+  const checkedGamut: GamutTarget = targetGamut === 'srgb' ? 'srgb' : pinnedGamut ?? 'p3';
+  const pinSummary = useMemo(() => describePinState(ramp, checkedGamut), [ramp, checkedGamut]);
 
   // --- Name input draft ---
   // Keep the displayed name in a local draft so clearing the field (e.g. select-all
@@ -354,46 +396,64 @@ export function RightPanel({ scale, activeStep }: Props) {
             Apply to all
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-          <button
-            onClick={() => {
-              const values = ramp.steps.map((step) => maxSrgbChroma(step.oklch.l, step.oklch.h));
-              setChromaCurveValues(scale.id, values);
-            }}
-            className="focus-visible-ring"
-            style={{
-              flex: 1,
-              padding: '5px 8px',
-              fontSize: 12,
-              background: 'var(--p-bg)',
-              border: '1px solid var(--p-border)',
-              borderRadius: 6,
-              color: 'var(--p-text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            Pin to sRGB
-          </button>
-          <button
-            onClick={() => {
-              const values = ramp.steps.map((step) => maxP3Chroma(step.oklch.l, step.oklch.h));
-              setChromaCurveValues(scale.id, values);
-            }}
-            className="focus-visible-ring"
-            style={{
-              flex: 1,
-              padding: '5px 8px',
-              fontSize: 12,
-              background: 'var(--p-bg)',
-              border: '1px solid var(--p-border)',
-              borderRadius: 6,
-              color: 'var(--p-text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            Pin to P3
-          </button>
+      </div>
+
+      {/* Gamut: pin chroma to a boundary, and compare P3 against its sRGB fallback */}
+      <div style={sectionStyle}>
+        <SectionLabel>Gamut</SectionLabel>
+
+        {targetGamut === 'p3' ? (
+          <>
+            <GamutPalettes ramp={ramp} />
+            <p style={{ fontSize: 11, color: 'var(--p-text-secondary)', margin: '8px 0 0', lineHeight: 1.4 }}>
+              {p3StepCount === 0
+                ? 'Every step already fits in sRGB, so both rows are identical.'
+                : `${p3StepCount} of ${ramp.steps.length} steps reach into Display P3. The sRGB row is the hex fallback those steps export, and what an sRGB display shows.`}
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: 11, color: 'var(--p-text-secondary)', margin: 0, lineHeight: 1.4 }}>
+            This palette is sRGB-only: chroma is capped at the sRGB boundary and no
+            step carries a Display P3 value. Set Gamut to Display P3 in the
+            top-bar menu to author wide-gamut steps.
+          </p>
+        )}
+
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          {PIN_TARGETS.filter((target) => targetGamut === 'p3' || target.gamut === 'srgb').map(
+            (target) => (
+              <button
+                key={target.gamut}
+                onClick={() => {
+                  const { values, smoothing } = pinChromaCurveToGamut(scale, target.gamut);
+                  setChromaCurveValues(scale.id, values, smoothing);
+                  setPinnedGamut(target.gamut);
+                }}
+                className="focus-visible-ring"
+                title={`Set every step's chroma to the highest value that stays inside ${target.label}. Chroma smoothing is cleared, since smoothing would pull steps off the boundary.`}
+                style={{
+                  flex: 1,
+                  padding: '5px 8px',
+                  fontSize: 12,
+                  background: 'var(--p-bg)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  color: 'var(--p-text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Pin to {target.label}
+              </button>
+            ),
+          )}
         </div>
+
+        <p
+          role="status"
+          style={{ fontSize: 11, color: 'var(--p-text-secondary)', margin: '6px 0 0', lineHeight: 1.4 }}
+        >
+          {pinSummary}
+        </p>
       </div>
 
       {/* Curve Smoothing */}

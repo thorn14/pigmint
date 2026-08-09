@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
-import type { ColorScale, PaletteState, PortableVocabulary, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
+import type { ColorScale, GamutTarget, PaletteState, PortableVocabulary, SavedPalette, StepNamingConfig, StepNamingPreset } from '../types/palette';
 import { remapPortableVocabularyRamps } from '@pigmint/core';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
 import {
@@ -90,11 +90,11 @@ interface PaletteActions {
   updateChromaHigh: (id: string, high: number) => void;
   updateSourceAlpha: (id: string, alpha: number) => void;
   setChromaShapeAll: (low: number, peak: number, high: number) => void;
-  setChromaCurveValues: (id: string, values: number[]) => void;
+  setChromaCurveValues: (id: string, values: number[], smoothing?: number) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
-  toggleSrgbPreview: () => void;
+  setTargetGamut: (gamut: GamutTarget) => void;
   toggleScaleLock: (id: string) => void;
   undo: () => void;
   redo: () => void;
@@ -345,6 +345,30 @@ function inflatePalette(
 
 const STORAGE_KEY = 'pigmint:color-tokens';
 const LEGACY_STORAGE_KEY = 'palette-pal:color-tokens';
+const TARGET_GAMUT_KEY = 'pigmint:target-gamut:v1';
+
+/**
+ * The target gamut decides what the engine generates, not just how it renders,
+ * so it is remembered across reloads: coming back to a session should not
+ * silently widen an sRGB-only palette back into P3.
+ */
+function readTargetGamut(): GamutTarget {
+  if (typeof localStorage === 'undefined') return 'p3';
+  try {
+    return localStorage.getItem(TARGET_GAMUT_KEY) === 'srgb' ? 'srgb' : 'p3';
+  } catch {
+    return 'p3';
+  }
+}
+
+function persistTargetGamut(gamut: GamutTarget) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(TARGET_GAMUT_KEY, gamut);
+  } catch {
+    /* quota/privacy mode — silently drop */
+  }
+}
 
 export function migrateLegacyStorage(): string | null {
   if (typeof localStorage === 'undefined') return null;
@@ -398,7 +422,7 @@ function loadInitialState(): PaletteState {
       scales: active.scales,
       activeScaleId: active.activeScaleId,
       focusedStepRef: null,
-      srgbPreview: false,
+      targetGamut: readTargetGamut(),
     };
   }
 
@@ -417,7 +441,7 @@ function loadInitialState(): PaletteState {
       scales,
       activeScaleId,
       focusedStepRef: null,
-      srgbPreview: false,
+      targetGamut: readTargetGamut(),
     };
   }
 
@@ -430,7 +454,7 @@ function loadInitialState(): PaletteState {
     scales: [],
     activeScaleId: null,
     focusedStepRef: null,
-    srgbPreview: false,
+    targetGamut: readTargetGamut(),
   };
 }
 
@@ -442,7 +466,11 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     selectedScaleIds: [] as string[],
     _isCurveEditing: false,
 
-    toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
+    setTargetGamut: (gamut) => set((state) => {
+      if (state.targetGamut === gamut) return;
+      state.targetGamut = gamut;
+      persistTargetGamut(gamut);
+    }),
 
     flushCurrentPalette: () => set((state) => {
       const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
@@ -927,12 +955,13 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       }
     }),
 
-    setChromaCurveValues: (id, values) => set((state) => {
+    setChromaCurveValues: (id, values, smoothing) => set((state) => {
       pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const clamped = values.slice(0, scale.stepCount);
       scale.curves.chroma.values = clamped;
+      if (smoothing !== undefined) scale.curves.chroma.smoothing = smoothing;
       // Sync scalar fields so updateSourceHex and Apply-to-all stay consistent
       if (clamped.length > 0) {
         scale.chromaLow = clamped[0];
@@ -1170,6 +1199,13 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 // Selector helpers
 export const selectActiveScale = (state: PaletteState & PaletteActions & InternalState): ColorScale | undefined =>
   state.scales.find((s) => s.id === (state.activeScaleId ?? state.scales[0]?.id));
+
+/**
+ * The gamut every ramp is generated into. Read this wherever a ramp is built or
+ * a P3-specific affordance is rendered, so `'srgb'` really does remove P3 from
+ * the app rather than only from the swatch colors.
+ */
+export const useTargetGamut = (): GamutTarget => usePaletteStore((s) => s.targetGamut);
 
 export const selectCanUndo = (state: PaletteState & PaletteActions & InternalState): boolean =>
   state._past.length > 0;
