@@ -25,7 +25,8 @@
         },
         "gamut": {
           "enum": ["srgb", "p3"],
-          "description": "Widest gamut ramps may occupy. Default p3. With srgb, no primitive carries a Display-P3 representation."
+          "default": "p3",
+          "description": "Widest gamut ramps may occupy. Defaults to p3. With srgb, no primitive carries a Display-P3 representation."
         },
         "resolver": {
           "type": "object",

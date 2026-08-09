@@ -123,11 +123,12 @@ export async function loadRampFromPrimitives(
     const dv = token.$value;
     if (!dv?.hex || !dv.components) continue;
     // `hex` is only the sRGB fallback, so a wide-gamut step's real chroma lives
-    // in the oklch extension. Without it the step is treated as sRGB-only —
-    // reading chroma back off the clamped hex would silently narrow the ramp.
-    const stored = token.$extensions?.oklch;
-    const oklch = stored ?? hexToOklch(dv.hex);
-    const gamut: GamutTarget = stored && dv.colorSpace === 'display-p3' ? 'p3' : 'srgb';
+    // in the oklch extension; reading chroma back off the clamped hex would
+    // silently narrow the ramp. The gamut stays at the default P3 ceiling so
+    // that chroma survives, and each step's actual level is then derived from
+    // the color rather than taken from the file's `colorSpace` declaration —
+    // a step that fits in sRGB still comes back as sRGB either way.
+    const oklch = token.$extensions?.oklch ?? hexToOklch(dv.hex);
     steps.push(
       buildGeneratedStep({
         name: key,
@@ -135,7 +136,6 @@ export async function loadRampFromPrimitives(
         c: oklch.c,
         h: oklch.h ?? 0,
         alpha: oklch.alpha ?? dv.alpha,
-        gamut,
         fallbackHex: dv.hex,
       }),
     );
