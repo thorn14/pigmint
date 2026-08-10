@@ -358,11 +358,14 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* Gamut boundaries. The target's ceiling is a wall — chroma is clamped
-              to it — so it is drawn solid with the unreachable chroma above it
-              shaded out. Only in P3 mode is there also a crossing to mark: the
-              dashed sRGB line, above which a step starts needing P3. In sRGB
-              mode there is no such crossing, so no dashed line is drawn.
+          {/* Gamut boundaries, drawn as lines only: the chroma above a ceiling is
+              unreachable, but shading it would cover the swatches themselves,
+              and near the ends of the ramp the ceiling is low enough that the
+              shading swallows almost the whole column.
+              A solid line is the target's ceiling — chroma is clamped to it, so
+              it cannot be crossed. A dashed line is a crossing rather than a
+              limit, so it only exists in P3 mode, at the sRGB ceiling, above
+              which a step starts needing P3.
               Positions are in raw-chroma space so a handle sitting on a line
               means the same thing as the gamut decision, which uses smoothed
               chroma. */}
@@ -391,13 +394,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
 
             return (
               <g key={`gamut-${i}`}>
-                <rect
-                  x={x1}
-                  y={padTop}
-                  width={colW}
-                  height={Math.max(0, ceilingY - padTop)}
-                  fill="rgba(0,0,0,0.3)"
-                />
                 <line
                   x1={x1} y1={ceilingY}
                   x2={x1 + colW} y2={ceilingY}
