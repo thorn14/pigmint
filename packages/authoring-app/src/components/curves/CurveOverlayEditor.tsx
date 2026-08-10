@@ -358,11 +358,14 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* Gamut boundary lines. In sRGB mode only the sRGB ceiling is drawn,
-              since chroma cannot go past it; in P3 mode the sRGB line marks
-              where steps start needing P3 and the P3 line is the hard ceiling.
-              Drawn in raw-chroma space so a handle sitting on a line means the
-              same thing as the gamut decision, which uses smoothed chroma. */}
+          {/* Gamut boundaries. The target's ceiling is a wall — chroma is clamped
+              to it — so it is drawn solid with the unreachable chroma above it
+              shaded out. Only in P3 mode is there also a crossing to mark: the
+              dashed sRGB line, above which a step starts needing P3. In sRGB
+              mode there is no such crossing, so no dashed line is drawn.
+              Positions are in raw-chroma space so a handle sitting on a line
+              means the same thing as the gamut decision, which uses smoothed
+              chroma. */}
           {ramp.steps.map((step, i) => {
             const chromaMeta = CURVES.find((c) => c.key === 'chroma')!;
             const chromaSmoothing = scale.curves.chroma.smoothing ?? 0;
@@ -371,7 +374,6 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
             const t = Math.min(1, Math.max(0, chromaSmoothing));
             const colW = size.width / n;
             const x1 = i * colW;
-            const x2 = x1 + colW;
 
             const toRawSpace = (ceiling: number): number => {
               if (t <= 0 || !isInterior) return ceiling;
@@ -381,26 +383,38 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick, 
               return k > 1e-4 ? (ceiling - (prev + next) * 0.25 * t) / k : ceiling;
             };
 
-            const boundaries = targetGamut === 'srgb'
-              ? [{ key: 'srgb', ceiling: step.maxSrgbC, opacity: 0.75 }]
-              : [
-                  { key: 'srgb', ceiling: step.maxSrgbC, opacity: 0.4 },
-                  { key: 'p3', ceiling: step.maxP3C, opacity: 0.75 },
-                ];
+            const yFor = (ceiling: number): number =>
+              getPoint(toRawSpace(ceiling), i, chromaMeta.min, chromaMeta.max).y;
 
-            return boundaries.map(({ key, ceiling, opacity }) => {
-              const pt = getPoint(toRawSpace(ceiling), i, chromaMeta.min, chromaMeta.max);
-              return (
-                <line
-                  key={`${key}-${i}`}
-                  x1={x1} y1={pt.y}
-                  x2={x2} y2={pt.y}
-                  stroke={`rgba(255,255,255,${opacity})`}
-                  strokeWidth={1.5}
-                  strokeDasharray="3 2"
+            const ceilingY = yFor(targetGamut === 'srgb' ? step.maxSrgbC : step.maxP3C);
+            const p3CrossingY = targetGamut === 'p3' ? yFor(step.maxSrgbC) : null;
+
+            return (
+              <g key={`gamut-${i}`}>
+                <rect
+                  x={x1}
+                  y={padTop}
+                  width={colW}
+                  height={Math.max(0, ceilingY - padTop)}
+                  fill="rgba(0,0,0,0.3)"
                 />
-              );
-            });
+                <line
+                  x1={x1} y1={ceilingY}
+                  x2={x1 + colW} y2={ceilingY}
+                  stroke="rgba(255,255,255,0.75)"
+                  strokeWidth={1.5}
+                />
+                {p3CrossingY !== null && (
+                  <line
+                    x1={x1} y1={p3CrossingY}
+                    x2={x1 + colW} y2={p3CrossingY}
+                    stroke="rgba(255,255,255,0.4)"
+                    strokeWidth={1.5}
+                    strokeDasharray="3 2"
+                  />
+                )}
+              </g>
+            );
           })}
 
           {CURVES.map((curve) => {
