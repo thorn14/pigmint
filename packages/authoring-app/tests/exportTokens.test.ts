@@ -16,6 +16,7 @@ function step(name: string, hex: string, alpha?: number): GeneratedStep {
     relativeLuminance: 0.2,
     gamut: 'srgb',
     maxSrgbC: 0.1,
+    maxP3C: 0.13,
   };
 }
 

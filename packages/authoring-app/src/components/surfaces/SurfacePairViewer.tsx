@@ -5,7 +5,7 @@ import type {
   GeneratedRamp,
   ResolvedToken,
 } from '@pigmint/core';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { useIntentStore, type EngineMode } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { continuousStepLabel, runResolve } from '../../lib/resolveState';
@@ -238,6 +238,7 @@ const cellBody: React.CSSProperties = {
 
 export function SurfacePairViewer() {
   const scales = usePaletteStore((s) => s.scales);
+  const gamut = useTargetGamut();
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
@@ -269,9 +270,10 @@ export function SurfacePairViewer() {
         engineCompliance,
         vocabCtx,
         engineResolver,
+        gamut,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries],
+    [scales, engineModes, engineTarget, engineCompliance, engineResolver, vocabEntries, gamut],
   );
 
   const rampsByName = useMemo(() => {

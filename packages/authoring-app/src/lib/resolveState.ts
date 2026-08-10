@@ -12,7 +12,7 @@ import {
   type VocabularyEntry,
   type SurfaceStepDecl,
 } from '@pigmint/core';
-import type { ComplianceTarget } from '@pigmint/core';
+import type { ComplianceTarget, GamutTarget } from '@pigmint/core';
 import type { EngineMode, EngineCompliance } from '../store/intentStore';
 import type { ColorScale } from '../types/palette';
 
@@ -63,6 +63,7 @@ export function runResolve(
   engineCompliance: EngineCompliance,
   vocabCtx: ResolveVocabContext | null,
   resolver?: ResolverConfig,
+  gamut: GamutTarget = 'p3',
 ): ResolutionState {
   if (!vocabCtx) {
     return { ok: false, error: 'Load a tokens.yaml in the Tokens tab to get started.' };
@@ -72,7 +73,7 @@ export function runResolve(
   }
   let ramps: GeneratedRamp[];
   try {
-    ramps = scales.map((s) => generateRamp(s));
+    ramps = scales.map((s) => generateRamp(s, { gamut }));
   } catch (err) {
     return { ok: false, error: `Ramp generation failed: ${(err as Error).message}` };
   }
@@ -93,6 +94,7 @@ export function runResolve(
       compliance: engineCompliance,
       target: engineTarget,
       modes: engineModes,
+      gamut,
       ...(resolver ? { resolver } : {}),
     },
     ramps: scales.map((s) => ({ name: s.name, source: s.sourceHex })),
@@ -154,6 +156,7 @@ export function buildPigmintTokensJson(
   engineCompliance: EngineCompliance,
   vocabCtx: ResolveVocabContext | null,
   resolver: ResolverConfig = { mode: 'continuous' },
+  gamut: GamutTarget = 'p3',
 ): PigmintTokensBuild | PigmintTokensBuildFailure {
   const state = runResolve(
     scales,
@@ -162,6 +165,7 @@ export function buildPigmintTokensJson(
     engineCompliance,
     vocabCtx,
     resolver,
+    gamut,
   );
   if (!state.ok) return { ok: false, error: state.error };
   try {

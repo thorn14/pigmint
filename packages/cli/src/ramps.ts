@@ -2,15 +2,15 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   buildDefaultCurves,
+  buildGeneratedStep,
   generateRamp,
   hexToOklch,
-  getRelativeLuminance,
-  maxSrgbChroma,
 } from '@pigmint/core';
 import type {
   ColorScale,
   DtcgColorValue,
   DtcgContainer,
+  GamutTarget,
   GeneratedRamp,
   GeneratedStep,
   ProjectConfig,
@@ -70,8 +70,11 @@ export function buildScaleFromConfig(ramp: RampConfig): ColorScale {
   };
 }
 
-export function generateRampFromConfig(ramp: RampConfig): GeneratedRamp {
-  return generateRamp(buildScaleFromConfig(ramp));
+export function generateRampFromConfig(
+  ramp: RampConfig,
+  gamut: GamutTarget = 'p3',
+): GeneratedRamp {
+  return generateRamp(buildScaleFromConfig(ramp), { gamut });
 }
 
 export async function loadRampFromPrimitives(
@@ -113,22 +116,29 @@ export async function loadRampFromPrimitives(
   for (const [key, val] of Object.entries(rampData as Record<string, unknown>)) {
     if (key === '$type') continue;
     if (!val || typeof val !== 'object') continue;
-    const token = val as { $value?: DtcgColorValue };
+    const token = val as {
+      $value?: DtcgColorValue;
+      $extensions?: { oklch?: { l: number; c: number; h: number; alpha?: number } };
+    };
     const dv = token.$value;
     if (!dv?.hex || !dv.components) continue;
-    const [r = 0, g = 0, b = 0] = dv.components;
-    const hex = dv.hex;
-    const oklch = hexToOklch(hex);
-    const isP3 = dv.colorSpace === 'display-p3';
-    steps.push({
-      name: key,
-      hex,
-      oklch,
-      gamut: isP3 ? 'p3' : 'srgb',
-      srgb: { r, g, b },
-      relativeLuminance: getRelativeLuminance(hex),
-      maxSrgbC: maxSrgbChroma(oklch.l, oklch.h ?? 0),
-    });
+    // `hex` is only the sRGB fallback, so a wide-gamut step's real chroma lives
+    // in the oklch extension; reading chroma back off the clamped hex would
+    // silently narrow the ramp. The gamut stays at the default P3 ceiling so
+    // that chroma survives, and each step's actual level is then derived from
+    // the color rather than taken from the file's `colorSpace` declaration —
+    // a step that fits in sRGB still comes back as sRGB either way.
+    const oklch = token.$extensions?.oklch ?? hexToOklch(dv.hex);
+    steps.push(
+      buildGeneratedStep({
+        name: key,
+        l: oklch.l,
+        c: oklch.c,
+        h: oklch.h ?? 0,
+        alpha: oklch.alpha ?? dv.alpha,
+        fallbackHex: dv.hex,
+      }),
+    );
   }
 
   if (steps.length === 0) {
@@ -139,12 +149,13 @@ export async function loadRampFromPrimitives(
 }
 
 export async function generateAllRamps(config: ProjectConfig): Promise<GeneratedRamp[]> {
+  const gamut: GamutTarget = config.engine.gamut ?? 'p3';
   const results: GeneratedRamp[] = [];
   for (const ramp of config.ramps) {
     if (ramp.fromFile) {
       results.push(await loadRampFromPrimitives(ramp.name, ramp.fromFile));
     } else {
-      results.push(generateRampFromConfig(ramp));
+      results.push(generateRampFromConfig(ramp, gamut));
     }
   }
   return results;

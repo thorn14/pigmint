@@ -1,10 +1,9 @@
-import type { ColorScale, GeneratedRamp } from '../types/palette';
+import type { ColorScale, GamutTarget, GeneratedRamp } from '../types/palette';
 import { formatCss } from 'culori';
 import {
   computeHueShift,
   deltaEOklch,
-  maxP3Chroma,
-  maxSrgbChroma,
+  maxChromaForGamut,
   smoothCurveValues,
 } from './colorMath';
 
@@ -177,12 +176,6 @@ export function buildMonotoneCubicInterpolant(xs: number[], ys: number[]): (x: n
 
 const SCALE_GRADIENT_SAMPLES = 16;
 
-export type GamutTarget = 'srgb' | 'p3';
-
-function maxChromaFor(l: number, h: number, gamut: GamutTarget): number {
-  return gamut === 'srgb' ? maxSrgbChroma(l, h) : maxP3Chroma(l, h);
-}
-
 function oklchStop(l: number, c: number, h: number, alpha: number): string {
   return (
     formatCss({ mode: 'oklch', l, c, h, alpha }) ??
@@ -236,7 +229,7 @@ export function buildScaleLinearGradientCss(
       scale.hueShift.darkEndAdjust,
     );
     const h = (((scale.sourceOklch.h + baseDeltaH + shift) % 360) + 360) % 360;
-    const cClamped = Math.min(c, maxChromaFor(l, h, gamut));
+    const cClamped = Math.min(c, maxChromaForGamut(gamut, l, h));
     const color = oklchStop(l, cClamped, h, alpha);
     const pos = halfCol + t * (100 - 2 * halfCol);
     if (s === 0) stops.push(`${color} 0%`);

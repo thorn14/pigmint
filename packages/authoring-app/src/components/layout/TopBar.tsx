@@ -6,6 +6,7 @@ import { AppStringSelect, AppToolbarSegmented } from '../base-ui';
 import { ManagePalettesModal } from '../palette/ManagePalettesModal';
 import { ColorWheelIcon } from '../icons/ColorWheelIcon';
 import { useIsNarrow } from '../../hooks/useViewportWidth';
+import type { GamutTarget } from '../../types/palette';
 
 const NEW_PALETTE_SENTINEL = '__new__';
 const MANAGE_PALETTE_SENTINEL = '__manage__';
@@ -80,8 +81,8 @@ interface Props {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
-  srgbPreview: boolean;
-  onToggleSrgbPreview: () => void;
+  targetGamut: GamutTarget;
+  onTargetGamutChange: (gamut: GamutTarget) => void;
 }
 
 const menuItemStyle: React.CSSProperties = {
@@ -107,6 +108,15 @@ const groupLabelStyle: React.CSSProperties = {
   color: 'var(--p-text-secondary)',
 };
 
+const hintStyle: React.CSSProperties = {
+  margin: 0,
+  padding: '2px 12px 6px',
+  fontSize: 10,
+  lineHeight: 1.4,
+  color: 'var(--p-text-secondary)',
+  maxWidth: 240,
+};
+
 const radioItemStyle: React.CSSProperties = {
   padding: '6px 12px',
   fontSize: 12,
@@ -122,11 +132,13 @@ function MenuRadioGroup<V extends string>({
   value,
   onValueChange,
   options,
+  hint,
 }: {
   label: string;
   value: V;
   onValueChange: (v: V) => void;
   options: readonly { value: V; label: string }[];
+  hint?: string;
 }) {
   return (
     <Menu.Group>
@@ -161,6 +173,9 @@ function MenuRadioGroup<V extends string>({
           </Menu.RadioItem>
         ))}
       </Menu.RadioGroup>
+      {hint && (
+        <p style={hintStyle}>{hint}</p>
+      )}
     </Menu.Group>
   );
 }
@@ -168,8 +183,8 @@ function MenuRadioGroup<V extends string>({
 function OverflowMenu({
   theme,
   onThemeChange,
-  srgbPreview,
-  onToggleSrgbPreview,
+  targetGamut,
+  onTargetGamutChange,
   onSave,
   onPreview,
   onImport,
@@ -178,8 +193,8 @@ function OverflowMenu({
 }: {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
-  srgbPreview: boolean;
-  onToggleSrgbPreview: () => void;
+  targetGamut: GamutTarget;
+  onTargetGamutChange: (gamut: GamutTarget) => void;
   onSave: () => void;
   onPreview: () => void;
   onImport: () => void;
@@ -193,7 +208,6 @@ function OverflowMenu({
   const engineResolver = useIntentStore((s) => s.engineResolver);
   const setResolverMode = useIntentStore((s) => s.setResolverMode);
   const resolverMode = engineResolver.mode === 'continuous' ? 'continuous' : 'stepped';
-  const gamutValue = srgbPreview ? 'srgb' : 'p3';
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
@@ -282,15 +296,17 @@ function OverflowMenu({
             <Menu.Separator style={menuSeparatorStyle} />
             <MenuRadioGroup
               label="Gamut"
-              value={gamutValue}
-              onValueChange={(v) => {
-                const wantSrgb = v === 'srgb';
-                if (wantSrgb !== srgbPreview) onToggleSrgbPreview();
-              }}
+              value={targetGamut}
+              onValueChange={(v) => onTargetGamutChange(v === 'srgb' ? 'srgb' : 'p3')}
               options={[
                 { value: 'p3', label: 'Display P3' },
-                { value: 'srgb', label: 'sRGB' },
+                { value: 'srgb', label: 'sRGB only' },
               ]}
+              hint={
+                targetGamut === 'srgb'
+                  ? 'Ramps are clamped to sRGB. No Display P3 steps are generated, shown, or exported.'
+                  : 'Steps may reach into Display P3, alongside an sRGB hex fallback.'
+              }
             />
             <Menu.Separator style={menuSeparatorStyle} />
             <Menu.Item
@@ -324,7 +340,7 @@ function OverflowMenu({
   );
 }
 
-export function TopBar({ onExport, onImport, onSave, onPreview, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
+export function TopBar({ onExport, onImport, onSave, onPreview, mode, onModeChange, theme, onThemeChange, saveStatus, targetGamut, onTargetGamutChange }: Props) {
   const narrow = useIsNarrow();
   return (
     <header
@@ -411,8 +427,8 @@ export function TopBar({ onExport, onImport, onSave, onPreview, mode, onModeChan
       <OverflowMenu
         theme={theme}
         onThemeChange={onThemeChange}
-        srgbPreview={srgbPreview}
-        onToggleSrgbPreview={onToggleSrgbPreview}
+        targetGamut={targetGamut}
+        onTargetGamutChange={onTargetGamutChange}
         onSave={onSave}
         onPreview={onPreview}
         onImport={onImport}

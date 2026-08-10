@@ -1,26 +1,30 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { formatCss } from 'culori';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { useIntentStore } from '../../store/intentStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
+import { stepDisplayColor } from '../../lib/gamutDisplay';
 
 type ViewMode = 'curves' | 'gradient';
 const VIEW_MODES: readonly ViewMode[] = ['gradient', 'curves'];
 
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+const ROW_HEIGHT = 48;
+const FALLBACK_BAND_HEIGHT = 14;
 
 function ColorSwatchTooltip({
   scale,
   step,
+  showFallback,
   onEditScale,
 }: {
   scale: ColorScale;
   step: GeneratedStep;
+  /** Reserve a band under the swatch for the sRGB hex the step falls back to. */
+  showFallback: boolean;
   onEditScale?: (scaleId: string) => void;
 }) {
-  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -28,7 +32,7 @@ function ColorSwatchTooltip({
   const stepAlpha = step.oklch.alpha;
   const swatchColor = (stepAlpha != null && stepAlpha < 1)
     ? (formatCss({ mode: 'oklch', ...step.oklch }) ?? step.hex)
-    : ((!srgbPreview && supportsP3 && step.displayP3) || step.hex);
+    : stepDisplayColor(step);
 
   useEffect(() => {
     if (!visible || !wrapperRef.current) return;
@@ -39,19 +43,24 @@ function ColorSwatchTooltip({
     });
   }, [visible]);
 
+  const swatchHeight = showFallback ? ROW_HEIGHT - FALLBACK_BAND_HEIGHT : ROW_HEIGHT;
+
   return (
     <div
       ref={wrapperRef}
       role="cell"
-      style={{ position: 'relative', height: 48 }}
+      style={{ position: 'relative', height: ROW_HEIGHT }}
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
     >
       <button
         type="button"
         style={{
-          backgroundColor: swatchColor,
-          height: 48,
+          display: 'block',
+          padding: 0,
+          border: 'none',
+          background: 'none',
+          height: ROW_HEIGHT,
           cursor: onEditScale ? 'pointer' : 'default',
           borderRight: '1px solid var(--p-border)',
           zIndex: visible ? 10 : 'auto',
@@ -59,11 +68,22 @@ function ColorSwatchTooltip({
           width: '100%',
         }}
         className="focus-visible-ring"
-        aria-label={`${scale.name} ${step.name} ${step.hex}`}
+        aria-label={
+          showFallback
+            ? `${scale.name} ${step.name} ${step.hex}, Display P3 with sRGB hex fallback`
+            : `${scale.name} ${step.name} ${step.hex}`
+        }
         onFocus={() => setVisible(true)}
         onBlur={() => setVisible(false)}
         onClick={() => onEditScale?.(scale.id)}
-      />
+      >
+        <span style={{ display: 'block', height: swatchHeight, backgroundColor: swatchColor }} />
+        {showFallback && (
+          <span
+            style={{ display: 'block', height: FALLBACK_BAND_HEIGHT, backgroundColor: step.hex }}
+          />
+        )}
+      </button>
       {visible && (
         <div
           ref={tooltipRef}
@@ -103,16 +123,26 @@ function ColorSwatchTooltip({
                 height: 40,
                 flexShrink: 0,
                 borderRadius: 6,
-                backgroundColor: swatchColor,
+                overflow: 'hidden',
                 border: '1px solid var(--p-border)',
                 boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
               }}
-            />
+            >
+              <div style={{ height: showFallback ? 26 : 40, backgroundColor: swatchColor }} />
+              {showFallback && <div style={{ height: 14, backgroundColor: step.hex }} />}
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: 'var(--p-text)', fontWeight: 600, marginBottom: 4 }}>
                 {scale.name} / {step.name}
               </div>
-              <div style={{ color: 'var(--p-text-secondary)', marginBottom: 4 }}>{step.hex}</div>
+              {step.gamut === 'p3' && step.displayP3 ? (
+                <div style={{ color: 'var(--p-text-secondary)', marginBottom: 4, fontSize: 11 }}>
+                  <div style={{ wordBreak: 'break-all' }}>{step.displayP3}</div>
+                  <div>{step.hex} <span style={{ opacity: 0.7 }}>sRGB fallback</span></div>
+                </div>
+              ) : (
+                <div style={{ color: 'var(--p-text-secondary)', marginBottom: 4 }}>{step.hex}</div>
+              )}
               <div style={{ color: 'var(--p-text-secondary)', fontSize: 11 }}>
                 L {step.oklch.l.toFixed(2)} C {step.oklch.c.toFixed(3)} h {step.oklch.h.toFixed(0)}°
               </div>
@@ -158,6 +188,10 @@ function PreviewRow({
   onEditScale?: (scaleId: string) => void;
 }) {
   const ramp = useGeneratedRamp(scale);
+  // One band under the whole row rather than only under the P3 steps: it reads
+  // as the sRGB palette sitting next to the P3 one, and stays invisible on the
+  // steps where the two agree.
+  const showFallback = ramp.steps.some((step) => step.gamut === 'p3');
   return (
     <>
       {ramp.steps.slice(0, colCount).map((step) => (
@@ -165,6 +199,7 @@ function PreviewRow({
           key={step.name}
           scale={scale}
           step={step}
+          showFallback={showFallback}
           onEditScale={onEditScale}
         />
       ))}
@@ -234,13 +269,14 @@ function GradientPreviewRow({
   scale: ColorScale;
   onEditScale?: (scaleId: string) => void;
 }) {
-  const background = useMemo(() => buildScaleLinearGradientCss(scale), [scale]);
+  const gamut = useTargetGamut();
+  const background = useMemo(() => buildScaleLinearGradientCss(scale, { gamut }), [scale, gamut]);
   return (
     <div
       role="cell"
       style={{
         minWidth: 0,
-        height: 48,
+        height: ROW_HEIGHT,
         position: 'relative',
         display: 'flex',
         background,
@@ -407,7 +443,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
                 <div
                   role="rowheader"
                   style={{
-                    height: 48,
+                    height: ROW_HEIGHT,
                     display: 'flex',
                     alignItems: 'center',
                     paddingInline: 12,

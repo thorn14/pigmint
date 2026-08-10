@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { formatCss } from 'culori';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { useIntentStore, useEffectiveMode, CVD_PROFILE_OPTIONS } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { runResolve } from '../../lib/resolveState';
@@ -114,6 +114,7 @@ function buildRows(
 
 export function TokensSampleView() {
   const scales           = usePaletteStore((s) => s.scales);
+  const gamut            = useTargetGamut();
   const engineModes      = useIntentStore((s) => s.engineModes);
   const engineTarget     = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
@@ -154,8 +155,8 @@ export function TokensSampleView() {
   }, [vocabEntries, vocabRaw, vocabSurfacePaths, vocabSurfaceSteps, vocabSemanticSteps]);
 
   const resolution = useMemo(
-    () => runResolve(scales, engineModes, engineTarget, engineCompliance, vocabCtx, engineResolver),
-    [scales, engineModes, engineTarget, engineCompliance, vocabCtx, engineResolver],
+    () => runResolve(scales, engineModes, engineTarget, engineCompliance, vocabCtx, engineResolver, gamut),
+    [scales, engineModes, engineTarget, engineCompliance, vocabCtx, engineResolver, gamut],
   );
 
   const cards = useMemo(() => {

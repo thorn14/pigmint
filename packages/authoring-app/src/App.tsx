@@ -14,7 +14,7 @@ import { ImportModal } from './components/export/ImportModal';
 import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { PalettePreviewModal } from './components/preview/PalettePreviewModal';
-import { usePaletteStore, selectActiveScale } from './store/paletteStore';
+import { usePaletteStore, selectActiveScale, useTargetGamut } from './store/paletteStore';
 import { useIntentStore } from './store/intentStore';
 import { initVocabStore, useVocabStore } from './store/vocabStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
@@ -214,8 +214,8 @@ export default function App() {
   const activePaletteId = usePaletteStore((s) => s.activePaletteId);
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
-  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
-  const toggleSrgbPreview = usePaletteStore((s) => s.toggleSrgbPreview);
+  const targetGamut = useTargetGamut();
+  const setTargetGamut = usePaletteStore((s) => s.setTargetGamut);
   const previewBgSurface = useIntentStore((s) => s.previewBgSurface);
   const vocabRaw = useVocabStore((s) => s.raw);
 
@@ -298,7 +298,7 @@ export default function App() {
     const rampMap = new Map<string, GeneratedRamp>();
     for (const scale of scales) {
       try {
-        rampMap.set(scale.name, generateRamp(scale));
+        rampMap.set(scale.name, generateRamp(scale, { gamut: targetGamut }));
       } catch {
         /* skip broken scale */
       }
@@ -311,7 +311,7 @@ export default function App() {
     }
     applyPreviewBgChrome(hex);
     return () => clearPreviewBgChrome();
-  }, [previewBgSurface, vocabRaw, scales, theme]);
+  }, [previewBgSurface, vocabRaw, scales, theme, targetGamut]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -481,8 +481,8 @@ export default function App() {
           theme={theme}
           onThemeChange={setTheme}
           saveStatus={saveStatus}
-          srgbPreview={srgbPreview}
-          onToggleSrgbPreview={toggleSrgbPreview}
+          targetGamut={targetGamut}
+          onTargetGamutChange={setTargetGamut}
         />
       </div>
 

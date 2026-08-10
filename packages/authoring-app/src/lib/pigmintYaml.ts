@@ -12,6 +12,7 @@ import {
   TAILWIND_STEPS,
   type ComplianceTarget,
   type CvdProfile,
+  type GamutTarget,
   type ResolverConfig,
 } from '@pigmint/core';
 import type { ColorScale } from '../types/palette';
@@ -31,6 +32,7 @@ export interface PigmintEngine {
   modes: EngineMode[];
   cvd?: CvdProfile[];
   resolver?: ResolverConfig;
+  gamut?: GamutTarget;
 }
 
 export interface PigmintYamlRamp {
@@ -72,6 +74,7 @@ const DEFAULT_ENGINE: PigmintEngine = {
   modes: ['light', 'dark'],
   cvd: [],
   resolver: { mode: 'stepped' },
+  gamut: 'p3',
 };
 
 const DEFAULT_OUTPUT: PigmintYamlDoc['output'] = {
@@ -144,6 +147,7 @@ export function serializePigmintYaml(input: SerializeInput): string {
     modes: sanitizeModes(engineInput.modes),
     cvd: sanitizeCvd(engineInput.cvd),
     resolver: sanitizeResolver(engineInput.resolver),
+    gamut: engineInput.gamut === 'srgb' ? 'srgb' : 'p3',
   };
   const doc: PigmintYamlDoc = {
     engine,
@@ -169,7 +173,8 @@ function parseEngine(raw: unknown): PigmintEngine {
   const modes = sanitizeModes(raw.modes);
   const cvd = sanitizeCvd(raw.cvd);
   const resolver = sanitizeResolver(raw.resolver);
-  return { compliance, target, modes, cvd, resolver };
+  const gamut: GamutTarget = raw.gamut === 'srgb' ? 'srgb' : 'p3';
+  return { compliance, target, modes, cvd, resolver, gamut };
 }
 
 function sanitizeModes(raw: unknown): EngineMode[] {
@@ -207,6 +212,7 @@ export function parsePigmintYaml(
     throw new Error('pigmint.yaml is missing a `ramps` list');
   }
 
+  const engine = parseEngine(parsed.engine);
   const scales: ImportedScale[] = [];
   for (const entry of ramps) {
     if (!isObj(entry)) continue;
@@ -287,7 +293,7 @@ export function parsePigmintYaml(
         chromaLow,
         chromaHigh,
       };
-      const generated = generateRamp(colorScale);
+      const generated = generateRamp(colorScale, { gamut: engine.gamut });
       scales.push({
         name,
         sourceHex: hex,
@@ -326,7 +332,6 @@ export function parsePigmintYaml(
   }
 
   const intents = isObj(parsed.intents) ? (parsed.intents as IntentOverrides) : {};
-  const engine = parseEngine(parsed.engine);
 
   const doc: PigmintYamlDoc = {
     engine,

@@ -1,3 +1,4 @@
+import type { GamutTarget } from '../math/gamut.js';
 import type { GamutLevel, OklchColor } from './palette.js';
 
 // ─── Formal intent (spec/05) ─────────────────────────────────────────
@@ -222,6 +223,11 @@ export interface EngineConfig {
   modes: string[];
   cvd?: CvdProfile[];
   resolver?: ResolverConfig;
+  /**
+   * Widest gamut ramps may occupy. Default `'p3'`. With `'srgb'` no primitive
+   * carries a Display-P3 representation, so emitted tokens stay sRGB-only.
+   */
+  gamut?: GamutTarget;
 }
 
 /** Inline curve override for a ramp in `pigmint.yaml`. All arrays must have length === stepCount. */

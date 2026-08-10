@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { usePaletteStore } from '../../store/paletteStore';
+import { usePaletteStore, useTargetGamut } from '../../store/paletteStore';
 import { useIntentStore, useEffectiveMode } from '../../store/intentStore';
 import { useVocabStore } from '../../store/vocabStore';
 import { generateRamp } from '../../lib/colorMath';
 import { buildScaleLinearGradientCss } from '../../lib/curveInterpolation';
 import { runResolve } from '../../lib/resolveState';
 import { IntentMarkers } from '../curves/IntentMarkers';
-import type { ColorScale, GeneratedRamp } from '../../types/palette';
+import type { ColorScale, GamutTarget, GeneratedRamp } from '../../types/palette';
 import type { ResolvedToken } from '@pigmint/core';
 
 const PAD = 18;
@@ -21,9 +21,10 @@ interface ScaleGradientRowProps {
   scale: ColorScale;
   ramp: GeneratedRamp;
   tokenData: RowTokenData;
+  gamut: GamutTarget;
 }
 
-function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
+function ScaleGradientRow({ scale, ramp, tokenData, gamut }: ScaleGradientRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: ROW_HEIGHT });
 
@@ -38,7 +39,10 @@ function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
   }, []);
 
   const srgbGradient = useMemo(() => buildScaleLinearGradientCss(scale, { gamut: 'srgb' }), [scale]);
-  const p3Gradient = useMemo(() => buildScaleLinearGradientCss(scale, { gamut: 'p3' }), [scale]);
+  const p3Gradient = useMemo(
+    () => (gamut === 'p3' ? buildScaleLinearGradientCss(scale, { gamut: 'p3' }) : null),
+    [scale, gamut],
+  );
   const n = ramp.steps.length;
 
   const tokens = tokenData.status === 'ok' ? tokenData.tokens : [];
@@ -104,11 +108,13 @@ function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
         }}
         aria-label={`${scale.name} continuous gradient with tokens`}
       >
-        <div
-          className="pigmint-p3-layer"
-          style={{ position: 'absolute', inset: 0, background: p3Gradient }}
-          aria-hidden
-        />
+        {p3Gradient && (
+          <div
+            className="pigmint-p3-layer"
+            style={{ position: 'absolute', inset: 0, background: p3Gradient }}
+            aria-hidden
+          />
+        )}
         <svg
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
@@ -130,6 +136,7 @@ function ScaleGradientRow({ scale, ramp, tokenData }: ScaleGradientRowProps) {
 
 export function TokensGradientView() {
   const scales = usePaletteStore((s) => s.scales);
+  const gamut = useTargetGamut();
   const engineModes = useIntentStore((s) => s.engineModes);
   const engineTarget = useIntentStore((s) => s.engineTarget);
   const engineCompliance = useIntentStore((s) => s.engineCompliance);
@@ -161,13 +168,13 @@ export function TokensGradientView() {
     const map = new Map<string, GeneratedRamp>();
     for (const scale of scales) {
       try {
-        map.set(scale.name, generateRamp(scale));
+        map.set(scale.name, generateRamp(scale, { gamut }));
       } catch (e) {
         console.warn(`[TokensGradientView] generateRamp failed for "${scale.name}":`, e);
       }
     }
     return map;
-  }, [scales]);
+  }, [scales, gamut]);
 
   const resolveResult = useMemo(() => {
     return runResolve(
@@ -177,8 +184,9 @@ export function TokensGradientView() {
       engineCompliance,
       vocabCtxForMarkers,
       engineResolver,
+      gamut,
     );
-  }, [scales, engineModes, engineTarget, engineCompliance, vocabCtxForMarkers, engineResolver]);
+  }, [scales, engineModes, engineTarget, engineCompliance, vocabCtxForMarkers, engineResolver, gamut]);
 
   if (scales.length === 0) {
     return (
@@ -216,6 +224,7 @@ export function TokensGradientView() {
             scale={scale}
             ramp={ramp}
             tokenData={tokenData}
+            gamut={gamut}
           />
         );
       })}
